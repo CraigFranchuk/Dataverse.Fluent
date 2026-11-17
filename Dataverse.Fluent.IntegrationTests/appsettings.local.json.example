@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Example Local Configuration",
+  "description": "Copy this file to appsettings.local.json and update with your values",
+  "Dataverse": {
+    "EnvironmentUrl": "https://yourorg.crm.dynamics.com",
+    "ApiVersion": "v9.2",
+    "AuthMode": "ClientCredentials",
+    "TenantId": "00000000-0000-0000-0000-000000000000",
+    "ClientId": "00000000-0000-0000-0000-000000000000",
+    "ClientSecret": "your-client-secret-here",
+    "AccountAlternateKeyColumn": ""
+  },
+  "_comments": {
+    "AuthMode": "Options: 'ClientCredentials', 'InteractiveBrowser', 'DefaultAzureCredential'",
+    "ClientSecret": "Only required for ClientCredentials mode",
+    "AccountAlternateKeyColumn": "Optional: a text column on Account with a single-column alternate key; the alternate-key tests are skipped without it",
+    "EnvironmentUrl": "Your Dataverse environment URL (without /api/data/v9.2)",
+    "ApiVersion": "Dataverse Web API version (typically v9.2)"
+  }
+}

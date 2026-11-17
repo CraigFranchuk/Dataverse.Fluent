@@ -1,0 +1,11 @@
+root = true
+
+[*.cs]
+# Logging happens once or twice per HTTP request, where the cost of a round trip dwarfs that of
+# formatting a message; LoggerMessage delegates would add code for no measurable gain.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+
+# Select() and Function() mirror the OData and Dataverse terms. Renaming them to avoid Visual Basic
+# keywords would break the public API.
+dotnet_diagnostic.CA1716.severity = none

@@ -1,0 +1,10 @@
+<Solution>
+  <Project Path="Examples/Examples.csproj" />
+  <Project Path="Dataverse.Fluent.Benchmarks/Dataverse.Fluent.Benchmarks.csproj" />
+  <Project Path="Dataverse.Fluent.IntegrationTests/Dataverse.Fluent.IntegrationTests.csproj" Id="19a5614a-278e-4f12-975a-df74c5579aaa" />
+  <Project Path="Dataverse.Fluent.Tests/Dataverse.Fluent.Tests.csproj" Id="3ed8f40a-9473-487e-b619-0b1aff9f9e93" />
+  <Project Path="Dataverse.Fluent/Dataverse.Fluent.csproj" />
+  <Project Path="Dataverse.Fluent.Sales.IntegrationTests/Dataverse.Fluent.Sales.IntegrationTests.csproj" Id="d5b7dee1-cf1f-49a0-818b-5eeda224d079" />
+  <Project Path="Dataverse.Fluent.Sales.Tests/Dataverse.Fluent.Sales.Tests.csproj" Id="5406211d-f285-45ee-a587-0b016f626791" />
+  <Project Path="Dataverse.Fluent.Sales/Dataverse.Fluent.Sales.csproj" Id="2cd09fee-e2db-4b42-9efb-9b9c11896bc6" />
+</Solution>

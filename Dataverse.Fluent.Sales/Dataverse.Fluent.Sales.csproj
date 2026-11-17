@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>Dynamics 365 Sales models and typed actions (QualifyLead, WinOpportunity, CloseIncident, ...) for Dataverse.Fluent.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- The entity models' properties are named after their columns; the classes and SalesClient are documented. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageTags>dynamics;crm;sales;fluent;dataverse;d365</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dataverse.Fluent\Dataverse.Fluent.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Dataverse.Fluent.Sales.Tests" />
+    <InternalsVisibleTo Include="Dataverse.Fluent.Sales.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

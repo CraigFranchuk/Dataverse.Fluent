@@ -1,0 +1,653 @@
+namespace Dataverse.Fluent
+{
+    public sealed class AttributeNameResolver : Dataverse.Fluent.IDataverseNameResolver
+    {
+        public static readonly Dataverse.Fluent.AttributeNameResolver Instance;
+        public AttributeNameResolver() { }
+        public string? ResolveEntityLogicalName(System.Type type) { }
+        public string? ResolveEntitySetName(System.Type type) { }
+        public string? ResolvePropertyName(System.Reflection.MemberInfo member) { }
+    }
+    public class DataverseClient : Dataverse.Fluent.IDataverseClient, System.IDisposable
+    {
+        public DataverseClient(Dataverse.Fluent.IDataverseTransport transport) { }
+        public DataverseClient(Dataverse.Fluent.DataverseClientOptions options, System.Net.Http.HttpClient? httpClient = null, Microsoft.Extensions.Logging.ILogger<Dataverse.Fluent.DataverseClient>? logger = null) { }
+        public DataverseClient(string baseUrl, Azure.Core.TokenCredential credential, System.Net.Http.HttpClient? httpClient = null, Microsoft.Extensions.Logging.ILogger<Dataverse.Fluent.DataverseClient>? logger = null) { }
+        public DataverseClient(string baseUrl, System.Func<System.Threading.Tasks.Task<string>> tokenProvider, System.Net.Http.HttpClient? httpClient = null, Microsoft.Extensions.Logging.ILogger<Dataverse.Fluent.DataverseClient>? logger = null) { }
+        public Dataverse.Fluent.IDataverseTransport Transport { get; }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest, TResponse> Action<TRequest, TResponse>(string actionName)
+            where TRequest :  class { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Aggregate<T>(string? entitySet = null) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder Annotation(System.Guid? annotationId = default) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder Associate() { }
+        public Dataverse.Fluent.Builders.BatchBuilder Batch(System.Guid? batchId = default) { }
+        public Dataverse.Fluent.Builders.DeepInsertBuilder<T> DeepInsert<T>(T parentEntity, string? entitySet = null) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> Delta<T>(string? entitySet = null) { }
+        public void Dispose() { }
+        public Dataverse.Fluent.Builders.EntityBuilder<T> Entity<T>(System.Guid? id = default, string? entitySet = null) { }
+        public Dataverse.Fluent.FetchQueryExecutor<T> Fetch<T>(string fetchXml, Dataverse.Fluent.Builders.FetchXmlOptions? options = null) { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> FetchBuilder<T>(string? entityLogicalName = null, Dataverse.Fluent.Builders.FetchXmlOptions? options = null) { }
+        public Dataverse.Fluent.Builders.EntityFluentBuilder<T> ForEntity<T>(System.Guid entityId, string? entitySet = null) { }
+        public Dataverse.Fluent.Builders.FunctionBuilder<TResponse> Function<TResponse>(string functionName) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Query<T>(string? entitySet = null) { }
+    }
+    public sealed class DataverseClientOptions
+    {
+        public DataverseClientOptions() { }
+        public string BaseUrl { get; set; }
+        public Azure.Core.TokenCredential? Credential { get; set; }
+        public bool IncludeQueryInTelemetry { get; set; }
+        public Dataverse.Fluent.DataverseResilienceOptions Resilience { get; set; }
+        public string? Scope { get; set; }
+        public System.Func<System.Threading.Tasks.Task<string>>? TokenProvider { get; set; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
+    public sealed class DataverseColumnAttribute : System.Attribute
+    {
+        public DataverseColumnAttribute(string logicalName) { }
+        public string LogicalName { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=true)]
+    public sealed class DataverseEntityAttribute : System.Attribute
+    {
+        public DataverseEntityAttribute(string logicalName, string entitySet) { }
+        public string EntitySet { get; }
+        public string LogicalName { get; }
+    }
+    public sealed class DataverseHttpTransport : Dataverse.Fluent.IDataverseTransport, System.IDisposable
+    {
+        public DataverseHttpTransport(Dataverse.Fluent.DataverseClientOptions options, System.Net.Http.HttpClient? httpClient = null, Microsoft.Extensions.Logging.ILogger<Dataverse.Fluent.DataverseHttpTransport>? logger = null) { }
+        public string BaseUrl { get; }
+        public void Dispose() { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.DataverseResponse> SendAsync(Dataverse.Fluent.DataverseRequest request, System.Threading.CancellationToken ct = default) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
+    public sealed class DataverseLookupAttribute : System.Attribute
+    {
+        public DataverseLookupAttribute(string logicalName, string targetEntitySet) { }
+        public string LogicalName { get; }
+        public string NavigationProperty { get; set; }
+        public string TargetEntitySet { get; }
+    }
+    [System.Flags]
+    public enum DataverseOperation
+    {
+        None = 0,
+        Create = 1,
+        Update = 2,
+        CreateAndUpdate = 3,
+        All = 3,
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
+    public class DataverseReadOnlyAttribute : System.Attribute
+    {
+        public DataverseReadOnlyAttribute() { }
+        public DataverseReadOnlyAttribute(Dataverse.Fluent.DataverseOperation excludeFrom) { }
+        public Dataverse.Fluent.DataverseOperation ExcludeFrom { get; set; }
+    }
+    public sealed class DataverseRequest
+    {
+        public DataverseRequest(System.Net.Http.HttpMethod method, string url) { }
+        public System.Net.Http.HttpContent? Content { get; set; }
+        public System.Collections.Generic.IDictionary<string, string> Headers { get; }
+        public System.Net.Http.HttpMethod Method { get; }
+        public System.Text.Json.Nodes.JsonObject? Payload { get; set; }
+        public string Url { get; }
+        public override string ToString() { }
+    }
+    public static class DataverseResilienceExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddDataverseResilienceHandler(this Microsoft.Extensions.DependencyInjection.IHttpClientBuilder builder, System.Action<Dataverse.Fluent.DataverseResilienceOptions>? configure = null) { }
+    }
+    public class DataverseResilienceOptions
+    {
+        public DataverseResilienceOptions() { }
+        public System.TimeSpan AttemptTimeout { get; set; }
+        public bool Enabled { get; set; }
+        public int MaxRetryAttempts { get; set; }
+        public System.TimeSpan MedianFirstRetryDelay { get; set; }
+        public System.TimeSpan TotalRequestTimeout { get; set; }
+    }
+    public sealed class DataverseResponse : System.IDisposable
+    {
+        public DataverseResponse(System.Net.Http.HttpResponseMessage message) { }
+        public System.Guid? EntityId { get; }
+        public string? EntityUrl { get; }
+        public bool HasBody { get; }
+        public System.Net.Http.HttpResponseMessage Message { get; }
+        public System.Net.HttpStatusCode StatusCode { get; }
+        public void Dispose() { }
+        public string? GetHeader(string name) { }
+        public System.Threading.Tasks.Task<TResult?> ReadAsync<TResult>(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<System.Text.Json.Nodes.JsonObject> ReadJsonObjectAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<string> ReadStringAsync(System.Threading.CancellationToken ct = default) { }
+        public static Dataverse.Fluent.DataverseResponse Empty(System.Net.HttpStatusCode statusCode = 204, string? entityUrl = null) { }
+        public static Dataverse.Fluent.DataverseResponse FromJson(System.Text.Json.Nodes.JsonNode? body, System.Net.HttpStatusCode statusCode = 200) { }
+    }
+    public static class DataverseTelemetry
+    {
+        public const string ActivitySourceName = "Dataverse.Fluent";
+        public const string MeterName = "Dataverse.Fluent";
+    }
+    public static class DataverseTransportExtensions
+    {
+        public static System.Threading.Tasks.Task<System.Text.Json.Nodes.JsonObject> ExecuteRequestAsync(this Dataverse.Fluent.IDataverseTransport transport, System.Net.Http.HttpMethod method, string requestUrl, System.Text.Json.Nodes.JsonObject? payload = null, System.Collections.Generic.IDictionary<string, string>? headers = null, System.Threading.CancellationToken ct = default) { }
+        public static System.Threading.Tasks.Task<TResult?> ExecuteRequestAsync<TResult>(this Dataverse.Fluent.IDataverseTransport transport, System.Net.Http.HttpMethod method, string requestUrl, System.Text.Json.Nodes.JsonObject? payload = null, System.Collections.Generic.IDictionary<string, string>? headers = null, System.Threading.CancellationToken ct = default) { }
+        public static System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage> SendRequestAsync(this Dataverse.Fluent.IDataverseTransport transport, System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken ct = default) { }
+    }
+    public static class DataverseTypeMapping
+    {
+        public static void ClearResolvers() { }
+        public static void RegisterResolver(Dataverse.Fluent.IDataverseNameResolver resolver) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=true)]
+    public sealed class EntitySetAttribute : System.Attribute
+    {
+        public EntitySetAttribute(string name) { }
+        public string Name { get; }
+    }
+    public sealed class FetchQueryExecutor<T>
+    {
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Collections.Generic.IAsyncEnumerable<T> StreamAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.FetchQueryExecutor<T> WithOptions(Dataverse.Fluent.Builders.FetchXmlOptions options) { }
+        public Dataverse.Fluent.FetchQueryExecutor<T> WithOptions(System.Action<Dataverse.Fluent.Builders.FetchXmlOptions> configure) { }
+    }
+    public interface IDataverseClient
+    {
+        Dataverse.Fluent.IDataverseTransport Transport { get; }
+        Dataverse.Fluent.Builders.ActionBuilder<TRequest, TResponse> Action<TRequest, TResponse>(string actionName)
+            where TRequest :  class;
+        Dataverse.Fluent.Builders.AggregateBuilder<T> Aggregate<T>(string? entitySet = null);
+        Dataverse.Fluent.Builders.AnnotationBuilder Annotation(System.Guid? annotationId = default);
+        Dataverse.Fluent.Builders.AssociationBuilder Associate();
+        Dataverse.Fluent.Builders.BatchBuilder Batch(System.Guid? batchId = default);
+        Dataverse.Fluent.Builders.DeepInsertBuilder<T> DeepInsert<T>(T parentEntity, string? entitySet = null);
+        Dataverse.Fluent.Builders.DeltaBuilder<T> Delta<T>(string? entitySet = null);
+        Dataverse.Fluent.Builders.EntityBuilder<T> Entity<T>(System.Guid? id = default, string? entitySet = null);
+        Dataverse.Fluent.FetchQueryExecutor<T> Fetch<T>(string fetchXml, Dataverse.Fluent.Builders.FetchXmlOptions? options = null);
+        Dataverse.Fluent.Builders.FetchBuilder<T> FetchBuilder<T>(string? entityLogicalName = null, Dataverse.Fluent.Builders.FetchXmlOptions? options = null);
+        Dataverse.Fluent.Builders.EntityFluentBuilder<T> ForEntity<T>(System.Guid entityId, string? entitySet = null);
+        Dataverse.Fluent.Builders.FunctionBuilder<TResponse> Function<TResponse>(string functionName);
+        Dataverse.Fluent.Builders.QueryBuilder<T> Query<T>(string? entitySet = null);
+    }
+    public interface IDataverseClientFactory
+    {
+        Dataverse.Fluent.IDataverseClient CreateClient();
+        Dataverse.Fluent.IDataverseClient CreateClient(string name);
+    }
+    public interface IDataverseNameResolver
+    {
+        string? ResolveEntityLogicalName(System.Type type);
+        string? ResolveEntitySetName(System.Type type);
+        string? ResolvePropertyName(System.Reflection.MemberInfo member);
+    }
+    public interface IDataverseTransport
+    {
+        string BaseUrl { get; }
+        System.Threading.Tasks.Task<Dataverse.Fluent.DataverseResponse> SendAsync(Dataverse.Fluent.DataverseRequest request, System.Threading.CancellationToken ct = default);
+    }
+    public static class ServiceCollectionExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddDataverseClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Dataverse.Fluent.DataverseClientOptions> configure, System.Action<System.Net.Http.HttpClient>? configureClient = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddDataverseClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Dataverse.Fluent.DataverseClientOptions>? configure = null, System.Action<System.Net.Http.HttpClient>? configureClient = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddDataverseClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string baseUrl, Azure.Core.TokenCredential credential, System.Action<System.Net.Http.HttpClient>? configureClient = null, System.Action<Dataverse.Fluent.DataverseResilienceOptions>? configureResilience = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddDataverseClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string baseUrl, System.Func<System.Threading.Tasks.Task<string>> tokenProvider, System.Action<System.Net.Http.HttpClient>? configureClient = null, System.Action<Dataverse.Fluent.DataverseResilienceOptions>? configureResilience = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddDataverseClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string baseUrl, System.Func<System.IServiceProvider, System.Func<System.Threading.Tasks.Task<string>>> tokenProviderFactory, System.Action<System.Net.Http.HttpClient>? configureClient = null, System.Action<Dataverse.Fluent.DataverseResilienceOptions>? configureResilience = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddKeyedDataverseClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Action<Dataverse.Fluent.DataverseClientOptions> configure, System.Action<System.Net.Http.HttpClient>? configureClient = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IHttpClientBuilder AddKeyedDataverseClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Dataverse.Fluent.DataverseClientOptions>? configure = null, System.Action<System.Net.Http.HttpClient>? configureClient = null) { }
+    }
+    public enum UpsertConflictResolution
+    {
+        Upsert = 0,
+        PreventUpdate = 1,
+        PreventCreate = 2,
+        IfUnmodifiedSince = 3,
+    }
+}
+namespace Dataverse.Fluent.Builders
+{
+    public sealed class ActionBuilder<TRequest, TResponse>
+        where TRequest :  class
+    {
+        public System.Threading.Tasks.Task<TResponse?> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.DataverseRequest ToRequest() { }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest, TResponse> WithParameter(string parameterName, object? value) { }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest, TResponse> WithParameter<TProperty>(System.Linq.Expressions.Expression<System.Func<TRequest, TProperty>> propertyExpression, TProperty value) { }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest, TResponse> WithRequest(TRequest request) { }
+    }
+    public sealed class AggregateBuilder<T>
+    {
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Average<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> selector, string alias) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Count(string alias) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> CountDistinct<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> selector, string alias) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<TResult>> GetListAsync<TResult>(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> GroupBy<TKey>(System.Linq.Expressions.Expression<System.Func<T, TKey>> keySelector) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Max<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> selector, string alias) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Min<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> selector, string alias) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Sum<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> selector, string alias) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Where(System.Linq.Expressions.Expression<System.Func<T, bool>> predicate) { }
+        public Dataverse.Fluent.Builders.AggregateBuilder<T> Where(string filter) { }
+    }
+    public sealed class AnnotationBuilder
+    {
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.Annotation> CreateAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task DeleteAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task DeleteAsync(System.Guid annotationId, System.Threading.CancellationToken ct = default) { }
+        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "FileName",
+                "MimeType",
+                "Content"})]
+        public System.Threading.Tasks.Task<System.ValueTuple<string, string, byte[]>> DownloadFileAsync(System.Threading.CancellationToken ct = default) { }
+        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "FileName",
+                "MimeType",
+                "Content"})]
+        public System.Threading.Tasks.Task<System.ValueTuple<string, string, byte[]>> DownloadFileAsync(System.Guid annotationId, System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder Regarding(string entityType, System.Guid entityId, string? entitySet = null) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder Regarding(string entityType, string keyName, object keyValue, string? entitySet = null) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder Regarding<T>(System.Guid entityId)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder Regarding<T, TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> propertyExpression, TProperty keyValue)
+            where T :  class { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.Annotation> RetrieveAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.Annotation> RetrieveAsync(System.Guid annotationId, System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder ReturnRepresentation(bool returnIt = true) { }
+        public System.Threading.Tasks.Task UpdateAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder WithAlternateKey(string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder WithAlternateKey<T, TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> propertyExpression, TProperty keyValue)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder WithFile(string fileName, System.IO.Stream stream, string? mimeType = null) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder WithFile(string fileName, byte[] content, string? mimeType = null) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Builders.AnnotationBuilder> WithFileAsync(string fileName, System.IO.Stream stream, string? mimeType = null, System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder WithId(System.Guid annotationId) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder WithNoteText(string? noteText) { }
+        public Dataverse.Fluent.Builders.AnnotationBuilder WithSubject(string subject) { }
+    }
+    public sealed class AssociationBuilder
+    {
+        public System.Threading.Tasks.Task AssociateAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task DisassociateAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder From(string entitySet, System.Collections.Generic.Dictionary<string, object> alternateKeys) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder From(string entitySet, System.Guid id) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder From(string entitySet, string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder From<TSource>(System.Collections.Generic.Dictionary<string, object> alternateKeys) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder From<TSource>(System.Guid id) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder From<TSource>(string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder From<TSource, TKey>(System.Linq.Expressions.Expression<System.Func<TSource, TKey>> keyExpression, TKey keyValue) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder To(string entitySet, System.Collections.Generic.Dictionary<string, object> alternateKeys) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder To(string entitySet, System.Guid id) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder To(string entitySet, string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder To<TTarget>(System.Collections.Generic.Dictionary<string, object> alternateKeys) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder To<TTarget>(System.Guid id) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder To<TTarget>(string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder To<TTarget, TKey>(System.Linq.Expressions.Expression<System.Func<TTarget, TKey>> keyExpression, TKey keyValue) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder Via(string navigationProperty) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder ViaSingleValued(string navigationProperty) { }
+    }
+    public sealed class BatchBuilder
+    {
+        public Dataverse.Fluent.Builders.BatchBuilder Add(Dataverse.Fluent.DataverseRequest request) { }
+        public Dataverse.Fluent.Builders.BatchBuilder Add(Dataverse.Fluent.DataverseRequest request, out Dataverse.Fluent.Models.BatchReference reference) { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddAssociate(string entitySet1, System.Guid id1, string navigationProperty, string entitySet2, System.Guid id2) { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddCreate<T>(T entity, string? entitySet = null)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddCreate<T>(T entity, out Dataverse.Fluent.Models.BatchReference reference, string? entitySet = null)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddCreate<T>(T entity, System.Collections.Generic.IReadOnlyDictionary<string, Dataverse.Fluent.Models.BatchReference> lookupBindings, string? entitySet = null)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddCreate<T>(T entity, System.Collections.Generic.IReadOnlyDictionary<string, Dataverse.Fluent.Models.BatchReference> lookupBindings, out Dataverse.Fluent.Models.BatchReference reference, string? entitySet = null)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddDeepInsert<T>(T parent, string navigationProperty, params object[] children)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddDelete(string entitySet, System.Guid id) { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddDelete<T>(System.Guid id, string? entitySet = null) { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddGet(string relativeUrl) { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddRetrieve<T>(System.Guid id, string? entitySet = null, params string[] select) { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddUpdate<T>(System.Guid id, T entity, string? entitySet = null)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.BatchBuilder AddUpsert<T>(System.Guid id, T entity, string? entitySet = null)
+            where T :  class { }
+        public Dataverse.Fluent.Builders.BatchBuilder ContinueOnError(bool value = true) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BatchResult> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.BatchBuilder NewChangeset() { }
+    }
+    public static class DataverseFunctions
+    {
+        public static bool Above(object? property, System.Guid value) { }
+        public static bool AboveOrEqual(object? property, System.Guid value) { }
+        public static bool ContainValues(object? property, params object[] values) { }
+        public static bool DoesNotContainValues(object? property, params object[] values) { }
+        public static bool EqualBusinessId(object? property) { }
+        public static bool EqualUserId(object? property) { }
+        public static bool EqualUserOrUserTeams(object? property) { }
+        public static bool EqualUserTeams(object? property) { }
+        public static bool In(object? property, params object[] values) { }
+        public static bool LastXDays(object? property, int count) { }
+        public static bool NextXDays(object? property, int count) { }
+        public static bool NotEqualBusinessId(object? property) { }
+        public static bool NotEqualUserId(object? property) { }
+        public static bool NotIn(object? property, params object[] values) { }
+        public static bool NotUnder(object? property, System.Guid value) { }
+        public static bool OlderThanXDays(object? property, int count) { }
+        public static bool OlderThanXMonths(object? property, int count) { }
+        public static bool OlderThanXYears(object? property, int count) { }
+        public static bool ThisMonth(object? property) { }
+        public static bool ThisWeek(object? property) { }
+        public static bool ThisYear(object? property) { }
+        public static bool Today(object? property) { }
+        public static bool Tomorrow(object? property) { }
+        public static bool Under(object? property, System.Guid value) { }
+        public static bool UnderOrEqual(object? property, System.Guid value) { }
+        public static bool Yesterday(object? property) { }
+    }
+    public sealed class DeepInsertBuilder<T>
+    {
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DataverseCreateResult<T>> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.DeepInsertBuilder<T> ReturnRepresentation(bool returnIt = true) { }
+        public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithPrefer(string preferValue) { }
+        public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithRelated<TRelated>(System.Collections.Generic.IEnumerable<TRelated> relatedEntities, string relationshipName)
+            where TRelated :  class { }
+        public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithRelated<TRelated>(TRelated relatedEntity, string relationshipName)
+            where TRelated :  class { }
+    }
+    public sealed class DeltaBuilder<T>
+    {
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> Count(bool include = true) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DeltaResults<T>> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> IncludeFormattedValues(bool include = true) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> OrderBy(string orderBy) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> Select(params string[] properties) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> Since(string deltaToken) { }
+        [System.Runtime.CompilerServices.AsyncIteratorStateMachine(typeof(Dataverse.Fluent.Builders.DeltaBuilder<T>.<StreamAsync>d__19))]
+        public System.Collections.Generic.IAsyncEnumerable<Dataverse.Fluent.Models.DeltaResults<T>> StreamAsync(int pageSize = 2000, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> Top(int top) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> Where(string filter) { }
+        public Dataverse.Fluent.Builders.DeltaBuilder<T> WithHeaders(System.Collections.Generic.IDictionary<string, string> headers) { }
+    }
+    public sealed class EntityBuilder<T>
+    {
+        public System.Threading.Tasks.Task DeleteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand(string expand) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(string navigationProperty, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> IncludeFormattedValues(bool include = true) { }
+        public System.Threading.Tasks.Task<T?> RetrieveAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DataverseEntityResult<T>> RetrieveWithMetadataAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> ReturnMinimal() { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> ReturnRepresentation(bool returnIt = true) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> ReturnRepresentation<TProjection>(System.Linq.Expressions.Expression<System.Func<T, TProjection>> selector) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Select(params string[] properties) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Select<TProjection>(System.Linq.Expressions.Expression<System.Func<T, TProjection>> selector) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> SelectAll() { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> Set(string logicalName, object? value) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> Set<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> propertyExpression, TProperty? value) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFrom(T entity) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFrom(T entity, bool excludeReadOnly) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFrom(T entity, params string[] exclude) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFromExcept(T entity, params System.Linq.Expressions.Expression<System.Func<T, object>>[] exclude) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookup(string lookupField, string relatedEntitySet, System.Guid relatedEntityId) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookupByAlternateKey(string lookupField, string relatedEntitySet, string alternateKeyName, object alternateKeyValue) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookupByAlternateKey<TRelated, TKey>(string lookupField, string relatedEntitySet, System.Linq.Expressions.Expression<System.Func<TRelated, TKey>> keyExpression, TKey keyValue) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookupByAlternateKeys(string lookupField, string relatedEntitySet, System.Collections.Generic.Dictionary<string, object> alternateKeys) { }
+        public Dataverse.Fluent.DataverseRequest ToDeleteRequest() { }
+        public Dataverse.Fluent.Builders.EntityBuilder<T> UsingAlternateKey(string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.EntityBuilder<T> UsingAlternateKey<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> propertyExpression, TProperty keyValue) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> WithETag(string etag) { }
+        public Dataverse.Fluent.Builders.EntityBuilder<T> WithId(System.Guid id) { }
+        public Dataverse.Fluent.Builders.EntityBuilder<T> WithPrefer(string preferValue) { }
+    }
+    public sealed class EntityFluentBuilder<T>
+    {
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest, TResponse> Action<TRequest, TResponse>(string actionName)
+            where TRequest :  class { }
+        public Dataverse.Fluent.Builders.FunctionBuilder<TResponse> Function<TResponse>(string functionName) { }
+    }
+    public sealed class EntityReadBuilder<T>
+    {
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand(string expand) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(string navigationProperty, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> IncludeFormattedValues(bool include = true) { }
+        public System.Threading.Tasks.Task<T?> RetrieveAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DataverseEntityResult<T>> RetrieveWithMetadataAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Select(params string[] properties) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Select<TProjection>(System.Linq.Expressions.Expression<System.Func<T, TProjection>> selector) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> SelectAll() { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> UsingAlternateKey(string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> UsingAlternateKey<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> propertyExpression, TProperty keyValue) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> WithId(System.Guid id) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> WithPrefer(string preferValue) { }
+    }
+    public sealed class EntityWriteBuilder<T>
+    {
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DataverseCreateResult<T>> CreateAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> ReturnMinimal() { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> ReturnRepresentation(bool returnIt = true) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> ReturnRepresentation<TProjection>(System.Linq.Expressions.Expression<System.Func<T, TProjection>> selector) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> Set(string logicalName, object? value) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> Set<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> propertyExpression, TProperty? value) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFrom(T entity) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFrom(T entity, bool excludeReadOnly) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFrom(T entity, params string[] exclude) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetFromExcept(T entity, params System.Linq.Expressions.Expression<System.Func<T, object>>[] exclude) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookup(string lookupField, string relatedEntitySet, System.Guid relatedEntityId) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookupByAlternateKey(string lookupField, string relatedEntitySet, string alternateKeyName, object alternateKeyValue) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookupByAlternateKey<TRelated, TKey>(string lookupField, string relatedEntitySet, System.Linq.Expressions.Expression<System.Func<TRelated, TKey>> keyExpression, TKey keyValue) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> SetLookupByAlternateKeys(string lookupField, string relatedEntitySet, System.Collections.Generic.Dictionary<string, object> alternateKeys) { }
+        public Dataverse.Fluent.DataverseRequest ToCreateRequest() { }
+        public Dataverse.Fluent.DataverseRequest ToUpdateRequest() { }
+        public Dataverse.Fluent.DataverseRequest ToUpsertRequest(Dataverse.Fluent.UpsertConflictResolution conflictResolution = 0) { }
+        public System.Threading.Tasks.Task<T?> UpdateAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DataverseUpsertResult<T>> UpsertAsync(Dataverse.Fluent.UpsertConflictResolution conflictResolution = 0, System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> UsingAlternateKey(string keyName, object keyValue) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> UsingAlternateKey<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> propertyExpression, TProperty keyValue) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> WithETag(string etag) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> WithId(System.Guid id) { }
+        public Dataverse.Fluent.Builders.EntityWriteBuilder<T> WithPrefer(string preferValue) { }
+    }
+    public sealed class ExpandBuilder<TParent, TRelated>
+    {
+        public Dataverse.Fluent.Builders.ExpandBuilder<TParent, TRelated> OrderBy(string orderBy) { }
+        public Dataverse.Fluent.Builders.ExpandBuilder<TParent, TRelated> OrderBy<TKey>(System.Linq.Expressions.Expression<System.Func<TRelated, TKey>> keySelector, bool descending = false) { }
+        public Dataverse.Fluent.Builders.ExpandBuilder<TParent, TRelated> Select(params string[] properties) { }
+        public Dataverse.Fluent.Builders.ExpandBuilder<TParent, TRelated> Select<TProjection>(System.Linq.Expressions.Expression<System.Func<TRelated, TProjection>> selector) { }
+        public Dataverse.Fluent.Builders.ExpandBuilder<TParent, TRelated> Top(int top) { }
+        public Dataverse.Fluent.Builders.ExpandBuilder<TParent, TRelated> Where(System.Linq.Expressions.Expression<System.Func<TRelated, bool>> predicate) { }
+        public Dataverse.Fluent.Builders.ExpandBuilder<TParent, TRelated> Where(string filter) { }
+    }
+    public sealed class FetchBuilder<T>
+    {
+        public Dataverse.Fluent.Builders.FetchBuilder<T> AddAllAttributes() { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> AddAttribute<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> selector) { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> AddAttributes<TProjection>(System.Linq.Expressions.Expression<System.Func<T, TProjection>> selector) { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> AddFilter(System.Linq.Expressions.Expression<System.Func<T, bool>> predicate, string filterOperator = "and") { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> AddOrder<TProperty>(System.Linq.Expressions.Expression<System.Func<T, TProperty>> selector, bool descending = false) { }
+        public string BuildFetchXml() { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> Distinct(bool enabled = true) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> NoLock(bool enabled = true) { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> Page(int page, int pageSize) { }
+        public System.Collections.Generic.IAsyncEnumerable<T> StreamAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.FetchBuilder<T> Top(int count) { }
+    }
+    public class FetchXmlOptions
+    {
+        public FetchXmlOptions() { }
+        public bool IncludeFormattedValues { get; set; }
+        public int MaxPageSize { get; set; }
+        public bool NoLock { get; set; }
+        public static Dataverse.Fluent.Builders.FetchXmlOptions Default { get; }
+    }
+    public sealed class FunctionBuilder<TResponse>
+    {
+        public System.Threading.Tasks.Task<TResponse?> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.FunctionBuilder<TResponse> WithParameter(string parameterName, object? value) { }
+    }
+    public sealed class QueryBuilder<T>
+    {
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Count(bool include = true) { }
+        public System.Threading.Tasks.Task<long> CountAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Expand(string expand) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Expand<TRelated>(string navigationProperty, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetAllAsync(int pageSize = 5000, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetListAsync(System.Threading.CancellationToken ct = default) { }
+        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Items",
+                "TotalCount"})]
+        public System.Threading.Tasks.Task<System.ValueTuple<System.Collections.Generic.List<T>, long?>> GetListWithCountAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.PagedResult<T>> GetNextPageAsync(Dataverse.Fluent.Models.PagedResult<T> previousPage, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.PagedResult<T>> GetNextPageAsync(string nextLink, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.PagedResult<T>> GetPagedAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> IncludeFormattedValues(bool include = true) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> OrderBy(string orderBy) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> OrderBy<TKey>(System.Linq.Expressions.Expression<System.Func<T, TKey>> keySelector, bool descending = false) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> PageSize(int pageSize) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Select(params string[] properties) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Select<TProjection>(System.Linq.Expressions.Expression<System.Func<T, TProjection>> selector) { }
+        [System.Obsolete("Dataverse does not support $skip. Page with PageSize() and GetPagedAsync()/GetNex" +
+            "tPageAsync(), or use StreamAsync().", true)]
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Skip(int skip) { }
+        [System.Runtime.CompilerServices.AsyncIteratorStateMachine(typeof(Dataverse.Fluent.Builders.QueryBuilder<T>.<StreamAsync>d__27))]
+        public System.Collections.Generic.IAsyncEnumerable<T> StreamAsync(int pageSize = 2000, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Top(int top) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Where(System.Linq.Expressions.Expression<System.Func<T, bool>> predicate) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Where(string filter) { }
+    }
+}
+namespace Dataverse.Fluent.Models
+{
+    [Dataverse.Fluent.EntitySet("annotations")]
+    public class Annotation
+    {
+        public Annotation() { }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("annotationid")]
+        public System.Guid AnnotationId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("createdon")]
+        public System.DateTime CreatedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("documentbody")]
+        public string? DocumentBody { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("filename")]
+        public string? FileName { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("filesize")]
+        public int? FileSize { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("isdocument")]
+        public bool? IsDocument { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("mimetype")]
+        public string? MimeType { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
+        public System.DateTime ModifiedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("notetext")]
+        public string? NoteText { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("_objectid_value")]
+        public System.Guid? ObjectId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("objecttypecode")]
+        public string? ObjectTypeCode { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("subject")]
+        public string? Subject { get; set; }
+    }
+    public class BatchOperationException : System.AggregateException
+    {
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Models.BatchOperationResult> FailedOperations { get; }
+    }
+    public class BatchOperationResult
+    {
+        public BatchOperationResult(int contentId, System.Net.HttpStatusCode statusCode, string body, System.Guid? entityId = default, string? location = null, bool wasRolledBack = false) { }
+        public string Body { get; }
+        public int ContentId { get; }
+        public System.Guid? EntityId { get; }
+        public bool IsSuccess { get; }
+        public string? Location { get; }
+        public System.Net.HttpStatusCode StatusCode { get; }
+        public bool WasRolledBack { get; }
+        public T? GetEntity<T>() { }
+    }
+    public readonly struct BatchReference
+    {
+        public int ContentId { get; }
+        public string Token { get; }
+        public override string ToString() { }
+    }
+    public class BatchResult
+    {
+        public BatchResult(System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Models.BatchOperationResult> results) { }
+        public bool AllSucceeded { get; }
+        public System.Collections.Generic.IEnumerable<Dataverse.Fluent.Models.BatchOperationResult> Errors { get; }
+        public bool HasErrors { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Models.BatchOperationResult> Results { get; }
+        public void ThrowIfAnyFailed() { }
+    }
+    public sealed class DataverseCreateResult<T>
+    {
+        public DataverseCreateResult(System.Guid? id, T? entity, string? entityUrl) { }
+        public T Entity { get; }
+        public string? EntityUrl { get; }
+        public System.Guid? Id { get; }
+    }
+    public class DataverseEntityResult<T>
+    {
+        public DataverseEntityResult(T? entity, string? etag, System.Collections.Generic.IReadOnlyDictionary<string, string> formattedValues) { }
+        public string? ETag { get; }
+        public T Entity { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, string> FormattedValues { get; }
+        public bool HasETag { get; }
+    }
+    public class DataverseException : System.Exception
+    {
+        public string? ActivityId { get; }
+        public string? ErrorCode { get; }
+        public System.Text.Json.Nodes.JsonNode? InnerError { get; }
+        public override string Message { get; }
+        public string RawResponse { get; }
+        public System.Net.HttpStatusCode StatusCode { get; }
+        public static System.Threading.Tasks.Task<Dataverse.Fluent.Models.DataverseException> CreateAsync(System.Net.Http.HttpResponseMessage response, System.Threading.CancellationToken ct = default) { }
+        public static Dataverse.Fluent.Models.DataverseException FromErrorContent(string errorContent, System.Net.HttpStatusCode statusCode = 500) { }
+    }
+    public sealed class DataverseUpsertResult<T>
+    {
+        public DataverseUpsertResult(System.Guid? id, T? entity, string? entityUrl, bool? created) { }
+        public bool? Created { get; }
+        public T Entity { get; }
+        public string? EntityUrl { get; }
+        public System.Guid? Id { get; }
+    }
+    public class DeletedReference
+    {
+        public DeletedReference() { }
+        [System.Text.Json.Serialization.JsonPropertyName("reason")]
+        public string? Reason { get; set; }
+    }
+    public class DeltaResults<T>
+    {
+        public DeltaResults() { }
+        [System.Text.Json.Serialization.JsonPropertyName("@odata.count")]
+        public long? Count { get; set; }
+        public System.Collections.Generic.List<Dataverse.Fluent.Models.EntityReference> Deleted { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("@odata.deltaLink")]
+        public string? DeltaToken { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("@odata.nextLink")]
+        public string? NextLink { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("value")]
+        public System.Collections.Generic.List<T> Value { get; set; }
+    }
+    public class EntityReference
+    {
+        public EntityReference() { }
+        [System.Text.Json.Serialization.JsonPropertyName("@id")]
+        public string? Id { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("@removed")]
+        public Dataverse.Fluent.Models.DeletedReference? Removed { get; set; }
+        public System.Guid? GetEntityId() { }
+    }
+    public class PagedResult<T>
+    {
+        public PagedResult(System.Collections.Generic.List<T> items, string? nextLink, long? totalCount, int? pageSize = default) { }
+        public bool HasMorePages { get; }
+        public System.Collections.Generic.List<T> Items { get; }
+        public string? NextLink { get; }
+        public int? PageSize { get; }
+        public long? TotalCount { get; }
+    }
+}

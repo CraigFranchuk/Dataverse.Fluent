@@ -1,0 +1,181 @@
+# Delta Queries (Change Tracking)
+
+Delta queries return only the records that were created, updated or deleted since a previous query. They use an opaque
+delta token to resume from the last change point, which makes them a good fit for synchronisation and change
+notification.
+
+Compared with polling on `modifiedon`, delta queries only transfer changed records, report deletions explicitly, and
+rely on server-side tracking instead of client timestamp logic.
+
+## Prerequisites
+
+- Change tracking is enabled on the table (Power Apps maker portal: table properties > *Advanced options* >
+  *Track changes*; classic: **Customize the System** > entity > **Data Services** > **Change tracking**).
+- A valid access token with read permission on the table.
+
+Some tables do not support change tracking.
+
+## Basic usage
+
+```csharp
+// Initial query: returns the current state and a delta token
+var results = await client.Delta<Account>()
+    .Select("name", "revenue", "modifiedon")
+    .ExecuteAsync();
+
+var token = results.DeltaToken; // persist this
+
+// Later: only what changed since the token
+var changes = await client.Delta<Account>()
+    .Since(token)
+    .ExecuteAsync();
+
+foreach (var account in changes.Value)          // created or updated
+    Console.WriteLine($"Changed: {account.Name}");
+
+foreach (var deleted in changes.Deleted)        // deleted: id and reason only
+    Console.WriteLine($"Deleted: {deleted.GetEntityId()} ({deleted.Removed?.Reason})");
+
+token = changes.DeltaToken;                     // use for the next poll
+```
+
+Each token marks a point in time. Querying with it returns everything that changed after that point, plus a new token:
+
+```
+Initial query            -> token T1
+  ...changes C1, C2, C3
+Query Since(T1)          -> C1, C2, C3 + token T2
+  ...changes C4, C5
+Query Since(T2)          -> C4, C5 + token T3
+```
+
+## Builder methods
+
+| Method | Purpose |
+|--------|---------|
+| `Delta<T>()` | Create a delta query builder |
+| `Since(token)` | Resume from a delta token |
+| `Select(...)` | Choose columns |
+| `Where(filter)` | OData filter string for the initial query (see [Limitations](#limitations)) |
+| `OrderBy(...)` | Order the initial query (see [Limitations](#limitations)) |
+| `Top(n)` | Limit results (see [Limitations](#limitations)) |
+| `IncludeFormattedValues()` | Return formatted values for option sets and lookups |
+| `Count()` | Request a total count (see [Limitations](#limitations)) |
+| `WithHeaders(...)` | Add custom request headers |
+| `ExecuteAsync()` | Execute and return one `DeltaResults<T>` |
+| `StreamAsync(pageSize)` | Stream pages, following `@odata.nextLink` |
+
+A builder instance can be executed once; create a new builder for every query.
+
+### `DeltaResults<T>`
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Value` | `List<T>` | Created or updated entities |
+| `Deleted` | `List<EntityReference>` | References to deleted entities |
+| `DeltaToken` | `string?` | Token for the next query |
+| `Count` | `long?` | Total count, when returned by the server |
+| `NextLink` | `string?` | Paging link (used internally by `StreamAsync`) |
+
+`EntityReference.GetEntityId()` extracts the `Guid`; `Removed.Reason` gives the deletion reason.
+
+## Polling loop
+
+```csharp
+string? token = await tokenStore.GetAsync("accounts");
+
+while (!ct.IsCancellationRequested)
+{
+    try
+    {
+        var builder = client.Delta<Account>().Select("accountid", "name", "revenue");
+        if (!string.IsNullOrEmpty(token))
+            builder = builder.Since(token);
+
+        var results = await builder.ExecuteAsync(ct);
+
+        foreach (var account in results.Value)
+            await ProcessChangeAsync(account);
+        foreach (var deleted in results.Deleted)
+            await ProcessDeletionAsync(deleted.GetEntityId()!.Value);
+
+        token = results.DeltaToken;
+        await Task.Delay(TimeSpan.FromMinutes(5), ct);
+    }
+    catch (DataverseException ex)
+    {
+        // transient failures are already retried by the client's resilience pipeline
+        logger.LogError(ex, "Delta query failed. ActivityId: {ActivityId}", ex.ActivityId);
+        await Task.Delay(TimeSpan.FromSeconds(30), ct);
+    }
+}
+```
+
+## Streaming large change sets
+
+```csharp
+await foreach (var page in client.Delta<Account>()
+    .Since(token)
+    .StreamAsync(pageSize: 2000, ct: ct))
+{
+    await externalSystem.UpsertAsync(page.Value);
+    await externalSystem.DeleteAsync(page.Deleted.Select(d => d.GetEntityId()!.Value));
+
+    token = page.DeltaToken;
+    await tokenStore.SaveAsync("accounts", token);
+}
+```
+
+`pageSize` is sent as `Prefer: odata.maxpagesize` on every page (Dataverse caps it at 5000).
+
+## Error handling
+
+An expired token returns HTTP 410 (Gone). Fall back to an initial query:
+
+```csharp
+try
+{
+    return await client.Delta<Account>().Since(token).ExecuteAsync();
+}
+catch (DataverseException ex) when (ex.StatusCode == HttpStatusCode.Gone)
+{
+    return await client.Delta<Account>().ExecuteAsync(); // start again from the current state
+}
+```
+
+| Symptom | Likely cause |
+|---------|--------------|
+| HTTP 410 Gone | Token expired. Restart with an initial query. |
+| HTTP 400 Bad Request | Change tracking not enabled, an unsupported query option, or an invalid token. |
+| `DeltaToken` is `null` | Change tracking is not enabled on the table. |
+| Recent change missing | Changes can take a few seconds to appear; poll again. |
+| Deletions missing | Change tracking not enabled. |
+
+For general error handling see [ERROR_HANDLING.md](ERROR_HANDLING.md).
+
+## Limitations
+
+- **Filter and order only apply to the initial query.** Queries that use a delta token return all changes regardless of
+  the original filter.
+- **Unsupported query options.** Dataverse rejects `$top` and `$count` on change-tracked queries, and `$filter` or
+  `$orderby` may be rejected as well, depending on the table. If a call fails with HTTP 400, remove those options and
+  use `StreamAsync(pageSize)` for page control and `Value.Count` for a per-page count.
+- **Tokens expire**, typically after about 90 days.
+- **Page size** is at most 5000 records.
+- **Deletions** carry only the id and the reason, not the deleted record's data.
+
+## Best practices
+
+1. Persist delta tokens (database or configuration) so they survive restarts.
+2. Handle token expiry by falling back to an initial query.
+3. Poll every 5-15 minutes; delta queries count toward API limits.
+4. Use `Select()` to retrieve only the columns you need.
+5. Use `StreamAsync()` for large change sets.
+6. Treat deletions as id-only.
+
+## Tests
+
+- Unit tests: `Dataverse.Fluent.Tests/Builders/DeltaBuilderTests.cs`.
+- Integration tests: `DeltaQueryTests.cs` in the integration test project. They need change tracking enabled on the
+  account table; tests that need a delta token return early when the environment returns none. See the
+  [integration test README](../../Dataverse.Fluent.IntegrationTests/README.md).

@@ -1,0 +1,46 @@
+using System.Text.Json.Serialization;
+
+namespace Dataverse.Fluent.Sales.Actions;
+
+/// <summary>
+/// Request payload for the QualifyLead action, which is bound to the lead
+/// (<c>leads(&lt;id&gt;)/Microsoft.Dynamics.CRM.QualifyLead</c>); the lead is identified by the URL, not the payload.
+/// </summary>
+public class QualifyLeadRequest
+{
+    [JsonPropertyName("CreateAccount")]
+    public bool CreateAccount { get; set; }
+
+    [JsonPropertyName("CreateContact")]
+    public bool CreateContact { get; set; }
+
+    [JsonPropertyName("CreateOpportunity")]
+    public bool CreateOpportunity { get; set; }
+
+    [JsonPropertyName("Status")]
+    public int Status { get; set; }
+}
+
+/// <summary>
+/// Response from the QualifyLead action containing references to the created entities,
+/// in the order Dataverse returned them.
+/// </summary>
+public class QualifyLeadResponse
+{
+    public List<CreatedEntityReference>? CreatedEntities { get; set; }
+}
+
+/// <summary>
+/// Reference to an entity created as a result of a CRM action.
+/// </summary>
+public class CreatedEntityReference
+{
+    /// <summary>The OData type of the record (e.g., <c>#Microsoft.Dynamics.CRM.account</c>).</summary>
+    public string? ODataType { get; set; }
+
+    /// <summary>The record's primary key.</summary>
+    public Guid Id { get; set; }
+
+    /// <summary>The logical name of the record's table (e.g., <c>account</c>).</summary>
+    public string? LogicalName { get; set; }
+}
