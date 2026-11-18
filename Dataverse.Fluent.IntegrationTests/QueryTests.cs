@@ -13,6 +13,24 @@ public class QueryTests : IClassFixture<DataverseTestFixture>
     }
 
     [Fact]
+    public async Task CountAsync_WithAFilter_CountsOnlyTheMatchingRecords()
+    {
+        // Dataverse applies a $filter on /$count to the count itself, so a filtered count must use $count=true.
+        var ct = TestContext.Current.CancellationToken;
+        var prefix = $"Test Account Count {Guid.NewGuid():N}";
+        for (var i = 0; i < 3; i++)
+            await _fixture.Client.Entity<Account>().Set(a => a.Name, $"{prefix} {i}").CreateAsync(ct);
+
+        var matching = await _fixture.Client.Query<Account>().Where(a => a.Name.StartsWith(prefix)).CountAsync(ct);
+        var none = await _fixture.Client.Query<Account>().Where(a => a.Name == $"{prefix} missing").CountAsync(ct);
+        var all = await _fixture.Client.Query<Account>().CountAsync(ct);
+
+        Assert.Equal(3, matching);
+        Assert.Equal(0, none);
+        Assert.True(all >= 3);
+    }
+
+    [Fact]
     public async Task CanQuery_WithDataverseInFunction_AndAnArrayVariable()
     {
         // An int[] passed to DataverseFunctions.In is flattened into PropertyValues=['0','1'].
