@@ -348,22 +348,35 @@ public sealed class QueryBuilder<T>
     }
 
     /// <summary>
-    /// Executes a <c>$count</c> request and returns the number of matching records, up to 5,000.
-    /// Applies any configured <c>$filter</c> clause. Other options ($select, $top, $orderby) are ignored.
+    /// Returns the number of records that match the configured <c>$filter</c>, up to 5,000. Other options
+    /// ($select, $top, $orderby) are ignored.
     /// </summary>
     /// <remarks>
-    /// Dataverse caps <c>$count</c> at 5,000: a result of 5,000 means "5,000 or more". To count a larger
+    /// <para>
+    /// Without a filter this sends <c>GET {set}/$count</c>. With one it sends
+    /// <c>GET {set}?$filter=...&amp;$count=true</c> for a single row and reads <c>@odata.count</c>: Dataverse
+    /// applies a <c>$filter</c> on the <c>/$count</c> segment to the count itself, not to the records.
+    /// </para>
+    /// <para>
+    /// Dataverse caps the count at 5,000: a result of 5,000 means "5,000 or more". To count a larger
     /// set, use <see cref="IDataverseClient.Aggregate{T}"/> with <c>Count(alias)</c>, or a FetchXML aggregate.
+    /// </para>
     /// </remarks>
     public async Task<long> CountAsync(CancellationToken ct = default)
     {
         _guard.Use();
-        var countUrl = _entitySet + "/$count";
+
         if (ODataQueryOptions.CombineFilters(_options.Filter) is { } filter)
-            countUrl += "?$filter=" + Uri.EscapeDataString(filter);
+        {
+            var url = $"{_entitySet}?$filter={Uri.EscapeDataString(filter)}&$count=true";
+            var headers = new Dictionary<string, string> { ["Prefer"] = ODataPaging.MaxPageSizePreference(1) };
+            var page = await _client.ExecuteRequestAsync<ODataCollectionResponse<T>>(HttpMethod.Get, url, headers: headers, ct: ct).ConfigureAwait(false);
+            return page?.Count
+                ?? throw new InvalidOperationException("Dataverse did not return @odata.count for the count request.");
+        }
 
         // $count returns a bare number as text/plain rather than JSON.
-        var request = new DataverseRequest(HttpMethod.Get, countUrl) { Headers = { ["Accept"] = "text/plain" } };
+        var request = new DataverseRequest(HttpMethod.Get, _entitySet + "/$count") { Headers = { ["Accept"] = "text/plain" } };
 
         using var response = await _client.SendAsync(request, ct).ConfigureAwait(false);
         var text = await response.ReadStringAsync(ct).ConfigureAwait(false);

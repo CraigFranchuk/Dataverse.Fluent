@@ -219,8 +219,8 @@ var all = await client.Query<Account>().GetAllAsync();
 
 ### Counts
 
-`GetListWithCountAsync()` returns a page together with `@odata.count`. `CountAsync()` sends `$count`, which Dataverse
-caps at 5,000; count larger sets with an aggregate:
+`GetListWithCountAsync()` returns a page together with `@odata.count`. `CountAsync()` returns just the number of
+matching records. Dataverse caps both counts at 5,000; count larger sets with an aggregate:
 
 ```csharp
 var (items, total) = await client.Query<Account>().Where(a => a.Revenue > 0).GetListWithCountAsync();

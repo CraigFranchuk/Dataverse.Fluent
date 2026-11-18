@@ -3,6 +3,15 @@
 All notable changes to the `Dataverse.Fluent` and `Dataverse.Fluent.Sales` packages are recorded here. The
 packages follow [semantic versioning](https://semver.org/).
 
+## 1.0.1 (unreleased)
+
+### Dataverse.Fluent
+
+- Fixed: `CountAsync()` on a query with a filter failed with `Could not find a property named '...' on type
+  'Edm.Int32'`. It sent `{set}/$count?$filter=...`, and Dataverse applies a filter on the `/$count` segment to the
+  count rather than to the records. A filtered count now requests one row with `$count=true` and returns
+  `@odata.count`. A count without a filter still uses `/$count`.
+
 ## 1.0.0 (2026-11-16)
 
 The first release.
