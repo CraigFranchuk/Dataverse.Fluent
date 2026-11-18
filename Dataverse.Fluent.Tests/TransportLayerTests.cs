@@ -38,13 +38,46 @@ public class TransportLayerTests
         var transport = new FakeTransport { Respond = _ => new DataverseResponse(PlainText("42")) };
         var client = new DataverseClient(transport);
 
-        var count = await client.Query<TestAccount>().Where(a => a.StateCode == 0).CountAsync();
+        var count = await client.Query<TestAccount>().CountAsync();
 
         Assert.Equal(42, count);
         var request = Assert.Single(transport.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal("testaccounts/$count?$filter=statecode eq 0", Uri.UnescapeDataString(request.Url));
+        Assert.Equal("testaccounts/$count", request.Url);
         Assert.Equal("text/plain", request.Headers["Accept"]);
+    }
+
+    [Fact]
+    public async Task CountAsync_WithAFilter_RequestsOneRowWithCountTrue()
+    {
+        // Dataverse applies a $filter on /$count to the count itself ("Could not find a property named 'statecode'
+        // on type 'Edm.Int32'"), so a filtered count asks for the filtered collection and reads @odata.count.
+        var transport = new FakeTransport
+        {
+            Respond = _ => DataverseResponse.FromJson(new JsonObject
+            {
+                ["@odata.count"] = 42,
+                ["value"] = new JsonArray(new JsonObject { ["name"] = "Contoso" })
+            })
+        };
+        var client = new DataverseClient(transport);
+
+        var count = await client.Query<TestAccount>().Where(a => a.StateCode == 0).CountAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(42, count);
+        var request = Assert.Single(transport.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal("testaccounts?$filter=statecode eq 0&$count=true", Uri.UnescapeDataString(request.Url));
+        Assert.Equal("odata.maxpagesize=1", request.Headers["Prefer"]);
+    }
+
+    [Fact]
+    public async Task CountAsync_WithAFilter_WhenDataverseReturnsNoCount_Throws()
+    {
+        var transport = new FakeTransport { Respond = _ => DataverseResponse.FromJson(new JsonObject { ["value"] = new JsonArray() }) };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new DataverseClient(transport).Query<TestAccount>().Where(a => a.StateCode == 0).CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
