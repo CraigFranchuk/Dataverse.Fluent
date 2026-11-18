@@ -36,6 +36,7 @@ Without an `HttpClient`, the client creates one with the retry, timeout and toke
 | `ForEntity<T>(id, entitySet?)` | `EntityFluentBuilder<T>` (bound `Action` / `Function`) | [Actions and Functions](ACTIONS_AND_FUNCTIONS.md) |
 | `Annotation(annotationId?)` | `AnnotationBuilder` | [Annotations](ANNOTATIONS.md) |
 | `Transport` | `IDataverseTransport` | [Transport](#transport) |
+| `WithOptions(configure)` / `WithOptions(DataverseRequestOptions)` (extension) | `IDataverseClient` that sends the options' headers with every request | [Request Options](REQUEST_OPTIONS.md) |
 
 The entity set comes from `[DataverseEntity]`, `[EntitySet]` or a registered `IDataverseNameResolver`; pass it
 explicitly for a type that has none.

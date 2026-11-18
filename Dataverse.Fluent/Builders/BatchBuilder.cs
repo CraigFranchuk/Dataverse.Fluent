@@ -33,6 +33,10 @@ public sealed partial class BatchBuilder
     private bool _continueOnError;
     private SingleUseGuard _guard;
 
+    // Headers from DataverseClientExtensions.WithOptions. Dataverse does not apply the headers of the $batch
+    // request to the operations inside it, so they are written into every part as well.
+    private readonly IReadOnlyDictionary<string, string>? _scopedHeaders;
+
     // Content-IDs are assigned at add-time (1-based, monotonically increasing across the whole
     // batch) so that references to records created earlier in the same changeset ($contentId) are
     // deterministic and known to the caller as soon as an operation is queued.
@@ -42,6 +46,7 @@ public sealed partial class BatchBuilder
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _batchId = batchId ?? Guid.NewGuid();
+        _scopedHeaders = (client as RequestOptionsTransport)?.Headers;
     }
 
     /// <summary>
@@ -473,11 +478,8 @@ public sealed partial class BatchBuilder
         // HTTP request line
         sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"{request.Method} {_client.BaseUrl}/{request.RelativeUrl.TrimStart('/')} HTTP/1.1").Append(Crlf);
 
-        if (request.Headers != null)
-        {
-            foreach (var (name, value) in request.Headers)
-                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"{name}: {value}").Append(Crlf);
-        }
+        foreach (var (name, value) in PartHeaders(request))
+            sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"{name}: {value}").Append(Crlf);
 
         // GET requests (e.g., standalone retrieves) have no request body and must not declare a
         // JSON content type. Write operations within a changeset send a JSON payload.
@@ -504,6 +506,21 @@ public sealed partial class BatchBuilder
         partContent.Headers.Add("Content-ID", contentId.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         return partContent;
+    }
+
+    // The headers of one part: the scoped headers from WithOptions, then the operation's own, which take precedence.
+    private IEnumerable<KeyValuePair<string, string>> PartHeaders(BatchRequest request)
+    {
+        if (_scopedHeaders == null)
+            return request.Headers ?? Enumerable.Empty<KeyValuePair<string, string>>();
+
+        var headers = new Dictionary<string, string>(_scopedHeaders, StringComparer.OrdinalIgnoreCase);
+        if (request.Headers != null)
+        {
+            foreach (var (name, value) in request.Headers)
+                headers[name] = value;
+        }
+        return headers;
     }
 
     // Operations that can update a record pass both Create and Update: a property marked read-only for

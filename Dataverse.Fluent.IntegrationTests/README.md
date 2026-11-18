@@ -191,6 +191,11 @@ relationship schema name in the Power Apps maker portal or `$metadata` and updat
 `ModifiedOn.Ticks`) with HTTP 500 instead of 412, so the `IfUnmodifiedSince` tests read a real one with
 `RetrieveWithMetadataAsync()`. See [UPSERT_CONFLICT_RESOLUTION.md](../Dataverse.Fluent/docs/UPSERT_CONFLICT_RESOLUTION.md).
 
+**Request options need privileges.** The `RequestOptionsTests` that bypass business logic need
+`prvBypassCustomBusinessLogic`, and the impersonation tests need `prvActOnBehalfOfAnotherUser` assigned directly to the
+calling user, not through a team. An application user with the System Administrator role has both. Without them,
+Dataverse rejects the requests and the tests fail.
+
 **`If-Match: *` requires the record to exist.** This is Dataverse behaviour: a PATCH with `If-Match: *` returns 404 for a
 missing record and never creates it. Use the library's upsert modes rather than setting the header by hand.
 

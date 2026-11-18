@@ -14,6 +14,7 @@ POCOs and the calls you write are the model, so a client is ready as soon as it 
 - FetchXML, through a fluent builder or as raw XML, with automatic paging
 - Aggregations (`$apply`), delta queries (change tracking), actions and functions, notes and file attachments
 - Lookups and related records mapped on the POCO, so a retrieved record can be written back unchanged
+- Request options: bypass custom business logic and flows, impersonate a user, detect duplicates
 - Write-safe retries, throttling (HTTP 429) handling, token caching, dependency injection and multiple environments
 - `DataverseException` with the Dataverse error code and activity ID
 
@@ -336,6 +337,24 @@ await client.Batch()
     .ExecuteAsync();
 ```
 
+## Request options
+
+`WithOptions` returns a client that sends Dataverse's optional headers with every request, including each operation
+of a batch. It covers bypassing custom plug-ins, workflows and Power Automate flows, impersonating another user,
+duplicate detection and solution association. The original client is not changed.
+
+```csharp
+var loader = client.WithOptions(o =>
+{
+    o.BypassBusinessLogic = BusinessLogicBypass.CustomSync | BusinessLogicBypass.CustomAsync;
+    o.BypassPowerAutomateFlows = true;
+});
+
+var asUser = client.WithOptions(o => o.CallerObjectId = userObjectId); // impersonation
+```
+
+See [Request Options](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/REQUEST_OPTIONS.md).
+
 ## Deep insert and associations
 
 ```csharp
@@ -443,6 +462,7 @@ be sent through `client.Transport`.
 | [Annotations](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ANNOTATIONS.md) | Notes and file attachments |
 | [Deep Insert](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DEEP_INSERT_GUIDE.md) | Creating related records in one request |
 | [Delta Queries](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DELTA_QUERIES.md) | Change tracking |
+| [Request Options](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/REQUEST_OPTIONS.md) | Bypassing business logic, impersonation, duplicate detection |
 | [FetchXML Examples](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/FETCHXML_EXAMPLES.md) | Fluent and raw FetchXML |
 | [Lookup References](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/LOOKUP_REFERENCES.md) | Mapping and setting lookups |
 | [SetFrom](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/SETFROM.md) | Writing POCOs and leaving out read-only columns |

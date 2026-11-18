@@ -8,6 +8,13 @@ namespace Dataverse.Fluent
         public string? ResolveEntitySetName(System.Type type) { }
         public string? ResolvePropertyName(System.Reflection.MemberInfo member) { }
     }
+    [System.Flags]
+    public enum BusinessLogicBypass
+    {
+        None = 0,
+        CustomSync = 1,
+        CustomAsync = 2,
+    }
     public class DataverseClient : Dataverse.Fluent.IDataverseClient, System.IDisposable
     {
         public DataverseClient(Dataverse.Fluent.IDataverseTransport transport) { }
@@ -30,6 +37,11 @@ namespace Dataverse.Fluent
         public Dataverse.Fluent.Builders.EntityFluentBuilder<T> ForEntity<T>(System.Guid entityId, string? entitySet = null) { }
         public Dataverse.Fluent.Builders.FunctionBuilder<TResponse> Function<TResponse>(string functionName) { }
         public Dataverse.Fluent.Builders.QueryBuilder<T> Query<T>(string? entitySet = null) { }
+    }
+    public static class DataverseClientExtensions
+    {
+        public static Dataverse.Fluent.IDataverseClient WithOptions(this Dataverse.Fluent.IDataverseClient client, Dataverse.Fluent.DataverseRequestOptions options) { }
+        public static Dataverse.Fluent.IDataverseClient WithOptions(this Dataverse.Fluent.IDataverseClient client, System.Action<Dataverse.Fluent.DataverseRequestOptions> configure) { }
     }
     public sealed class DataverseClientOptions
     {
@@ -94,6 +106,18 @@ namespace Dataverse.Fluent
         public System.Text.Json.Nodes.JsonObject? Payload { get; set; }
         public string Url { get; }
         public override string ToString() { }
+    }
+    public sealed class DataverseRequestOptions
+    {
+        public DataverseRequestOptions() { }
+        public Dataverse.Fluent.BusinessLogicBypass BypassBusinessLogic { get; set; }
+        public System.Collections.Generic.IList<System.Guid> BypassPluginStepIds { get; }
+        public bool BypassPowerAutomateFlows { get; set; }
+        public System.Guid? CallerObjectId { get; set; }
+        public System.Guid? CallerSystemUserId { get; set; }
+        public bool DetectDuplicates { get; set; }
+        public System.Collections.Generic.IDictionary<string, string> Headers { get; }
+        public string? SolutionUniqueName { get; set; }
     }
     public static class DataverseResilienceExtensions
     {

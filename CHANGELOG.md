@@ -3,6 +3,17 @@
 All notable changes to the `Dataverse.Fluent` and `Dataverse.Fluent.Sales` packages are recorded here. The
 packages follow [semantic versioning](https://semver.org/).
 
+## 1.1.0 (unreleased)
+
+### Dataverse.Fluent
+
+- `WithOptions` returns a client that sends Dataverse's optional request headers with every request:
+  `BypassBusinessLogic` (`CustomSync`/`CustomAsync`), `BypassPluginStepIds`, `BypassPowerAutomateFlows`,
+  `DetectDuplicates`, `SolutionUniqueName`, impersonation with `CallerObjectId` or `CallerSystemUserId`, and any other
+  header through `Headers`. Batches built from that client carry the headers in every operation, because Dataverse
+  does not apply the headers of a `$batch` request to the operations inside it.
+  See [Request Options](Dataverse.Fluent/docs/REQUEST_OPTIONS.md).
+
 ## 1.0.0 (2026-11-16)
 
 The first release.
