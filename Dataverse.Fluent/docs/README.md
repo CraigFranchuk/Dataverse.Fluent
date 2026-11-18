@@ -23,6 +23,7 @@ Start with the [package README](../README.md) for installation and the quick sta
 | [Lookup Fields](LOOKUP_REFERENCES.md) | Mapping lookups, and setting them by ID or alternate key |
 | [SetFrom](SETFROM.md) | Copying POCOs and excluding read-only properties |
 | [Upsert Conflict Resolution](UPSERT_CONFLICT_RESOLUTION.md) | Upsert, prevent create/update, ETags |
+| [Bulk Operations](BULK_OPERATIONS.md) | `CreateMultiple`, `UpdateMultiple` and `UpsertMultiple` in chunks, in parallel |
 | [Request Options](REQUEST_OPTIONS.md) | Bypassing business logic and flows, impersonation, duplicate detection |
 | [Deep Insert](DEEP_INSERT_GUIDE.md) | Creating related records in one call |
 | [Annotations](ANNOTATIONS.md) | Notes and file attachments |

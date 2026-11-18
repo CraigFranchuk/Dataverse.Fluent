@@ -40,6 +40,8 @@ namespace Dataverse.Fluent
     }
     public static class DataverseClientExtensions
     {
+        public static Dataverse.Fluent.Builders.BulkBuilder<T> Bulk<T>(this Dataverse.Fluent.IDataverseClient client, string? entitySet = null, string? entityLogicalName = null)
+            where T :  class { }
         public static Dataverse.Fluent.IDataverseClient WithOptions(this Dataverse.Fluent.IDataverseClient client, Dataverse.Fluent.DataverseRequestOptions options) { }
         public static Dataverse.Fluent.IDataverseClient WithOptions(this Dataverse.Fluent.IDataverseClient client, System.Action<Dataverse.Fluent.DataverseRequestOptions> configure) { }
     }
@@ -336,6 +338,17 @@ namespace Dataverse.Fluent.Builders
         public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BatchResult> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
         public Dataverse.Fluent.Builders.BatchBuilder NewChangeset() { }
     }
+    public sealed class BulkBuilder<T>
+        where T :  class
+    {
+        public Dataverse.Fluent.Builders.BulkBuilder<T> ChunkSize(int size) { }
+        public Dataverse.Fluent.Builders.BulkBuilder<T> ContinueOnError(bool value = true) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> CreateAsync(System.Collections.Generic.IEnumerable<T> entities, System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.BulkBuilder<T> MaxDegreeOfParallelism(int maxDegreeOfParallelism) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> UpdateAsync(System.Collections.Generic.IEnumerable<T> entities, System.Linq.Expressions.Expression<System.Func<T, System.Guid?>> primaryKey, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> UpsertAsync(System.Collections.Generic.IEnumerable<T> entities, System.Linq.Expressions.Expression<System.Func<T, System.Guid?>> primaryKey, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> UpsertByAlternateKeyAsync<TKey>(System.Collections.Generic.IEnumerable<T> entities, System.Linq.Expressions.Expression<System.Func<T, TKey>> alternateKey, System.Threading.CancellationToken ct = default) { }
+    }
     public static class DataverseFunctions
     {
         public static bool Above(object? property, System.Guid value) { }
@@ -601,6 +614,34 @@ namespace Dataverse.Fluent.Models
         public System.Collections.Generic.IEnumerable<Dataverse.Fluent.Models.BatchOperationResult> Errors { get; }
         public bool HasErrors { get; }
         public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Models.BatchOperationResult> Results { get; }
+        public void ThrowIfAnyFailed() { }
+    }
+    public sealed class BulkChunkResult
+    {
+        public int Count { get; }
+        public System.Exception? Error { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Guid> Ids { get; }
+        public bool IsSuccess { get; }
+        public int StartIndex { get; }
+        public Dataverse.Fluent.Models.BulkChunkStatus Status { get; }
+    }
+    public enum BulkChunkStatus
+    {
+        NotSent = 0,
+        Succeeded = 1,
+        Failed = 2,
+    }
+    public sealed class BulkOperationException : System.AggregateException
+    {
+        public Dataverse.Fluent.Models.BulkResult Result { get; }
+    }
+    public sealed class BulkResult
+    {
+        public bool AllSucceeded { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Models.BulkChunkResult> Chunks { get; }
+        public System.Collections.Generic.IEnumerable<Dataverse.Fluent.Models.BulkChunkResult> Failures { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Guid> Ids { get; }
+        public int SucceededCount { get; }
         public void ThrowIfAnyFailed() { }
     }
     public sealed class DataverseCreateResult<T>

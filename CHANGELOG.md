@@ -13,6 +13,11 @@ packages follow [semantic versioning](https://semver.org/).
   header through `Headers`. Batches built from that client carry the headers in every operation, because Dataverse
   does not apply the headers of a `$batch` request to the operations inside it.
   See [Request Options](Dataverse.Fluent/docs/REQUEST_OPTIONS.md).
+- `Bulk<T>()` writes many records with `CreateMultiple`, `UpdateMultiple` and `UpsertMultiple` (by primary key or
+  alternate key, including composite keys). Records are sent in chunks (`ChunkSize`, default 100), optionally in
+  parallel (`MaxDegreeOfParallelism`). The `BulkResult` reports each chunk as succeeded, failed or not sent, with the
+  created IDs in input order, and `ThrowIfAnyFailed()` throws `BulkOperationException`. Missing and duplicate keys are
+  rejected before anything is sent. See [Bulk Operations](Dataverse.Fluent/docs/BULK_OPERATIONS.md).
 
 ## 1.0.0 (2026-11-16)
 

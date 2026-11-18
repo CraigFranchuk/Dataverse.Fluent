@@ -11,6 +11,7 @@ POCOs and the calls you write are the model, so a client is ready as soon as it 
 - Queries with C# lambdas translated to OData (`$filter`, `$select`, `$orderby`, `$expand`), paging and streaming
 - Create, retrieve, update, upsert and delete, by ID or alternate key, with ETag concurrency control
 - Batches with transactional changesets, and deep insert of related records
+- Bulk create, update and upsert (`CreateMultiple`, `UpdateMultiple`, `UpsertMultiple`) in chunks, in parallel
 - FetchXML, through a fluent builder or as raw XML, with automatic paging
 - Aggregations (`$apply`), delta queries (change tracking), actions and functions, notes and file attachments
 - Lookups and related records mapped on the POCO, so a retrieved record can be written back unchanged
@@ -337,6 +338,25 @@ await client.Batch()
     .ExecuteAsync();
 ```
 
+## Bulk operations
+
+For many records of one table, `Bulk<T>()` uses `CreateMultiple`, `UpdateMultiple` and `UpsertMultiple`, which are
+faster than a batch. Records are sent in chunks, optionally in parallel, and the result reports each chunk.
+
+```csharp
+var result = await client.Bulk<Account>()
+    .ChunkSize(500)
+    .MaxDegreeOfParallelism(4)
+    .CreateAsync(accounts);
+result.ThrowIfAnyFailed();
+
+await client.Bulk<Account>().UpdateAsync(changes, a => a.AccountId);
+await client.Bulk<Account>().UpsertByAlternateKeyAsync(accounts, a => a.AccountNumber);
+```
+
+On a standard table each chunk is one transaction: when a record fails, its chunk is rolled back. See
+[Bulk Operations](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/BULK_OPERATIONS.md).
+
 ## Request options
 
 `WithOptions` returns a client that sends Dataverse's optional headers with every request, including each operation
@@ -462,6 +482,7 @@ be sent through `client.Transport`.
 | [Annotations](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ANNOTATIONS.md) | Notes and file attachments |
 | [Deep Insert](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DEEP_INSERT_GUIDE.md) | Creating related records in one request |
 | [Delta Queries](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DELTA_QUERIES.md) | Change tracking |
+| [Bulk Operations](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/BULK_OPERATIONS.md) | `CreateMultiple`, `UpdateMultiple`, `UpsertMultiple` |
 | [Request Options](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/REQUEST_OPTIONS.md) | Bypassing business logic, impersonation, duplicate detection |
 | [FetchXML Examples](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/FETCHXML_EXAMPLES.md) | Fluent and raw FetchXML |
 | [Lookup References](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/LOOKUP_REFERENCES.md) | Mapping and setting lookups |

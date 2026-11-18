@@ -523,22 +523,8 @@ public sealed partial class BatchBuilder
         return headers;
     }
 
-    // Operations that can update a record pass both Create and Update: a property marked read-only for
-    // Create only (e.g. statecode) must not send its default value over an existing record.
     private static JsonNode SerializeEntity<T>(T entity, params DataverseOperation[] operations) where T : class
-    {
-        var serialized = JsonSerializer.SerializeToNode(entity, JsonDefaults.EntityPayload);
-        if (serialized is not JsonObject jsonObject)
-        {
-            return serialized ?? new JsonObject();
-        }
-
-        // Remove read-only properties from the JSON
-        foreach (var operation in operations)
-            PropertyFilter.RemoveReadOnlyProperties<T>(jsonObject, operation);
-
-        return jsonObject;
-    }
+        => EntityPayload.Serialize(entity, operations);
 
     private static string InferEntitySet<T>()
     {

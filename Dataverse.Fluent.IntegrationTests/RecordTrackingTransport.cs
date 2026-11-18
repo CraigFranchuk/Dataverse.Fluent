@@ -12,8 +12,8 @@ namespace Dataverse.Fluent.IntegrationTests;
 /// <remarks>
 /// <para>
 /// Only records this transport saw being created are tracked: a successful POST to an entity set, a create-only
-/// upsert (<c>If-None-Match: *</c>) or an upsert that answered 201 Created, and the same operations inside a
-/// <c>$batch</c>. Records are never chosen by name or by creator, because the application user the tests run as may
+/// upsert (<c>If-None-Match: *</c>) or an upsert that answered 201 Created, the same operations inside a
+/// <c>$batch</c>, and the records returned by <c>CreateMultiple</c>. Records are never chosen by name or by creator, because the application user the tests run as may
 /// also create real records in the environment.
 /// </para>
 /// <para>
@@ -58,6 +58,20 @@ internal sealed partial class RecordTrackingTransport(IDataverseTransport inner)
         if (batchBody != null)
         {
             TrackBatch(batchBody, await response.ReadStringAsync(ct).ConfigureAwait(false));
+        }
+        else if (request.Method == HttpMethod.Post && CreateMultiplePath().Match(path) is { Success: true } createMultiple)
+        {
+            // CreateMultiple answers with the IDs of the records it created. UpsertMultiple does not say which
+            // records it created, so tests that use it delete their records themselves.
+            var body = await response.ReadJsonObjectAsync(ct).ConfigureAwait(false);
+            if (body["Ids"] is JsonArray ids)
+            {
+                foreach (var id in ids)
+                {
+                    if (Guid.TryParse(id?.GetValue<string>(), out var created))
+                        Track(createMultiple.Groups["set"].Value, created);
+                }
+            }
         }
         else if (CreatesRecord(request.Method, path, request.Headers, response.StatusCode))
         {
@@ -172,6 +186,9 @@ internal sealed partial class RecordTrackingTransport(IDataverseTransport inner)
 
     [GeneratedRegex(@"^[a-z][a-z0-9_]*\([^/]+\)$")]
     private static partial Regex KeyedPath();
+
+    [GeneratedRegex(@"^(?<set>[a-z][a-z0-9_]*)/Microsoft\.Dynamics\.CRM\.CreateMultiple$")]
+    private static partial Regex CreateMultiplePath();
 
     [GeneratedRegex(@"Content-ID:\s*(?<id>\d+)\s*\r?\n\s*\r?\n(?<method>[A-Z]+) (?<url>\S+) HTTP/1\.1\r?\n(?<headers>(?:[^\r\n]+\r?\n)*)", RegexOptions.IgnoreCase)]
     private static partial Regex BatchRequestPart();

@@ -1,3 +1,5 @@
+using Dataverse.Fluent.Builders;
+
 namespace Dataverse.Fluent;
 
 /// <summary>
@@ -61,5 +63,28 @@ public static class DataverseClientExtensions
             return client;
 
         return new DataverseClient(RequestOptionsTransport.Wrap(client.Transport, headers));
+    }
+
+    /// <summary>
+    /// Creates a builder that writes many records of one table with the bulk operation messages
+    /// (<c>CreateMultiple</c>, <c>UpdateMultiple</c>, <c>UpsertMultiple</c>), in chunks and optionally in parallel.
+    /// </summary>
+    /// <typeparam name="T">The POCO type of the table.</typeparam>
+    /// <param name="client">The client to send through. Options set with <c>WithOptions</c>, such as bypassing custom
+    /// business logic, apply to every chunk.</param>
+    /// <param name="entitySet">The entity set name; inferred from <typeparamref name="T"/> when omitted.</param>
+    /// <param name="entityLogicalName">The table's logical name, sent as each record's <c>@odata.type</c>; resolved from
+    /// <see cref="DataverseEntityAttribute"/> or a name resolver, or the lowercase type name, when omitted.</param>
+    /// <example>
+    /// <code>
+    /// var result = await client.Bulk&lt;Account&gt;().ChunkSize(500).CreateAsync(accounts);
+    /// result.ThrowIfAnyFailed();
+    /// </code>
+    /// </example>
+    public static BulkBuilder<T> Bulk<T>(this IDataverseClient client, string? entitySet = null, string? entityLogicalName = null)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        return new BulkBuilder<T>(client.Transport, entitySet, entityLogicalName);
     }
 }

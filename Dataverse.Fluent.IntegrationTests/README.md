@@ -173,6 +173,14 @@ environment does not have by default, and are skipped without it:
   fail with a message saying so, rather than skipping.
 - **Change tracking.** `DeltaQueryTests` need change tracking enabled on the Account table.
 
+`BulkOperationTests.Performance_CreateMultiple_ComparedWithBatch` creates 1,500 accounts to compare `$batch` with
+`CreateMultiple`, so it is skipped unless the environment variable `DATAVERSE_RUN_PERFORMANCE_TESTS` is `true`. It
+writes the timings to the test output:
+
+```bash
+DATAVERSE_RUN_PERFORMANCE_TESTS=true dotnet test --filter "Category=Performance" --logger "console;verbosity=detailed"
+```
+
 Keep values that identify your environment, such as custom column names, in user secrets or CI secrets rather than
 in the tests.
 
