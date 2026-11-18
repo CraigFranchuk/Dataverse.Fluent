@@ -474,8 +474,8 @@ public sealed class QueryBuilder<T>
     private Dictionary<string, string>? BuildPreferHeaders(int? pageSize)
     {
         var preferValues = new List<string>(2);
-        if (_includeFormattedValues)
-            preferValues.Add(ODataPaging.FormattedValuesPreference);
+        if (ODataPaging.IncludeAnnotationsPreference(typeof(T), _includeFormattedValues) is { } annotations)
+            preferValues.Add(annotations);
         if (pageSize.HasValue)
             preferValues.Add(ODataPaging.MaxPageSizePreference(pageSize.Value));
 

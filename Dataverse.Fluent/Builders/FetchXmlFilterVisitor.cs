@@ -121,6 +121,14 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
             return node;
         }
 
+        // A polymorphic lookup's Id (x.CustomerId.Id) is the lookup attribute itself.
+        if (node.Member.DeclaringType == typeof(DataverseReference) && node.Member.Name == nameof(DataverseReference.Id)
+            && node.Expression is MemberExpression { Expression.NodeType: ExpressionType.Parameter } reference)
+        {
+            _operandStack.Push(new Operand(EntityTypeMetadata.GetLogicalName(reference.Member)));
+            return node;
+        }
+
         throw new NotSupportedException($"Member access '{node}' is not supported in FetchXML filters.");
     }
 

@@ -13,7 +13,29 @@ internal static class ODataPaging
     /// <summary>The largest page size Dataverse honors for standard tables.</summary>
     internal const int MaxPageSize = 5000;
 
-    internal const string FormattedValuesPreference = "odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"";
+    internal const string FormattedValueAnnotation = "OData.Community.Display.V1.FormattedValue";
+
+    /// <summary>The annotation that says which table a lookup value points at.</summary>
+    internal const string LookupLogicalNameAnnotation = "Microsoft.Dynamics.CRM.lookuplogicalname";
+
+    internal const string FormattedValuesPreference = "odata.include-annotations=\"" + FormattedValueAnnotation + "\"";
+
+    /// <summary>
+    /// Returns the <c>odata.include-annotations</c> preference for reading records of <paramref name="entityType"/>,
+    /// or <see langword="null"/> when none is needed: formatted values when requested, and the lookup table
+    /// annotation when the type, or a related record it holds, has a polymorphic lookup.
+    /// </summary>
+    internal static string? IncludeAnnotationsPreference(Type? entityType, bool formattedValues, params string[] others)
+    {
+        var annotations = new List<string>(2 + others.Length);
+        if (formattedValues)
+            annotations.Add(FormattedValueAnnotation);
+        if (entityType is not null && EntityTypeMetadata.For(entityType).ReadsLookupLogicalNames)
+            annotations.Add(LookupLogicalNameAnnotation);
+        annotations.AddRange(others);
+
+        return annotations.Count == 0 ? null : $"odata.include-annotations=\"{string.Join(",", annotations)}\"";
+    }
 
     internal static string MaxPageSizePreference(int pageSize) => $"odata.maxpagesize={pageSize}";
 

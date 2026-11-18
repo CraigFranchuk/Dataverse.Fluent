@@ -31,10 +31,56 @@ public class Contact
 }
 ```
 
-A **polymorphic** lookup (customer, owner, regarding) has one navigation property per target table, so it cannot
-be written from a single `Guid`. Map its value as `[JsonPropertyName("_parentcustomerid_value")]` with
-`[DataverseReadOnly(DataverseOperation.CreateAndUpdate)]`, and set it with `SetLookup`, which names the target, as in
-the sections below.
+## Polymorphic Lookups
+
+A **polymorphic** lookup (customer, owner, regarding) can point at more than one table, and has one navigation
+property per target. Map it as a `DataverseReference`: `[DataverseLookup("column")]`, plus one
+`[DataverseLookupTarget(logicalName, entitySet, navigationProperty)]` per table it can point at. The library downloads
+no metadata, so the targets are declared on the model:
+
+```csharp
+[DataverseEntity("contact", "contacts")]
+public class Contact
+{
+    [DataverseLookup("parentcustomerid")]
+    [DataverseLookupTarget("account", "accounts", "parentcustomerid_account")]
+    [DataverseLookupTarget("contact", "contacts", "parentcustomerid_contact")]
+    public DataverseReference? ParentCustomerId { get; set; }
+
+    // Both owner targets share one navigation property.
+    [DataverseReadOnly(DataverseOperation.Create)]
+    [DataverseLookup("ownerid")]
+    [DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+    [DataverseLookupTarget("team", "teams", "ownerid")]
+    public DataverseReference? OwnerId { get; set; }
+}
+```
+
+A `DataverseReference` holds the table's logical name and the record's ID:
+
+```csharp
+contact.ParentCustomerId = DataverseReference.To<Account>(accountId);     // logical name from [DataverseEntity]
+contact.ParentCustomerId = new DataverseReference("contact", otherContactId);
+
+if (contact.ParentCustomerId?.LogicalName == "account") { /* ... */ }
+```
+
+- **Writes:** `SetFrom`, `Set`, batches and bulk operations send the bind of the matching target, e.g.
+  `"parentcustomerid_account@odata.bind": "/accounts(...)"`. A reference to a table that is not a target throws
+  `InvalidOperationException`. An unset reference is not written by `SetFrom`, and `Set(c => c.ParentCustomerId, null)`
+  clears the lookup.
+- **Reads:** the ID comes from `_parentcustomerid_value`, and the table from its
+  `Microsoft.Dynamics.CRM.lookuplogicalname` annotation. Queries, retrieves, FetchXML, delta queries, batch retrieves
+  and writes that return the record request that annotation automatically when the type, or a related record it
+  expands, has a polymorphic lookup. A retrieved record can therefore be written back unchanged.
+- **Filters** use the ID: `Where(c => c.ParentCustomerId!.Id == accountId)` becomes
+  `_parentcustomerid_value eq '...'`, and `c.ParentCustomerId == null` tests for no value. OData cannot filter on
+  the table of a lookup, so a filter on `LogicalName` throws `NotSupportedException`.
+
+The navigation property names are in the Dataverse Web API reference for each table, or in `$metadata`. For a
+regarding lookup they include the activity table, e.g. `regardingobjectid_account_task`.
+
+`SetLookup`, below, still works for a polymorphic lookup set without a model property.
 
 ## By GUID (ID)
 

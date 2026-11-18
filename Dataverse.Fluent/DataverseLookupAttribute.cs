@@ -8,8 +8,9 @@ namespace Dataverse.Fluent;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The lookup must point at a single table. A polymorphic lookup (customer, owner, regarding) has one
-/// navigation property per target table; set it with <c>SetLookup("parentcustomerid_account", ...)</c>.
+/// A polymorphic lookup (customer, owner, regarding), which can point at more than one table, uses the
+/// <see cref="DataverseLookupAttribute(string)"/> constructor on a <see cref="DataverseReference"/> property, with
+/// one <see cref="DataverseLookupTargetAttribute"/> per table.
 /// </para>
 /// <para>
 /// Setting the property to <see langword="null"/> with <c>Set(x =&gt; x.Lookup, null)</c> clears the lookup.
@@ -24,6 +25,12 @@ namespace Dataverse.Fluent;
 /// // A custom lookup whose navigation property is the schema name:
 /// [DataverseLookup("new_regionid", "new_regions", NavigationProperty = "new_RegionId")]
 /// public Guid? RegionId { get; set; }
+///
+/// // A polymorphic lookup:
+/// [DataverseLookup("customerid")]
+/// [DataverseLookupTarget("account", "accounts", "customerid_account")]
+/// [DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+/// public DataverseReference? CustomerId { get; set; }
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
@@ -44,16 +51,31 @@ public sealed class DataverseLookupAttribute : Attribute
         TargetEntitySet = targetEntitySet;
     }
 
+    /// <summary>
+    /// Initializes a polymorphic lookup, which can point at more than one table. Apply it to a
+    /// <see cref="DataverseReference"/> property, with one <see cref="DataverseLookupTargetAttribute"/> per table.
+    /// </summary>
+    /// <param name="logicalName">The lookup column's logical name (e.g., "customerid").</param>
+    public DataverseLookupAttribute(string logicalName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(logicalName);
+        LogicalName = logicalName;
+    }
+
     /// <summary>The lookup column's logical name (e.g., "primarycontactid").</summary>
     public string LogicalName { get; }
 
-    /// <summary>The entity set of the table the lookup points at (e.g., "contacts").</summary>
-    public string TargetEntitySet { get; }
+    /// <summary>
+    /// The entity set of the table the lookup points at (e.g., "contacts"), or <see langword="null"/> for a
+    /// polymorphic lookup, whose tables are given by <see cref="DataverseLookupTargetAttribute"/>.
+    /// </summary>
+    public string? TargetEntitySet { get; }
 
     /// <summary>
     /// The single-valued navigation property used to write the lookup. Defaults to <see cref="LogicalName"/>,
     /// which matches system lookups; for a custom lookup it is usually the column's schema name
-    /// (e.g., "new_RegionId").
+    /// (e.g., "new_RegionId"). A polymorphic lookup does not use it: each <see cref="DataverseLookupTargetAttribute"/>
+    /// names its own.
     /// </summary>
     public string NavigationProperty
     {

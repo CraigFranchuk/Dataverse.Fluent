@@ -10,8 +10,8 @@ namespace Dataverse.Fluent.Builders;
 /// to avoid repeated reflection on hot paths (e.g., batch operations).
 /// </summary>
 /// <remarks>
-/// Names are the ones a payload is written with (<see cref="EntityMember.WriteName"/>), so a read-only
-/// lookup is matched by its <c>@odata.bind</c> name.
+/// Names are the ones a payload is written with (<see cref="EntityMember.WriteNames"/>), so a read-only
+/// lookup is matched by its <c>@odata.bind</c> names.
 /// </remarks>
 internal static class PropertyFilter
 {
@@ -43,7 +43,7 @@ internal static class PropertyFilter
             {
                 var readOnlyAttr = member.Property.GetCustomAttribute<DataverseReadOnlyAttribute>();
                 if (readOnlyAttr != null && readOnlyAttr.ExcludeFrom.HasFlag(op))
-                    readOnlyProps.Add(member.WriteName);
+                    readOnlyProps.UnionWith(member.WriteNames);
             }
 
             return readOnlyProps;

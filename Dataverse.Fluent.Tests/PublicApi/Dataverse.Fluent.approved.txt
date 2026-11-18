@@ -78,10 +78,19 @@ namespace Dataverse.Fluent
     [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
     public sealed class DataverseLookupAttribute : System.Attribute
     {
+        public DataverseLookupAttribute(string logicalName) { }
         public DataverseLookupAttribute(string logicalName, string targetEntitySet) { }
         public string LogicalName { get; }
         public string NavigationProperty { get; set; }
-        public string TargetEntitySet { get; }
+        public string? TargetEntitySet { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=true, Inherited=true)]
+    public sealed class DataverseLookupTargetAttribute : System.Attribute
+    {
+        public DataverseLookupTargetAttribute(string logicalName, string entitySet, string navigationProperty) { }
+        public string EntitySet { get; }
+        public string LogicalName { get; }
+        public string NavigationProperty { get; }
     }
     [System.Flags]
     public enum DataverseOperation
@@ -98,6 +107,14 @@ namespace Dataverse.Fluent
         public DataverseReadOnlyAttribute() { }
         public DataverseReadOnlyAttribute(Dataverse.Fluent.DataverseOperation excludeFrom) { }
         public Dataverse.Fluent.DataverseOperation ExcludeFrom { get; set; }
+    }
+    public sealed class DataverseReference : System.IEquatable<Dataverse.Fluent.DataverseReference>
+    {
+        public DataverseReference(string logicalName, System.Guid id) { }
+        public System.Guid Id { get; }
+        public string? LogicalName { get; }
+        public override string ToString() { }
+        public static Dataverse.Fluent.DataverseReference To<T>(System.Guid id) { }
     }
     public sealed class DataverseRequest
     {

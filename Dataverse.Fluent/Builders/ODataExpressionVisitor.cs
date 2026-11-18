@@ -158,6 +158,21 @@ internal class ODataExpressionVisitor : ExpressionVisitor
             return node;
         }
 
+        // A polymorphic lookup's Id (x.CustomerId.Id) filters on the lookup value, "_customerid_value".
+        if (node.Member.DeclaringType == typeof(DataverseReference)
+            && node.Expression is MemberExpression { Expression.NodeType: ExpressionType.Parameter } reference)
+        {
+            if (node.Member.Name != nameof(DataverseReference.Id))
+            {
+                throw new NotSupportedException(
+                    $"'{node}' cannot be filtered: OData filters a lookup by its ID only. Filter on {reference.Member.Name}.Id, " +
+                    "or on a column of the related table through $expand.");
+            }
+
+            _operandStack.Push(GetODataPropertyName(reference.Member));
+            return node;
+        }
+
         if (node.Expression?.NodeType == ExpressionType.Parameter)
         {
             var propertyName = GetODataPropertyName(node.Member);

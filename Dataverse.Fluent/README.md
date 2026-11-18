@@ -14,7 +14,7 @@ POCOs and the calls you write are the model, so a client is ready as soon as it 
 - Bulk create, update and upsert (`CreateMultiple`, `UpdateMultiple`, `UpsertMultiple`) in chunks, in parallel
 - FetchXML, through a fluent builder or as raw XML, with automatic paging
 - Aggregations (`$apply`), delta queries (change tracking), actions and functions, notes and file attachments
-- Lookups and related records mapped on the POCO, so a retrieved record can be written back unchanged
+- Lookups, including polymorphic customer, owner and regarding lookups, and related records mapped on the POCO, so a retrieved record can be written back unchanged
 - Request options: bypass custom business logic and flows, impersonate a user, detect duplicates
 - Write-safe retries, throttling (HTTP 429) handling, token caching, dependency injection and multiple environments
 - `DataverseException` with the Dataverse error code and activity ID
@@ -293,13 +293,16 @@ await client.Entity<Account>(id).Set(a => a.PrimaryContactId, contactId).UpdateA
 await client.Entity<Account>(id).Set(a => a.PrimaryContactId, null).UpdateAsync(); // clears it
 ```
 
-A polymorphic lookup such as a contact's parent customer names its target:
+A polymorphic lookup, such as a customer, owner or regarding lookup, is a `DataverseReference` (table and ID), with one
+target per table it can point at. Reads fill in the table, and writes send the bind for that table:
 
 ```csharp
-await client.Entity<Contact>()
-    .Set(c => c.LastName, "Doe")
-    .SetLookup("parentcustomerid_account", "accounts", accountId)
-    .CreateAsync();
+[DataverseLookup("parentcustomerid")]
+[DataverseLookupTarget("account", "accounts", "parentcustomerid_account")]
+[DataverseLookupTarget("contact", "contacts", "parentcustomerid_contact")]
+public DataverseReference? ParentCustomerId { get; set; }
+
+await client.Entity<Contact>(id).Set(c => c.ParentCustomerId, DataverseReference.To<Account>(accountId)).UpdateAsync();
 ```
 
 `SetFrom` never writes navigation properties (related records loaded with `$expand`), so a retrieved record can be

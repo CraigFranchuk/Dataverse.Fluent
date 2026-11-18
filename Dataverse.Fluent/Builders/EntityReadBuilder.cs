@@ -253,5 +253,5 @@ public sealed class EntityReadBuilder<T>
 
     private string BuildUrl() => EntityRequest.AppendQueryOptions(_request.BuildPath(requireKey: true), _selectProperties, _expandClauses);
 
-    private Dictionary<string, string>? BuildHeaders() => _request.BuildHeaders(_includeFormattedValues);
+    private Dictionary<string, string>? BuildHeaders() => _request.BuildHeaders(_includeFormattedValues, readsRecord: true);
 }

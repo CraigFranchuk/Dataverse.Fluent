@@ -18,6 +18,15 @@ packages follow [semantic versioning](https://semver.org/).
   parallel (`MaxDegreeOfParallelism`). The `BulkResult` reports each chunk as succeeded, failed or not sent, with the
   created IDs in input order, and `ThrowIfAnyFailed()` throws `BulkOperationException`. Missing and duplicate keys are
   rejected before anything is sent. See [Bulk Operations](Dataverse.Fluent/docs/BULK_OPERATIONS.md).
+- Polymorphic lookups (customer, owner, regarding) map as a `DataverseReference` (table logical name and ID) with
+  `[DataverseLookup("column")]` and one `[DataverseLookupTarget(logicalName, entitySet, navigationProperty)]` per
+  table. `SetFrom`, `Set`, batches and bulk operations write the bind for the table the reference points at.
+  Queries, retrieves, FetchXML, delta queries and batch retrieves request the `lookuplogicalname` annotation
+  automatically when a type needs it, so reads fill in the table. Filters use `x.Lookup.Id`. See
+  [Lookup References](Dataverse.Fluent/docs/LOOKUP_REFERENCES.md#polymorphic-lookups).
+- `DataverseLookupAttribute.TargetEntitySet` is now `string?`: it is `null` for a polymorphic lookup.
+- Fixed: `SetFromExcept(x => x.Lookup)` and `SetFrom(entity, "lookupcolumn")` did not exclude a lookup, because a
+  lookup is written under its `@odata.bind` name rather than the name it is read by.
 
 ## 1.0.1 (2026-11-18)
 

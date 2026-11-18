@@ -112,9 +112,12 @@ public sealed class EntityWriteBuilder<T>
     /// <returns>Current EntityWriteBuilder instance for chaining</returns>
     /// <remarks>
     /// A <see cref="DataverseLookupAttribute"/> property is written as <c>{navigation}@odata.bind</c>; a
-    /// <see langword="null"/> or <see cref="Guid.Empty"/> value clears the lookup.
+    /// <see langword="null"/> or <see cref="Guid.Empty"/> value clears the lookup. A polymorphic lookup
+    /// (<see cref="DataverseReference"/>) is written with the navigation property of the table it points at.
     /// </remarks>
     /// <exception cref="ArgumentException">The property holds related records (a navigation property).</exception>
+    /// <exception cref="InvalidOperationException">A <see cref="DataverseReference"/> points at a table that is not one
+    /// of the lookup's targets.</exception>
     public EntityWriteBuilder<T> Set<TProperty>(Expression<Func<T, TProperty>> propertyExpression, TProperty? value)
     {
         ArgumentNullException.ThrowIfNull(propertyExpression);
@@ -126,9 +129,23 @@ public sealed class EntityWriteBuilder<T>
         {
             case EntityMemberKind.Lookup:
                 var target = value is Guid id && id != Guid.Empty
-                    ? DataverseColumnResolver.FormatBind(member.Lookup!.TargetEntitySet, id)
+                    ? DataverseColumnResolver.FormatBind(member.Lookup!.TargetEntitySet!, id)
                     : null;
                 return Set(member.WriteName, target);
+
+            case EntityMemberKind.PolymorphicLookup:
+                // Every navigation property of the lookup writes the same column: drop any earlier value first.
+                foreach (var name in member.WriteNames)
+                    _payload.Remove(name);
+
+                if (value is DataverseReference reference && reference.Id != Guid.Empty)
+                {
+                    var (lookupTarget, bind) = member.ResolveBind(reference);
+                    return Set($"{lookupTarget.NavigationProperty}@odata.bind", bind);
+                }
+
+                // Clearing: null on one navigation property clears the column, whichever table it pointed at.
+                return Set(member.WriteName, null);
 
             case EntityMemberKind.Navigation:
                 throw new ArgumentException(
@@ -307,7 +324,17 @@ public sealed class EntityWriteBuilder<T>
     /// <returns>Current EntityWriteBuilder instance for chaining</returns>
     public EntityWriteBuilder<T> SetFrom(T entity, params string[] exclude)
     {
-        return CopyFrom(entity, excludeReadOnly: true, new HashSet<string>(exclude, StringComparer.OrdinalIgnoreCase));
+        ArgumentNullException.ThrowIfNull(exclude);
+
+        // A lookup is written as a bind, so its logical or read name excludes its bind names too.
+        var excluded = new HashSet<string>(exclude, StringComparer.OrdinalIgnoreCase);
+        foreach (var member in EntityTypeMetadata.For(typeof(T)).Members)
+        {
+            if (excluded.Contains(member.LogicalName) || excluded.Contains(member.Name))
+                excluded.UnionWith(member.WriteNames);
+        }
+
+        return CopyFrom(entity, excludeReadOnly: true, excluded);
     }
 
     /// <summary>
@@ -321,10 +348,15 @@ public sealed class EntityWriteBuilder<T>
     {
         ArgumentNullException.ThrowIfNull(entity);
 
+        var metadata = EntityTypeMetadata.For(typeof(T));
         var excludedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var expr in exclude)
         {
-            excludedNames.Add(EntityRequest.GetJsonPropertyName(expr));
+            // A lookup is written under its bind name(s), not the _x_value name it is read by.
+            if (metadata.Find(Expressions.MemberPathExtractor.GetProperty(expr)) is { } member)
+                excludedNames.UnionWith(member.WriteNames);
+            else
+                excludedNames.Add(EntityRequest.GetJsonPropertyName(expr));
         }
 
         return CopyFrom(entity, excludeReadOnly: true, excludedNames);

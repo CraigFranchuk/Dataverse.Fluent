@@ -327,7 +327,12 @@ public sealed partial class BatchBuilder
         {
             url += "?$select=" + Uri.EscapeDataString(string.Join(",", select));
         }
-        AddStandalone(CreateRequest(HttpMethod.Get, url, null));
+
+        // A polymorphic lookup on T needs the table annotation, which each batch part must request itself.
+        var headers = ODataPaging.IncludeAnnotationsPreference(typeof(T), formattedValues: false) is { } annotations
+            ? new Dictionary<string, string> { ["Prefer"] = annotations }
+            : null;
+        AddStandalone(CreateRequest(HttpMethod.Get, url, null, headers));
         return this;
     }
 
