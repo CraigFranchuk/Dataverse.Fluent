@@ -58,9 +58,10 @@ Filter translation was checked construct by construct against a live environment
 - Fixed: a delta query with `Since(token)` reported a deleted record as a changed one, an item in `Value` with an
   empty ID, and left `Deleted` empty. Dataverse sends a deletion as a `$deletedEntity` with a bare `id`, not the
   `@removed` form the library looked for. Deletions are now in `Deleted`, with `GetEntityId()` and `Removed.Reason`.
-- Changed: `DeltaBuilder.Where`, `OrderBy`, `Top` and `Count` are obsolete and throw `NotSupportedException`. Dataverse
-  rejects `$filter`, `$orderby`, `$top` and `$count` on every change-tracking query, so a delta query using them always
-  failed. Filter and order the changes in code, and use `StreamAsync(pageSize)` for page size.
+- **Breaking:** removed `DeltaBuilder.Where`, `OrderBy`, `Top` and `Count`, and `DeltaResults.Count`. Dataverse rejects
+  `$filter`, `$orderby`, `$top` and `$count` on every change-tracking query, so a delta query using them always failed
+  (and `DeltaResults.Count` was never set). Filter and order the changes in code, and use `StreamAsync(pageSize)` for
+  page size. This breaks semantic versioning for a patch release; the methods never worked.
 - Docs: a delta token comes only with the last page. On a table with more than 5,000 rows, an initial `ExecuteAsync()`
   returns a `NextLink` and no token; use `StreamAsync()` for the initial sync.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in

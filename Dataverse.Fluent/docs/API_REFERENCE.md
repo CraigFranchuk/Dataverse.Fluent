@@ -165,7 +165,7 @@ The first read option continues on `EntityReadBuilder<T>`; the first write optio
 
 `DeltaBuilder<T>`: `Since(token)`, `Select`, `IncludeFormattedValues`,
 `WithHeaders`, then `ExecuteAsync()` or `StreamAsync(pageSize)`. Results are `DeltaResults<T>`: `Value`, `Deleted`
-(`EntityReference` with `GetEntityId()` and `Removed.Reason`), `DeltaToken` (on the last page only), `NextLink`. `Where`, `OrderBy`, `Top` and `Count` are obsolete: Dataverse rejects them on delta queries.
+(`EntityReference` with `GetEntityId()` and `Removed.Reason`), `DeltaToken` (on the last page only), `NextLink`. There is no `Where`, `OrderBy`, `Top` or `Count`: Dataverse rejects them on delta queries.
 
 ## Actions and functions
 

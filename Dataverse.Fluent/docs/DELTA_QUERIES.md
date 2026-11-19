@@ -154,8 +154,8 @@ For general error handling see [ERROR_HANDLING.md](ERROR_HANDLING.md).
 ## Limitations
 
 - **Only `$select`.** Dataverse rejects `$filter`, `$orderby`, `$top` and `$count` on a change-tracking query ("isn't
-  supported when Change Tracking is enabled"). `Where`, `OrderBy`, `Top` and `Count` are obsolete and throw
-  `NotSupportedException`. Filter and order the returned changes in code, and use `StreamAsync(pageSize)` for page size.
+  supported when Change Tracking is enabled"). so `DeltaBuilder` has no `Where`, `OrderBy`, `Top` or
+  `Count` (removed in 1.0.2). Filter and order the returned changes in code, and use `StreamAsync(pageSize)` for page size.
 - **The columns are fixed by the initial query.** The token carries its `$select`; a `Select()` with `Since()` is ignored.
 - **Tokens expire**, typically after about 90 days.
 - **Page size** is at most 5000 records.

@@ -163,34 +163,6 @@ public class DeltaBuilderTests
         Assert.Equal("name,revenue", request.QueryOption("$select"));
     }
 
-    // Dataverse rejects $filter, $orderby, $top and $count on a change-tracking query (0x8006088a, checked 2026-11-18).
-    [Theory]
-    [InlineData("$filter")]
-    [InlineData("$orderby")]
-    [InlineData("$top")]
-    [InlineData("$count")]
-    public void UnsupportedQueryOptions_Throw_BeforeSending(string option)
-    {
-        var handler = new TestHttpMessageHandler();
-        var client = CreateTestClient(handler);
-        var builder = client.Delta<TestAccount>();
-
-#pragma warning disable CS0618 // obsolete because they cannot work
-        Action configure = option switch
-        {
-            "$filter" => () => builder.Where("revenue gt 1000000"),
-            "$orderby" => () => builder.OrderBy("name"),
-            "$top" => () => builder.Top(50),
-            _ => () => builder.Count(),
-        };
-#pragma warning restore CS0618
-
-        var ex = Assert.Throws<NotSupportedException>(configure);
-
-        Assert.Contains(option, ex.Message);
-        Assert.Empty(handler.Requests);
-    }
-
     [Fact]
     public async Task ExecuteAsync_ReadsDataversesDeletedEntityShape()
     {

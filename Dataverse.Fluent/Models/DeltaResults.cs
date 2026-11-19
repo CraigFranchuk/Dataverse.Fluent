@@ -27,12 +27,6 @@ public class DeltaResults<T>
     public List<EntityReference> Deleted { get; set; } = [];
 
     /// <summary>
-    /// Total count of records (if $count=true was requested).
-    /// </summary>
-    [JsonPropertyName("@odata.count")]
-    public long? Count { get; set; }
-
-    /// <summary>
     /// Indicates whether there are more records available in the current page.
     /// </summary>
     [JsonPropertyName("@odata.nextLink")]

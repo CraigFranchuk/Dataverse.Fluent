@@ -4,7 +4,7 @@ using Dataverse.Fluent.IntegrationTests.Models;
 namespace Dataverse.Fluent.IntegrationTests.Contracts;
 
 // Dataverse's change-tracking behaviour, as established on 2026-11-18. The library depends on each of these:
-// - DeltaBuilder.Where/OrderBy/Top/Count throw: Dataverse rejects those options with change tracking (0x8006088a).
+// - DeltaBuilder has no Where/OrderBy/Top/Count: Dataverse rejects those options with change tracking (0x8006088a).
 // - DeltaBuilder.TryReadDeleted: a deletion is {"@odata.context": "...$deletedEntity", "id", "reason"}.
 // - DELTA_QUERIES.md: on a table with more rows than a page, the token comes only after the last page.
 [Collection("Dataverse Integration Tests")]

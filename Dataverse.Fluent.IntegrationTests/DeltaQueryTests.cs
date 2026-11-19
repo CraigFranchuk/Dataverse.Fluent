@@ -8,7 +8,7 @@ namespace Dataverse.Fluent.IntegrationTests;
 // returns a next link and no token on its first page; see Contracts/DeltaContractTests.)
 // A 2026-11-18 probe found: a change is visible to the next delta query at once; a deletion comes back as a
 // $deletedEntity with a bare id (which the library read as a changed record until 1.0.2); and Dataverse rejects
-// $filter, $orderby, $top and $count, so DeltaBuilder's Where, OrderBy, Top and Count throw.
+// $filter, $orderby, $top and $count, so DeltaBuilder no longer has Where, OrderBy, Top or Count.
 [Collection("Dataverse Integration Tests")]
 public class DeltaQueryTests : IClassFixture<DataverseTestFixture>
 {

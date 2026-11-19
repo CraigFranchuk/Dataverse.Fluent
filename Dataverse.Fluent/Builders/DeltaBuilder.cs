@@ -63,39 +63,6 @@ public sealed class DeltaBuilder<T>
         return this;
     }
 
-    private const string UnsupportedWhereMessage =
-        "Dataverse does not support $filter on a delta (change-tracking) query. Filter the returned changes in code.";
-    private const string UnsupportedOrderByMessage =
-        "Dataverse does not support $orderby on a delta (change-tracking) query. Order the returned changes in code.";
-    private const string UnsupportedTopMessage =
-        "Dataverse does not support $top on a delta (change-tracking) query. Use StreamAsync(pageSize) to control the page size.";
-    private const string UnsupportedCountMessage =
-        "Dataverse does not support $count on a delta (change-tracking) query. Use Value.Count for the rows in a page.";
-
-    /// <summary>
-    /// Not supported: Dataverse rejects <c>$filter</c> on a change-tracking query ("The "$filter" query parameter isn't
-    /// supported when Change Tracking is enabled", checked on 2026-11-18), so a delta query using it always failed.
-    /// </summary>
-    /// <exception cref="NotSupportedException">Always.</exception>
-    [Obsolete(UnsupportedWhereMessage)]
-    public DeltaBuilder<T> Where(string filter) => throw new NotSupportedException(UnsupportedWhereMessage);
-
-    /// <summary>
-    /// Not supported: Dataverse rejects <c>$orderby</c> on a change-tracking query ("The "$orderby" query parameter isn't
-    /// supported when Change Tracking is enabled", checked on 2026-11-18), so a delta query using it always failed.
-    /// </summary>
-    /// <exception cref="NotSupportedException">Always.</exception>
-    [Obsolete(UnsupportedOrderByMessage)]
-    public DeltaBuilder<T> OrderBy(string orderBy) => throw new NotSupportedException(UnsupportedOrderByMessage);
-
-    /// <summary>
-    /// Not supported: Dataverse rejects <c>$top</c> on a change-tracking query ("The "$top" query parameter isn't
-    /// supported when Change Tracking is enabled", checked on 2026-11-18), so a delta query using it always failed.
-    /// </summary>
-    /// <exception cref="NotSupportedException">Always.</exception>
-    [Obsolete(UnsupportedTopMessage)]
-    public DeltaBuilder<T> Top(int top) => throw new NotSupportedException(UnsupportedTopMessage);
-
     /// <summary>
     /// Requests formatted values via Prefer header (adds @OData.Community.Display.V1.FormattedValue annotations).
     /// </summary>
@@ -106,14 +73,6 @@ public sealed class DeltaBuilder<T>
         _includeFormattedValues = include;
         return this;
     }
-
-    /// <summary>
-    /// Not supported: Dataverse rejects <c>$count</c> on a change-tracking query ("The "$count" query parameter isn't
-    /// supported when Change Tracking is enabled", checked on 2026-11-18), so a delta query using it always failed.
-    /// </summary>
-    /// <exception cref="NotSupportedException">Always.</exception>
-    [Obsolete(UnsupportedCountMessage)]
-    public DeltaBuilder<T> Count(bool include = true) => throw new NotSupportedException(UnsupportedCountMessage);
 
     /// <summary>
     /// Adds custom headers to the request (e.g., for specific Prefer options).
@@ -313,12 +272,6 @@ public sealed class DeltaBuilder<T>
         if (response.TryGetPropertyValue("@odata.nextLink", out var nextLinkNode))
         {
             results.NextLink = nextLinkNode?.GetValue<string>();
-        }
-
-        // Extract count if requested
-        if (response.TryGetPropertyValue("@odata.count", out var countNode))
-        {
-            results.Count = countNode?.GetValue<long>();
         }
 
         return results;
