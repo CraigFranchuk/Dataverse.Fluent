@@ -31,15 +31,32 @@ public class WhoAmIResponse
 var me = await client.Function<WhoAmIResponse>("WhoAmI").ExecuteAsync();
 ```
 
-Parameters are added with `WithParameter(name, value)`. Strings, numbers, booleans, GUIDs, dates (in UTC) and enums
-(by integer value) are written as OData literals; any other object is sent as JSON. An entity reference is an object
-with `@odata.id`:
+Parameters are added with `WithParameter(name, value)`. Strings, numbers, booleans, GUIDs, dates (in UTC, unquoted) and
+`DateOnly` are written as OData literals; any other object, such as a string array, is sent as JSON. An entity
+reference is an object with `@odata.id`:
 
 ```csharp
 // CalculateRollupField(Target=@p1,FieldName=@p2)?@p1={"@odata.id":"accounts(...)"}&@p2='opendeals'
 var account = await client.Function<RollupAccount>("CalculateRollupField")
     .WithParameter("Target", new Dictionary<string, string> { ["@odata.id"] = $"accounts({accountId})" })
     .WithParameter("FieldName", "opendeals")
+    .ExecuteAsync();
+```
+
+An enum parameter is written as its Dataverse enum member, `Microsoft.Dynamics.CRM.{Type}'{Member}'`; Dataverse rejects
+the integer value. Declare a C# enum with the same type and member names as the Dataverse enum, and mark it `[Flags]`
+when Dataverse's is (a combination is sent as `'Entity,Attributes'`):
+
+```csharp
+[Flags]
+public enum EntityFilters { Entity = 1, Attributes = 2, Privileges = 4, Relationships = 8 }
+
+// RetrieveEntity(EntityFilters=@p1,...)?@p1=Microsoft.Dynamics.CRM.EntityFilters'Entity,Attributes'
+var account = await client.Function<JsonObject>("RetrieveEntity")
+    .WithParameter("EntityFilters", EntityFilters.Entity | EntityFilters.Attributes)
+    .WithParameter("LogicalName", "account")
+    .WithParameter("MetadataId", Guid.Empty)
+    .WithParameter("RetrieveAsIfPublished", false)
     .ExecuteAsync();
 ```
 

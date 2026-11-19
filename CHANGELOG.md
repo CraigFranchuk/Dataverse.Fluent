@@ -40,6 +40,11 @@ Filter translation was checked construct by construct against a live environment
   32,768. Such a request, and its next links and FetchXML pages, is now sent inside `$batch`, which accepts URLs of up
   to about 64,000 characters. Longer requests throw `InvalidOperationException` before sending, suggesting the query be
   split.
+- Fixed: function parameters of type `Guid`, `DateTime` and `DateTimeOffset` were sent quoted, and enums as integers,
+  so every such call failed with "Expression of type 'Edm.String' (or 'Edm.Int32') cannot be converted…". GUIDs and
+  dates are now unquoted (dates in UTC), `DateOnly` is supported, and an enum is sent as
+  `Microsoft.Dynamics.CRM.{Type}'{Member}'` (comma-separated for `[Flags]`). The C# enum's type and member names must
+  match Dataverse's; an undefined value throws `ArgumentException`.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
   `OData-EntityId`), contrary to the previous example. Use `ReturnRepresentation()` to get it.
 - The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.

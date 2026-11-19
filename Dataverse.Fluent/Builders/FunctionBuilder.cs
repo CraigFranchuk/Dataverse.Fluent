@@ -90,18 +90,38 @@ public sealed class FunctionBuilder<TResponse>
         return $"{baseUrl}({string.Join(",", assignments)})?{string.Join("&", aliasValues)}";
     }
 
-    // Formats a parameter value as an OData literal (before URL encoding).
-    private static string FormatLiteral(object? value) => value switch
+    // Formats a parameter value as an OData literal (before URL encoding). Checked against Dataverse on 2026-11-18:
+    // GUIDs and dates must be unquoted ("Edm.String cannot be converted to Edm.Guid"), and an enum must be the
+    // qualified member, Microsoft.Dynamics.CRM.Type'Member' ("Edm.Int32 cannot be converted to ...").
+    internal static string FormatLiteral(object? value) => value switch
     {
         null => "null",
         string s => ODataLiteral.Quote(s),
-        Guid g => $"'{g}'",
+        Guid g => g.ToString(),
         bool b => b ? "true" : "false",
         // Converted to UTC before the 'Z' is appended (see ODataLiteral).
-        DateTime dt => $"'{ODataLiteral.FormatDateTime(dt)}'",
-        DateTimeOffset dto => $"'{ODataLiteral.FormatDateTime(dto)}'",
+        DateTime dt => ODataLiteral.FormatDateTime(dt),
+        DateTimeOffset dto => ODataLiteral.FormatDateTime(dto),
+        DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        Enum e => FormatEnum(e),
         sbyte or byte or short or ushort or int or uint or long or ulong or decimal or double or float
             => Convert.ToString(value, CultureInfo.InvariantCulture)!,
         _ => JsonSerializer.Serialize(value, value.GetType(), JsonDefaults.PayloadSerialization)
     };
+
+    // Microsoft.Dynamics.CRM.EntityFilters'Entity,Attributes': the C# enum's type and member names must match the
+    // Dataverse enum's, as the library has no metadata to map them.
+    private static string FormatEnum(Enum value)
+    {
+        var members = value.ToString();
+        if (members.Length > 0 && (char.IsDigit(members[0]) || members[0] == '-'))
+        {
+            throw new ArgumentException(
+                $"{value.GetType().Name} has no member for the value {members}. An enum parameter is sent by member name, " +
+                "as Microsoft.Dynamics.CRM.Type'Member', so the value must be a defined member or a combination of [Flags] members.",
+                nameof(value));
+        }
+
+        return $"Microsoft.Dynamics.CRM.{value.GetType().Name}'{members.Replace(", ", ",", StringComparison.Ordinal)}'";
+    }
 }

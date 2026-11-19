@@ -161,7 +161,7 @@ public class TranslationCorrectnessTests
 
         await client.Function<object>("F").WithParameter("At", value).ExecuteAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal("'2026-11-15T16:00:00Z'", handler.Requests[0].QueryOption("@p1"));
+        Assert.Equal("2026-11-15T16:00:00Z", handler.Requests[0].QueryOption("@p1"));
     }
 
     // ───────── Projections ─────────
