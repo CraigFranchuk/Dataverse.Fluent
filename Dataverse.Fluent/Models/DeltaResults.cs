@@ -27,12 +27,6 @@ public class DeltaResults<T>
     public List<EntityReference> Deleted { get; set; } = [];
 
     /// <summary>
-    /// Total count of records (if $count=true was requested).
-    /// </summary>
-    [JsonPropertyName("@odata.count")]
-    public long? Count { get; set; }
-
-    /// <summary>
     /// Indicates whether there are more records available in the current page.
     /// </summary>
     [JsonPropertyName("@odata.nextLink")]
@@ -51,7 +45,8 @@ public class EntityReference
     public DeletedReference? Removed { get; set; }
 
     /// <summary>
-    /// The ID property from the deleted entity context.
+    /// The deleted record's ID: the bare GUID Dataverse sends, or an <c>@id</c> URL such as <c>accounts(guid)</c>.
+    /// Use <see cref="GetEntityId"/> to read it as a <see cref="Guid"/>.
     /// </summary>
     [JsonPropertyName("@id")]
     public string? Id { get; set; }

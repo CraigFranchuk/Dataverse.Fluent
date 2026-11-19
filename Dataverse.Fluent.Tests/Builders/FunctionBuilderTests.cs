@@ -149,7 +149,7 @@ public class FunctionBuilderTests
         handler.AddJsonResponse(
             req => req.Method == HttpMethod.Get 
                 && ResolveAliases(req).Contains("CalculatePrice")
-                && ResolveAliases(req).Contains("ProductId='")
+                && ResolveAliases(req).Contains("ProductId=") && !ResolveAliases(req).Contains("ProductId='")
                 && ResolveAliases(req).Contains("Quantity=5"),
             responseData
         );
@@ -237,7 +237,7 @@ public class FunctionBuilderTests
         handler.AddJsonResponse(
             req => req.Method == HttpMethod.Get 
                 && ResolveAliases(req).Contains("CustomFunction")
-                && ResolveAliases(req).Contains("StartDate='2024-01-15T10:30:00Z'"),
+                && ResolveAliases(req).Contains("StartDate=2024-01-15T10:30:00Z"),
             responseData
         );
 
@@ -266,7 +266,7 @@ public class FunctionBuilderTests
         handler.AddJsonResponse(
             req => req.Method == HttpMethod.Get 
                 && ResolveAliases(req).Contains("CustomFunction")
-                && ResolveAliases(req).Contains($"EntityId='{testGuid}'"),
+                && ResolveAliases(req).Contains($"EntityId={testGuid}"),
             responseData
         );
 
@@ -540,7 +540,7 @@ public class FunctionBuilderTests
         handler.AddJsonResponse(
             req => req.Method == HttpMethod.Get 
                 && ResolveAliases(req).Contains("CustomFunction")
-                && ResolveAliases(req).Contains("OffsetDate='"),
+                && ResolveAliases(req).Contains("OffsetDate=2024-01-15T15:30:00Z"),
             responseData
         );
 

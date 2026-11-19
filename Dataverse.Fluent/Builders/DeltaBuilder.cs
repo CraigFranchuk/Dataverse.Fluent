@@ -22,9 +22,7 @@ public sealed class DeltaBuilder<T>
 
     private readonly ODataQueryOptions _options = new();
     private string? _deltaToken;
-    private int? _top;
     private bool _includeFormattedValues;
-    private bool _includeCount;
     private readonly Dictionary<string, string> _customHeaders = [];
     private SingleUseGuard _guard;
 
@@ -66,52 +64,6 @@ public sealed class DeltaBuilder<T>
     }
 
     /// <summary>
-    /// Adds $filter clause for the initial delta query (raw OData filter string).
-    /// Note: Filters only apply to the initial query, not to subsequent delta token queries.
-    /// </summary>
-    /// <param name="filter">The OData filter expression.</param>
-    /// <returns>The current builder instance for chaining.</returns>
-    public DeltaBuilder<T> Where(string filter)
-    {
-        if (!string.IsNullOrWhiteSpace(filter))
-        {
-            _options.Filter.Add(filter);
-        }
-        return this;
-    }
-
-    /// <summary>
-    /// Adds $orderby clause for the initial delta query (raw OData orderby string).
-    /// </summary>
-    /// <param name="orderBy">The OData orderby expression.</param>
-    /// <returns>The current builder instance for chaining.</returns>
-    public DeltaBuilder<T> OrderBy(string orderBy)
-    {
-        if (!string.IsNullOrWhiteSpace(orderBy))
-        {
-            _options.OrderBy.Add(orderBy);
-        }
-        return this;
-    }
-
-    /// <summary>
-    /// Adds $top clause to limit the number of results per page.
-    /// Note: Dataverse does not support $top with change tracking enabled. This method is provided
-    /// for API consistency but will be ignored in delta queries. Pagination is handled automatically
-    /// via @odata.nextLink.
-    /// </summary>
-    /// <param name="top">Maximum number of records to retrieve.</param>
-    /// <returns>The current builder instance for chaining.</returns>
-    public DeltaBuilder<T> Top(int top)
-    {
-        // Note: $top is not supported by Dataverse when change tracking is enabled
-        // This method is provided for API consistency but will be ignored in delta queries
-        // Pagination is handled automatically by Dataverse via @odata.nextLink
-        _top = top > 0 ? top : throw new ArgumentOutOfRangeException(nameof(top));
-        return this;
-    }
-
-    /// <summary>
     /// Requests formatted values via Prefer header (adds @OData.Community.Display.V1.FormattedValue annotations).
     /// </summary>
     /// <param name="include">Whether to include formatted values (default: true).</param>
@@ -119,21 +71,6 @@ public sealed class DeltaBuilder<T>
     public DeltaBuilder<T> IncludeFormattedValues(bool include = true)
     {
         _includeFormattedValues = include;
-        return this;
-    }
-
-    /// <summary>
-    /// Requests @odata.count in the response.
-    /// Note: Dataverse does not support $count with change tracking enabled. This method is provided
-    /// for API consistency but will be ignored in delta queries.
-    /// </summary>
-    /// <param name="include">Whether to include count (default: true).</param>
-    /// <returns>The current builder instance for chaining.</returns>
-    public DeltaBuilder<T> Count(bool include = true)
-    {
-        // Note: $count is not supported by Dataverse when change tracking is enabled
-        // This method is provided for API consistency but will be ignored in delta queries
-        _includeCount = include;
         return this;
     }
 
@@ -165,7 +102,7 @@ public sealed class DeltaBuilder<T>
         var url = BuildUrl();
         var headers = BuildHeaders();
         
-        var json = await _client.ExecuteRequestAsync(HttpMethod.Get, url, headers: headers, ct: ct).ConfigureAwait(false);
+        var json = await RequestSender.ExecuteJsonAsync(_client, HttpMethod.Get, url, null, headers, ct).ConfigureAwait(false);
 
         return DeserializeDeltaResults(json);
     }
@@ -194,7 +131,7 @@ public sealed class DeltaBuilder<T>
         {
             ct.ThrowIfCancellationRequested();
 
-            var json = await _client.ExecuteRequestAsync(HttpMethod.Get, nextLink, headers: headers, ct: ct).ConfigureAwait(false);
+            var json = await RequestSender.ExecuteJsonAsync(_client, HttpMethod.Get, nextLink, null, headers, ct).ConfigureAwait(false);
             var deltaResults = DeserializeDeltaResults(json);
 
             yield return deltaResults;
@@ -223,17 +160,9 @@ public sealed class DeltaBuilder<T>
             return _deltaToken;
         }
 
-        // Initial delta query: entity set + query options. Repeated Where() calls are combined with "and".
-        var parts = new List<string>(4);
+        // Initial delta query: the entity set and $select, the only query option Dataverse accepts with change tracking.
+        var parts = new List<string>(1);
         _options.AppendTo(parts);
-
-        // Note: $count and $top may be ignored by Dataverse when change tracking is enabled,
-        // but they are passed through and the server decides. Pagination is via @odata.nextLink.
-        if (_includeCount)
-            parts.Add("$count=true");
-
-        if (_top.HasValue)
-            parts.Add($"$top={_top.Value}");
 
         var url = parts.Count == 0 ? _entitySet : _entitySet + "?" + string.Join("&", parts);
 
@@ -279,6 +208,31 @@ public sealed class DeltaBuilder<T>
         return headers.Count > 0 ? headers : null;
     }
 
+    // A deleted record in a delta response, or null for a created or changed one. Dataverse sends a deletion as
+    // {"@odata.context": "...#competitors/$deletedEntity", "id": "<guid>", "reason": "deleted"} (checked 2026-11-18);
+    // the OData 4.01 form {"@removed": {"reason": ...}, "@id": "..."} is read too.
+    private static EntityReference? TryReadDeleted(JsonObject obj)
+    {
+        if (obj.TryGetPropertyValue("@removed", out _))
+            return DataverseClient.DeserializeEntity<EntityReference>(obj);
+
+        if (obj.TryGetPropertyValue("@odata.context", out var context)
+            && context is JsonValue contextValue && contextValue.TryGetValue<string>(out var contextText)
+            && contextText.EndsWith("/$deletedEntity", StringComparison.Ordinal))
+        {
+            return new EntityReference
+            {
+                Id = obj.TryGetPropertyValue("id", out var id) && id is JsonValue idValue ? idValue.ToString() : null,
+                Removed = new DeletedReference
+                {
+                    Reason = obj.TryGetPropertyValue("reason", out var reason) && reason is JsonValue reasonValue ? reasonValue.ToString() : null
+                }
+            };
+        }
+
+        return null;
+    }
+
     // Deserializes the response to DeltaResults<T>
     private static DeltaResults<T> DeserializeDeltaResults(JsonObject response)
     {
@@ -291,14 +245,9 @@ public sealed class DeltaBuilder<T>
             {
                 if (item is JsonObject obj)
                 {
-                    // Check if this is a deleted entity reference
-                    if (obj.TryGetPropertyValue("@removed", out _))
+                    if (TryReadDeleted(obj) is { } deletedRef)
                     {
-                        var deletedRef = DataverseClient.DeserializeEntity<EntityReference>(obj);
-                        if (deletedRef != null)
-                        {
-                            results.Deleted.Add(deletedRef);
-                        }
+                        results.Deleted.Add(deletedRef);
                     }
                     else
                     {
@@ -323,12 +272,6 @@ public sealed class DeltaBuilder<T>
         if (response.TryGetPropertyValue("@odata.nextLink", out var nextLinkNode))
         {
             results.NextLink = nextLinkNode?.GetValue<string>();
-        }
-
-        // Extract count if requested
-        if (response.TryGetPropertyValue("@odata.count", out var countNode))
-        {
-            results.Count = countNode?.GetValue<long>();
         }
 
         return results;

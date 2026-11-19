@@ -31,15 +31,32 @@ public class WhoAmIResponse
 var me = await client.Function<WhoAmIResponse>("WhoAmI").ExecuteAsync();
 ```
 
-Parameters are added with `WithParameter(name, value)`. Strings, numbers, booleans, GUIDs, dates (in UTC) and enums
-(by integer value) are written as OData literals; any other object is sent as JSON. An entity reference is an object
-with `@odata.id`:
+Parameters are added with `WithParameter(name, value)`. Strings, numbers, booleans, GUIDs, dates (in UTC, unquoted) and
+`DateOnly` are written as OData literals; any other object, such as a string array, is sent as JSON. An entity
+reference is an object with `@odata.id`:
 
 ```csharp
 // CalculateRollupField(Target=@p1,FieldName=@p2)?@p1={"@odata.id":"accounts(...)"}&@p2='opendeals'
 var account = await client.Function<RollupAccount>("CalculateRollupField")
     .WithParameter("Target", new Dictionary<string, string> { ["@odata.id"] = $"accounts({accountId})" })
     .WithParameter("FieldName", "opendeals")
+    .ExecuteAsync();
+```
+
+An enum parameter is written as its Dataverse enum member, `Microsoft.Dynamics.CRM.{Type}'{Member}'`; Dataverse rejects
+the integer value. Declare a C# enum with the same type and member names as the Dataverse enum, and mark it `[Flags]`
+when Dataverse's is (a combination is sent as `'Entity,Attributes'`):
+
+```csharp
+[Flags]
+public enum EntityFilters { Entity = 1, Attributes = 2, Privileges = 4, Relationships = 8 }
+
+// RetrieveEntity(EntityFilters=@p1,...)?@p1=Microsoft.Dynamics.CRM.EntityFilters'Entity,Attributes'
+var account = await client.Function<JsonObject>("RetrieveEntity")
+    .WithParameter("EntityFilters", EntityFilters.Entity | EntityFilters.Attributes)
+    .WithParameter("LogicalName", "account")
+    .WithParameter("MetadataId", Guid.Empty)
+    .WithParameter("RetrieveAsIfPublished", false)
     .ExecuteAsync();
 ```
 
@@ -93,6 +110,23 @@ await client.Action<WinOpportunityRequest, object>("WinOpportunity")
 
 `WithParameter(r => r.Property, value)` uses the name the serializer writes for the property, so it always matches
 `WithRequest`. Use `object` as `TResponse` for an action that returns nothing; `ExecuteAsync` then returns `null`.
+
+An enum parameter is written by member name, as Dataverse requires (it rejects the integer): `"ReadAccess"`, or
+`"ReadAccess, WriteAccess"` for a `[Flags]` combination. As for functions, the C# enum's member names must match the
+Dataverse enum's. This applies to a parameter that is itself an enum or a list of enums. An enum inside an object
+parameter (a choice column of a record) is still written as its integer value.
+
+```csharp
+[Flags]
+public enum AccessRights { None = 0, ReadAccess = 1, WriteAccess = 2 }
+
+var link = await client.Action<SharedLinkRequest, SharedLinkResponse>("GenerateSharedLink")
+    .WithParameter(p => p.Target, new JsonObject { ["accountid"] = accountId, ["@odata.type"] = "Microsoft.Dynamics.CRM.account" })
+    .WithParameter(p => p.SharedRights, AccessRights.ReadAccess)
+    .ExecuteAsync();
+```
+
+Dates can be of any `DateTime` kind: Dataverse reads a value without an offset as UTC, whatever the user's time zone.
 
 ## Bound actions
 

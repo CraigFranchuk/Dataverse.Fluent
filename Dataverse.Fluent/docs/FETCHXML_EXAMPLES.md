@@ -267,6 +267,31 @@ string fetchXml = @"
 var accounts = await client.Fetch<Account>(fetchXml).ExecuteAsync();
 ```
 
+### Aggregates
+
+Map each `alias` to a property. The query is sent to the entity set's URL, so the result type needs `[EntitySet]`
+even though its properties are not columns:
+
+```csharp
+[EntitySet("accounts")]
+public class AccountTotals
+{
+    [JsonPropertyName("count")] public int Count { get; set; }
+    [JsonPropertyName("total")] public decimal? Total { get; set; }
+    [JsonPropertyName("onhold")] public bool? OnHold { get; set; }
+}
+
+var totals = await client.Fetch<AccountTotals>("""
+    <fetch aggregate='true'>
+      <entity name='account'>
+        <attribute name='accountid' alias='count' aggregate='count' />
+        <attribute name='revenue' alias='total' aggregate='sum' />
+        <attribute name='creditonhold' alias='onhold' groupby='true' />
+      </entity>
+    </fetch>
+    """).ExecuteAsync();
+```
+
 ### With Options
 
 ```csharp

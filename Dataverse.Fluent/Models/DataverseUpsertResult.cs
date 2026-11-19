@@ -22,9 +22,13 @@ public sealed class DataverseUpsertResult<T>
     /// The primary key of the record, parsed from the <c>OData-EntityId</c> response header.
     /// </summary>
     /// <remarks>
-    /// Dataverse omits the header when a representation is returned; read the key from <see cref="Entity"/>
-    /// in that case. For a record addressed by alternate key this is the only way to learn its ID without
-    /// another request.
+    /// <see langword="null"/> in two cases:
+    /// <list type="bullet">
+    /// <item>A representation was requested. Dataverse then omits the header; read the key from <see cref="Entity"/>.</item>
+    /// <item>The record was addressed by alternate key. Dataverse identifies it by that key in the header (see
+    /// <see cref="EntityUrl"/>), not by its ID. Request <c>ReturnRepresentation()</c> to learn the ID without another
+    /// request.</item>
+    /// </list>
     /// </remarks>
     public Guid? Id { get; }
 

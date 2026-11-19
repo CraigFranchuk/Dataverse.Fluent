@@ -22,6 +22,9 @@ public class DataverseTestFixture : IAsyncLifetime
 
     public DataverseTestConfiguration Configuration => _config;
 
+    /// <summary>Gets a valid access token for the environment, for tests that build their own client.</summary>
+    public Func<Task<string>> TokenProvider { get; private set; } = () => throw new InvalidOperationException("Test fixture not initialized.");
+
     public DataverseTestFixture()
     {
         _config = DataverseTestConfiguration.Load();
@@ -39,6 +42,7 @@ public class DataverseTestFixture : IAsyncLifetime
             _ => throw new NotSupportedException($"Authentication mode {_config.AuthMode} is not supported.")
         };
 
+        TokenProvider = tokenProvider;
         _http = new DataverseHttpTransport(new DataverseClientOptions { BaseUrl = _config.BaseUrl, TokenProvider = tokenProvider });
         _tracking = new RecordTrackingTransport(_http);
         _client = new DataverseClient(_tracking);

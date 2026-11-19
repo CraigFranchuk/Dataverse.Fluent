@@ -782,4 +782,20 @@ public class AnnotationBuilderTests
     }
 
     #endregion
+
+    [Fact]
+    public async Task CreateAsync_WithoutARepresentation_ReadsTheIdFromTheHeader()
+    {
+        // As Dataverse answers: 204 with no body, the new record's URL in OData-EntityId. The ID was Guid.Empty until 1.0.2.
+        var handler = new TestHttpMessageHandler();
+        var client = CreateTestClient(handler);
+        var noteId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var response = new HttpResponseMessage(HttpStatusCode.NoContent);
+        response.Headers.Add("OData-EntityId", $"https://test.crm.dynamics.com/api/data/v9.2/annotations({noteId})");
+        handler.AddResponse(_ => true, response);
+
+        var note = await client.Annotation().Regarding("account", AccountId).WithSubject("s").CreateAsync();
+
+        Assert.Equal(noteId, note.AnnotationId);
+    }
 }
