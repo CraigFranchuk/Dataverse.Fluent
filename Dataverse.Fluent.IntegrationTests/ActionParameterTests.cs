@@ -132,14 +132,23 @@ public class ActionParameterTests : IClassFixture<DataverseTestFixture>
         var queueId = (await _fixture.Client.Entity<Queue>().Set(q => q.Name, $"Action test {Guid.NewGuid()}").ReturnRepresentation().CreateAsync(Ct)).Entity!.QueueId;
         var taskId = (await _fixture.Client.Entity<TaskActivity>().Set(t => t.Subject, $"Action test {Guid.NewGuid()}").ReturnRepresentation().CreateAsync(Ct)).Entity!.ActivityId;
 
-        var response = await _fixture.Client.ForEntity<Queue>(queueId)
-            .Action<AddToQueueRequest, AddToQueueResponse>("AddToQueue")
-            .WithParameter(p => p.Target, new JsonObject { ["activityid"] = taskId, ["@odata.type"] = "Microsoft.Dynamics.CRM.task" })
-            .ExecuteAsync(Ct);
+        try
+        {
+            var response = await _fixture.Client.ForEntity<Queue>(queueId)
+                .Action<AddToQueueRequest, AddToQueueResponse>("AddToQueue")
+                .WithParameter(p => p.Target, new JsonObject { ["activityid"] = taskId, ["@odata.type"] = "Microsoft.Dynamics.CRM.task" })
+                .ExecuteAsync(Ct);
 
-        Assert.NotEqual(Guid.Empty, response!.QueueItemId);
-        var item = await _fixture.Client.Entity<QueueItem>(response.QueueItemId).RetrieveAsync(Ct);
-        Assert.Equal(queueId, item!.QueueId);
-        Assert.Equal(taskId, item.ObjectId);
+            Assert.NotEqual(Guid.Empty, response!.QueueItemId);
+            var item = await _fixture.Client.Entity<QueueItem>(response.QueueItemId).RetrieveAsync(Ct);
+            Assert.Equal(queueId, item!.QueueId);
+            Assert.Equal(taskId, item.ObjectId);
+        }
+        finally
+        {
+            // The task first: deleting it removes its queue item, and a queue holding an item cannot be deleted.
+            await _fixture.Client.Entity<TaskActivity>(taskId).DeleteAsync(CancellationToken.None);
+            await _fixture.Client.Entity<Queue>(queueId).DeleteAsync(CancellationToken.None);
+        }
     }
 }
