@@ -112,16 +112,5 @@ public sealed class FunctionBuilder<TResponse>
     // Microsoft.Dynamics.CRM.EntityFilters'Entity,Attributes': the C# enum's type and member names must match the
     // Dataverse enum's, as the library has no metadata to map them.
     private static string FormatEnum(Enum value)
-    {
-        var members = value.ToString();
-        if (members.Length > 0 && (char.IsDigit(members[0]) || members[0] == '-'))
-        {
-            throw new ArgumentException(
-                $"{value.GetType().Name} has no member for the value {members}. An enum parameter is sent by member name, " +
-                "as Microsoft.Dynamics.CRM.Type'Member', so the value must be a defined member or a combination of [Flags] members.",
-                nameof(value));
-        }
-
-        return $"Microsoft.Dynamics.CRM.{value.GetType().Name}'{members.Replace(", ", ",", StringComparison.Ordinal)}'";
-    }
+        => $"Microsoft.Dynamics.CRM.{value.GetType().Name}'{EnumMemberNames.Format(value).Replace(", ", ",", StringComparison.Ordinal)}'";
 }

@@ -111,6 +111,23 @@ await client.Action<WinOpportunityRequest, object>("WinOpportunity")
 `WithParameter(r => r.Property, value)` uses the name the serializer writes for the property, so it always matches
 `WithRequest`. Use `object` as `TResponse` for an action that returns nothing; `ExecuteAsync` then returns `null`.
 
+An enum parameter is written by member name, as Dataverse requires (it rejects the integer): `"ReadAccess"`, or
+`"ReadAccess, WriteAccess"` for a `[Flags]` combination. As for functions, the C# enum's member names must match the
+Dataverse enum's. This applies to a parameter that is itself an enum or a list of enums. An enum inside an object
+parameter (a choice column of a record) is still written as its integer value.
+
+```csharp
+[Flags]
+public enum AccessRights { None = 0, ReadAccess = 1, WriteAccess = 2 }
+
+var link = await client.Action<SharedLinkRequest, SharedLinkResponse>("GenerateSharedLink")
+    .WithParameter(p => p.Target, new JsonObject { ["accountid"] = accountId, ["@odata.type"] = "Microsoft.Dynamics.CRM.account" })
+    .WithParameter(p => p.SharedRights, AccessRights.ReadAccess)
+    .ExecuteAsync();
+```
+
+Dates can be of any `DateTime` kind: Dataverse reads a value without an offset as UTC, whatever the user's time zone.
+
 ## Bound actions
 
 ```csharp

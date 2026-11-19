@@ -68,6 +68,10 @@ Filter translation was checked construct by construct against a live environment
   (`numberofemployees gt 10`).
 - Fixed: `ids.Contains(x.NullableColumn.Value)`, the usual way to test a nullable lookup against a list of `Guid`s,
   threw `NotSupportedException` in OData filters. FetchXML already accepted it.
+- Fixed: an enum action parameter (such as `AccessRights` for `GenerateSharedLink`) was sent as its integer value,
+  which Dataverse rejects ("Cannot read the value '1' as a quote"). `WithParameter` and `WithRequest` now send it by
+  member name (`"ReadAccess"`, or `"ReadAccess, WriteAccess"` for flags), and an undefined value throws
+  `ArgumentException`. An enum inside an object parameter, a choice column, is still sent as an integer.
 - Docs: a delta token comes only with the last page. On a table with more than 5,000 rows, an initial `ExecuteAsync()`
   returns a `NextLink` and no token; use `StreamAsync()` for the initial sync.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in

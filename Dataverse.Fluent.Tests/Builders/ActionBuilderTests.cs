@@ -447,4 +447,90 @@ public class ActionBuilderTests
     }
 
     #endregion
+
+    #region Enum parameters
+
+    // Dataverse reads an enum parameter only by member name; a number fails with
+    // "Cannot read the value '1' as a quote" (checked 2026-11-18 with GenerateSharedLink).
+    [Flags]
+    public enum AccessRights
+    {
+        None = 0,
+        ReadAccess = 1,
+        WriteAccess = 2,
+    }
+
+    public enum Priority
+    {
+        Low = 0,
+        High = 1,
+    }
+
+    public class SharedLinkRequest
+    {
+        [JsonPropertyName("SharedRights")] public AccessRights? SharedRights { get; set; }
+        [JsonPropertyName("Levels")] public List<Priority>? Levels { get; set; }
+        [JsonPropertyName("Target")] public ChoiceHolder? Target { get; set; }
+    }
+
+    public class ChoiceHolder
+    {
+        [JsonPropertyName("prioritycode")] public Priority PriorityCode { get; set; }
+    }
+
+    private static System.Text.Json.Nodes.JsonObject Payload(Func<ActionBuilder<SharedLinkRequest, object>, ActionBuilder<SharedLinkRequest, object>> configure)
+    {
+        var client = new ActionBuilderTests().CreateTestClient(new TestHttpMessageHandler());
+        return configure(client.Action<SharedLinkRequest, object>("GenerateSharedLink")).ToRequest().Payload!;
+    }
+
+    [Fact]
+    public void WithParameter_WritesAnEnumByMemberName()
+    {
+        var payload = Payload(a => a.WithParameter(p => p.SharedRights, AccessRights.ReadAccess));
+
+        Assert.Equal("ReadAccess", (string?)payload["SharedRights"]);
+    }
+
+    [Fact]
+    public void WithParameter_WritesFlagsAsCommaSeparatedNames()
+    {
+        var payload = Payload(a => a.WithParameter("SharedRights", AccessRights.ReadAccess | AccessRights.WriteAccess));
+
+        Assert.Equal("ReadAccess, WriteAccess", (string?)payload["SharedRights"]);
+    }
+
+    [Fact]
+    public void WithParameter_WritesAnEnumCollectionByMemberName()
+    {
+        var payload = Payload(a => a.WithParameter(p => p.Levels, [Priority.High, Priority.Low]));
+
+        Assert.Equal("""["High","Low"]""", payload["Levels"]!.ToJsonString());
+    }
+
+    [Fact]
+    public void WithRequest_WritesEnumPropertiesByMemberName_ButNotChoiceColumnsInsideAnEntity()
+    {
+        var payload = Payload(a => a.WithRequest(new SharedLinkRequest
+        {
+            SharedRights = AccessRights.WriteAccess,
+            Target = new ChoiceHolder { PriorityCode = Priority.High },
+        }));
+
+        Assert.Equal("WriteAccess", (string?)payload["SharedRights"]);
+        Assert.Equal(1, (int)payload["Target"]!["prioritycode"]!);
+        Assert.False(payload.ContainsKey("Levels"));
+    }
+
+    [Fact]
+    public void AnUndefinedEnumValue_Throws()
+    {
+        var builder = new ActionBuilderTests().CreateTestClient(new TestHttpMessageHandler()).Action<SharedLinkRequest, object>("GenerateSharedLink");
+
+        var ex = Assert.Throws<ArgumentException>(() => builder.WithParameter("SharedRights", (AccessRights)64));
+
+        Assert.Contains("no member for the value 64", ex.Message);
+    }
+
+    #endregion
 }
