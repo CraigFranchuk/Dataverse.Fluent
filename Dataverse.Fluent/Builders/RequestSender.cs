@@ -112,7 +112,7 @@ internal static class RequestSender
 
         var operation = result.Results[0];
         if (!operation.IsSuccess)
-            throw DataverseException.FromErrorContent(operation.Body, operation.StatusCode);
+            throw DataverseException.FromBatchOperation(operation);
 
         var message = new HttpResponseMessage(operation.StatusCode);
         if (!string.IsNullOrEmpty(operation.Body))

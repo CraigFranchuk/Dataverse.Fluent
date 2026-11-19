@@ -48,6 +48,13 @@ Filter translation was checked construct by construct against a live environment
 - Fixed: `Top(n).GetListAsync()` and `GetListWithCountAsync()` with `n` above 5,000 returned only 5,000 rows, with no
   sign that more existed. Dataverse returns at most 5,000 rows per response and answers a larger `$top` with a next
   link. These methods now follow the next links to return up to `n` rows.
+- Fixed: `DataverseException.ActivityId` was always `null`, because it read `x-ms-activity-id`, a header Dataverse
+  does not send. It now reads the request ID from `x-ms-service-request-id` (or `REQ_ID`), and for an operation that
+  failed inside `$batch`, that operation's own `REQ_ID`.
+- Fixed: when IIS rejected a request before it reached Dataverse, the exception message was the whole HTML error page.
+  It is now a one-line message with the page title. The page is still in `RawResponse`.
+- Fixed: a 401 had an empty body, so the message gave no reason. It now includes the reason from Dataverse's
+  `401_Error_Reason` header.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
   `OData-EntityId`), contrary to the previous example. Use `ReturnRepresentation()` to get it.
 - The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.

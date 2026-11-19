@@ -60,6 +60,12 @@ public class BatchOperationResult
             : System.Text.Json.JsonSerializer.Deserialize<T>(Body, Builders.JsonDefaults.CaseInsensitive);
 
     /// <summary>
+    /// The ID Dataverse gave this operation (its <c>REQ_ID</c> header in the batch response), reported as
+    /// <see cref="DataverseException.ActivityId"/> when the operation failed.
+    /// </summary>
+    internal string? RequestId { get; init; }
+
+    /// <summary>
     /// Initializes a new <see cref="BatchOperationResult"/>.
     /// </summary>
     public BatchOperationResult(int contentId, HttpStatusCode statusCode, string body, Guid? entityId = null, string? location = null, bool wasRolledBack = false)
@@ -159,11 +165,11 @@ public class BatchResult
         if (failures.Count == 1)
         {
             var only = failures[0];
-            throw DataverseException.FromErrorContent(only.Body, only.StatusCode);
+            throw DataverseException.FromBatchOperation(only);
         }
 
         var inner = failures
-            .Select(f => DataverseException.FromErrorContent(f.Body, f.StatusCode))
+            .Select(DataverseException.FromBatchOperation)
             .ToList();
 
         throw new BatchOperationException(failures, inner);
