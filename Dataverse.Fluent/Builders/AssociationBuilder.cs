@@ -277,7 +277,7 @@ public sealed class AssociationBuilder
             ["@odata.id"] = $"{_client.BaseUrl}/{_targetEntitySet}({_targetKeySegment})"
         };
 
-        await _client.ExecuteRequestAsync(HttpMethod.Post, url, payload: payload, ct: ct).ConfigureAwait(false);
+        await KeyedRequestSender.ExecuteJsonAsync(_client, HttpMethod.Post, url, payload, null, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -301,7 +301,7 @@ public sealed class AssociationBuilder
             url = $"{_sourceEntitySet}({_sourceKeySegment})/{_navigationProperty}({_targetKeySegment})/$ref";
         }
 
-        await _client.ExecuteRequestAsync(HttpMethod.Delete, url, ct: ct).ConfigureAwait(false);
+        await KeyedRequestSender.ExecuteJsonAsync(_client, HttpMethod.Delete, url, null, null, ct).ConfigureAwait(false);
     }
 
     // ───────────────────────── Private helpers ─────────────────────────

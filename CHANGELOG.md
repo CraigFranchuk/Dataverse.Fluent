@@ -25,6 +25,18 @@ Filter translation was checked construct by construct against a live environment
   which OData `$apply` cannot group or aggregate by (Dataverse returned HTTP 400). Use a FetchXML aggregate instead.
 - Fixed: `SetFromExcept(x => x.Lookup)` and `SetFrom(entity, "lookupcolumn")` did not exclude a lookup, because a
   lookup is written under its `@odata.bind` name rather than the name it is read by.
+- Fixed: retrieving, updating, upserting, deleting or associating a record by an alternate key containing `&`, `?` or
+  `+` always failed with an HTML error page, because IIS rejects these characters in a URL path. Such a request is now
+  sent inside `$batch`, where it works. The caller sees the same result or `DataverseException` as from a direct
+  request.
+- Fixed: `SetLookupByAlternateKey` (and an annotation's "regarding" alternate key) percent-encoded the key, but a bind is
+  in the JSON body, which Dataverse does not URL-decode. A key with a space, `&`, `+` or `%` was looked up literally
+  (`a%20b`) and not found. The key is now written as is.
+- Changed: an alternate key containing a character Dataverse cannot accept throws `ArgumentException` before anything
+  is sent: `/` and `\` when addressing a record, and `/`, `\`, `#` and `?` in a bind. Dataverse rejected these
+  requests anyway.
+- Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
+  `OData-EntityId`), contrary to the previous example. Use `ReturnRepresentation()` to get it.
 - The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.
 
 ## 1.0.1 (2026-11-18)

@@ -26,13 +26,15 @@ the key from `Entity` in that case.
 ## Upsert
 
 ```csharp
-// By alternate key: the result carries the record's ID
+// By alternate key. Dataverse identifies the record by its key in OData-EntityId, so result.Id is null;
+// ask for a representation to learn the ID without another request.
 var result = await client.Entity<Account>()
     .UsingAlternateKey(a => a.AccountNumber, "ACC-001")
     .Set(a => a.Name, "Contoso Ltd")
+    .ReturnRepresentation(a => a.AccountId)
     .UpsertAsync();
 
-Guid? accountId = result.Id;
+Guid accountId = result.Entity!.AccountId;
 
 // By ID, from a POCO
 await client.Entity<Account>(accountId)

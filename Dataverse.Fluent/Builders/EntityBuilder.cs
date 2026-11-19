@@ -172,7 +172,7 @@ public sealed class EntityBuilder<T>
     public async Task DeleteAsync(CancellationToken ct = default)
     {
         _request.ThrowIfAlreadyExecuted();
-        using var response = await _request.Client.SendAsync(BuildDeleteRequest(), ct).ConfigureAwait(false);
+        using var response = await KeyedRequestSender.SendAsync(_request.Client, BuildDeleteRequest(), ct).ConfigureAwait(false);
     }
 
     /// <summary>

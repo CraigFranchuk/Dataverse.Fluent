@@ -469,7 +469,7 @@ public sealed class AnnotationBuilder
         if (_regardingAlternateKey == null || _regardingAlternateKey.Count == 0)
             throw new InvalidOperationException("Alternate key must be specified.");
 
-        return $"{_regardingEntitySet}({AlternateKeyFormatter.FormatCompositeKey(_regardingAlternateKey)})";
+        return $"{_regardingEntitySet}({AlternateKeyFormatter.FormatCompositeKey(_regardingAlternateKey, KeyPlacement.JsonBody)})";
     }
 
     private static string GetJsonPropertyName<T, TProperty>(Expression<Func<T, TProperty>> propertyExpression)

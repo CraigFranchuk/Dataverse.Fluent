@@ -198,7 +198,7 @@ public sealed class EntityWriteBuilder<T>
         if (string.IsNullOrWhiteSpace(alternateKeyName))
             throw new ArgumentNullException(nameof(alternateKeyName));
 
-        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatKeyValue(alternateKeyName, alternateKeyValue)})";
+        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatKeyValue(alternateKeyName, alternateKeyValue, KeyPlacement.JsonBody)})";
         return Set($"{lookupField}@odata.bind", bindingValue);
     }
 
@@ -267,7 +267,7 @@ public sealed class EntityWriteBuilder<T>
         if (alternateKeys == null || alternateKeys.Count == 0)
             throw new ArgumentException("At least one alternate key must be specified.", nameof(alternateKeys));
 
-        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatCompositeKey(alternateKeys)})";
+        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatCompositeKey(alternateKeys, KeyPlacement.JsonBody)})";
         return Set($"{lookupField}@odata.bind", bindingValue);
     }
 
@@ -466,7 +466,7 @@ public sealed class EntityWriteBuilder<T>
         _request.ThrowIfAlreadyExecuted();
         var request = BuildCreateRequest();
 
-        using var response = await _request.Client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await KeyedRequestSender.SendAsync(_request.Client, request, ct).ConfigureAwait(false);
 
         // Dataverse returns the new record's URL in OData-EntityId, and the record itself only when a
         // representation was requested.
@@ -489,7 +489,7 @@ public sealed class EntityWriteBuilder<T>
         _request.ThrowIfAlreadyExecuted();
         var request = BuildUpdateRequest();
 
-        using var response = await _request.Client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await KeyedRequestSender.SendAsync(_request.Client, request, ct).ConfigureAwait(false);
         return await response.ReadEntityAsync<T>(ct).ConfigureAwait(false);
     }
 
@@ -543,7 +543,7 @@ public sealed class EntityWriteBuilder<T>
         _request.ThrowIfAlreadyExecuted();
         var request = BuildUpsertRequest(conflictResolution);
 
-        using var response = await _request.Client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await KeyedRequestSender.SendAsync(_request.Client, request, ct).ConfigureAwait(false);
         var entity = await response.ReadEntityAsync<T>(ct).ConfigureAwait(false);
 
         // With a representation Dataverse answers 201 for a create and 200 for an update; without one,
