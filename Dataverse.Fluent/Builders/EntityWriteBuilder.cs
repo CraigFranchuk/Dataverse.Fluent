@@ -307,7 +307,17 @@ public sealed class EntityWriteBuilder<T>
     /// <returns>Current EntityWriteBuilder instance for chaining</returns>
     public EntityWriteBuilder<T> SetFrom(T entity, params string[] exclude)
     {
-        return CopyFrom(entity, excludeReadOnly: true, new HashSet<string>(exclude, StringComparer.OrdinalIgnoreCase));
+        ArgumentNullException.ThrowIfNull(exclude);
+
+        // A lookup is written as a bind, so its logical or read name excludes its bind name too.
+        var excluded = new HashSet<string>(exclude, StringComparer.OrdinalIgnoreCase);
+        foreach (var member in EntityTypeMetadata.For(typeof(T)).Members)
+        {
+            if (excluded.Contains(member.LogicalName) || excluded.Contains(member.Name))
+                excluded.Add(member.WriteName);
+        }
+
+        return CopyFrom(entity, excludeReadOnly: true, excluded);
     }
 
     /// <summary>
@@ -321,10 +331,14 @@ public sealed class EntityWriteBuilder<T>
     {
         ArgumentNullException.ThrowIfNull(entity);
 
+        var metadata = EntityTypeMetadata.For(typeof(T));
         var excludedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var expr in exclude)
         {
-            excludedNames.Add(EntityRequest.GetJsonPropertyName(expr));
+            // A lookup is written under its bind name, not the _x_value name it is read by.
+            excludedNames.Add(metadata.Find(Expressions.MemberPathExtractor.GetProperty(expr)) is { } member
+                ? member.WriteName
+                : EntityRequest.GetJsonPropertyName(expr));
         }
 
         return CopyFrom(entity, excludeReadOnly: true, excludedNames);

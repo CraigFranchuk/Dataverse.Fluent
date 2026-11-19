@@ -70,16 +70,19 @@ public sealed class AggregateBuilder<T>
     /// <summary>
     /// Adds one or more grouping properties to a <c>groupby((...))</c> transform.
     /// Can be a single property (e.g., x =&gt; x.Industry) or a projection of several
-    /// (e.g., x =&gt; new { x.Industry, x.OwnerId }).
+    /// (e.g., x =&gt; new { x.Industry, x.StateCode }).
     /// </summary>
     /// <typeparam name="TKey">The property or projection type.</typeparam>
     /// <param name="keySelector">Lambda expression selecting the grouping property or properties.</param>
+    /// <exception cref="NotSupportedException">A selected property is a lookup: OData <c>$apply</c> cannot group by a
+    /// lookup's value. Use a FetchXML aggregate instead.</exception>
     public AggregateBuilder<T> GroupBy<TKey>(Expression<Func<T, TKey>> keySelector)
     {
         ArgumentNullException.ThrowIfNull(keySelector);
 
         foreach (var name in MemberPathExtractor.GetPropertyNames(keySelector))
         {
+            ThrowIfLookup(name);
             if (!_groupByProperties.Contains(name))
             {
                 _groupByProperties.Add(name);
@@ -147,6 +150,7 @@ public sealed class AggregateBuilder<T>
         ValidateAlias(alias);
 
         var propertyName = ExtractSinglePropertyName(selector);
+        ThrowIfLookup(propertyName);
         _aggregateExpressions.Add($"{propertyName} with {aggregateMethod} as {alias}");
         return this;
     }
@@ -210,6 +214,19 @@ public sealed class AggregateBuilder<T>
         if (string.IsNullOrWhiteSpace(alias))
         {
             throw new ArgumentException("Aggregate alias cannot be null or whitespace.", nameof(alias));
+        }
+    }
+
+    // Dataverse rejects a lookup in $apply under every name: "_ownerid_value" is not an attribute there, and
+    // "ownerid" is a navigation property, not a value. A lookup is read and selected as _{column}_value.
+    private static void ThrowIfLookup(string propertyName)
+    {
+        if (propertyName.Length > "__value".Length && propertyName.StartsWith('_') && propertyName.EndsWith("_value", StringComparison.Ordinal))
+        {
+            throw new NotSupportedException(
+                $"'{propertyName}' is a lookup, which OData $apply cannot group or aggregate by. Group by a column of the related " +
+                "record with a raw $apply (e.g., groupby((primarycontactid/fullname))), or use a FetchXML aggregate, which " +
+                "supports lookups.");
         }
     }
 

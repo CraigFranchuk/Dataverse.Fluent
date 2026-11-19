@@ -88,11 +88,11 @@ public class TranslationCorrectnessTests
         => Assert.StartsWith("createdon lt 20", Filter(x => x.CreatedOn < DateTime.UtcNow.AddYears(1)));
 
     [Fact]
-    public void Filter_ContainsOverLocalCollection_StillTranslatesToIn()
+    public void Filter_ContainsOverLocalCollection_TranslatesToTheInFunction()
     {
         var states = new[] { 1, 2 };
 
-        Assert.Equal("statecode in (1,2)", Filter(x => states.Contains(x.StateCode)));
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='statecode',PropertyValues=[\"1\",\"2\"])", Filter(x => states.Contains(x.StateCode)));
     }
 
     [Fact]

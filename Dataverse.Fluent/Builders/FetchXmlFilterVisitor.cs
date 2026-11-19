@@ -169,11 +169,21 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
         Visit(node.Object);
         var target = _operandStack.Pop();
 
-        Visit(node.Arguments[0]);
-        var value = _operandStack.Pop();
+        // The like operator treats %, _ and [ as wildcards; they are escaped so the text matches literally, as
+        // string.Contains does.
+        string text;
+        if (node.Arguments[0] is ConstantExpression { Value: string literal })
+        {
+            text = EscapeXml(ODataLiteral.EscapeLikeWildcards(literal));
+        }
+        else
+        {
+            Visit(node.Arguments[0]);
+            text = _operandStack.Pop().Text;
+        }
 
         _operandStack.Push(new Operand(
-            $"<condition attribute=\"{target.Text}\" operator=\"like\" value=\"{string.Format(CultureInfo.InvariantCulture, pattern, value.Text)}\" />"));
+            $"<condition attribute=\"{target.Text}\" operator=\"like\" value=\"{string.Format(CultureInfo.InvariantCulture, pattern, text)}\" />"));
         return node;
     }
 

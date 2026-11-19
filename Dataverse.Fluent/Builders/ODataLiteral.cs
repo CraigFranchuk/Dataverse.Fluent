@@ -55,4 +55,12 @@ internal static class ODataLiteral
 
     /// <summary>Wraps text in single quotes, doubling any embedded single quote.</summary>
     public static string Quote(string text) => $"'{text.Replace("'", "''")}'";
+
+    /// <summary>
+    /// Escapes the SQL LIKE wildcards <c>%</c>, <c>_</c> and <c>[</c> as <c>[%]</c>, <c>[_]</c> and <c>[[]</c>, so the text
+    /// matches literally. Dataverse applies these wildcards in OData <c>contains</c>, <c>startswith</c> and
+    /// <c>endswith</c>, and in the FetchXML <c>like</c> operator.
+    /// </summary>
+    public static string EscapeLikeWildcards(string text)
+        => text.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 }

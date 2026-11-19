@@ -26,6 +26,36 @@ public class AggregateBuilderTests
         public int AccountCount { get; set; }
     }
 
+    [EntitySet("testaccounts")]
+    private sealed class LookupAccount
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("statecode")]
+        public int StateCode { get; set; }
+
+        [DataverseLookup("ownerid", "systemusers")]
+        public Guid? OwnerId { get; set; }
+
+        // A lookup mapped by its read name, without [DataverseLookup].
+        [System.Text.Json.Serialization.JsonPropertyName("_parentaccountid_value")]
+        public Guid? ParentAccountId { get; set; }
+    }
+
+    [Fact]
+    public void GroupByOrAggregateOverALookup_ThrowsNotSupported()
+    {
+        // Dataverse rejects a lookup in $apply under every name ("_ownerid_value" is not an attribute there, and
+        // "ownerid" is a navigation property), so the builder explains instead of sending a request that fails.
+        var client = CreateTestClient(new TestHttpMessageHandler());
+
+        var groupBy = Assert.Throws<NotSupportedException>(() => client.Aggregate<LookupAccount>().GroupBy(a => a.OwnerId));
+        Assert.Throws<NotSupportedException>(() => client.Aggregate<LookupAccount>().GroupBy(a => new { a.StateCode, a.ParentAccountId }));
+        Assert.Throws<NotSupportedException>(() => client.Aggregate<LookupAccount>().CountDistinct(a => a.OwnerId, "owners"));
+
+        Assert.Contains("FetchXML aggregate", groupBy.Message);
+        Assert.Equal("groupby((statecode),aggregate($count as total))",
+            client.Aggregate<LookupAccount>().GroupBy(a => a.StateCode).Count("total").BuildApply());
+    }
+
     [Fact]
     public void Sum_WithGroupBy_BuildsAggregateAndGroupbyTransform()
     {

@@ -14,11 +14,11 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <!-- The next release's version. CI appends -ci.<run>; the release workflow requires the tag to match it. -->
-    <VersionPrefix>1.0.1</VersionPrefix>
+    <VersionPrefix>1.0.2</VersionPrefix>
     <Authors>Craig Franchuk</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/cfranchuk/Dataverse.Fluent</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/cfranchuk/Dataverse.Fluent</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/CraigFranchuk/Dataverse.Fluent</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/CraigFranchuk/Dataverse.Fluent</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>

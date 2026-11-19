@@ -4,7 +4,7 @@ A fluent, strongly typed C# client for the Microsoft Dataverse Web API, for .NET
 
 The client has no metadata dependency: it never downloads, caches or parses the environment's entity model. Your
 POCOs and the calls you write are the model, so a client is ready as soon as it is constructed. See
-[Design Philosophy](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DESIGN_PHILOSOPHY.md).
+[Design Philosophy](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DESIGN_PHILOSOPHY.md).
 
 ## Features
 
@@ -175,13 +175,19 @@ var raw = await client.Query<Account>().Where("revenue gt 1000000").GetListAsync
 |----|-------|
 | `==`, `!=`, `>`, `>=`, `<`, `<=` | `eq`, `ne`, `gt`, `ge`, `lt`, `le` |
 | `&&`, `\|\|`, `!` | `and`, `or`, `not`, with grouping preserved |
-| `+`, `-`, `*`, `/`, `%` | `add`, `sub`, `mul`, `div`, `mod` |
-| `Contains`, `StartsWith`, `EndsWith` on a string column | `contains`, `startswith`, `endswith` |
-| `ToLower`, `ToUpper`, `Trim`, `Length`, `Substring`, `IndexOf`, `string.Concat`, `string.IsNullOrEmpty` | the OData string functions |
-| `list.Contains(a.Column)` | `column in (...)` |
+| `Contains`, `StartsWith`, `EndsWith` on a string column | `contains`, `startswith`, `endswith`, matching the text literally |
+| `string.IsNullOrEmpty(a.Column)` | `column eq null or column eq ''` |
+| `list.Contains(a.Column)` | `Microsoft.Dynamics.CRM.In(...)` |
 | `a.Nullable.HasValue` | `column ne null` |
 | `a.Related.Column` | `related/column` |
 | `DataverseFunctions.Under(a.ParentAccountId, id)`, `EqualUserId`, `LastXDays`, ... | `Microsoft.Dynamics.CRM.*` query functions |
+
+Dataverse treats `%`, `_` and `[` as wildcards in string functions; the library escapes them, so
+`Name.Contains("50%")` matches the text `50%` only. Use a raw `Where("...")` filter for wildcard patterns.
+
+Dataverse does not support arithmetic or the other OData string functions (`tolower`, `toupper`, `trim`, `length`,
+`substring`, `indexof`, `concat`) in `$filter`, so a lambda that needs them throws `NotSupportedException`. String
+comparisons are already case-insensitive, so `ToLower()` is not needed.
 
 ### Selecting, ordering and expanding
 
@@ -279,7 +285,7 @@ Guid? recordId = upserted.Id;
 
 `UpsertAsync(UpsertConflictResolution.PreventUpdate)` only creates, `PreventCreate` only updates, and
 `IfUnmodifiedSince` updates only when the ETag still matches. See
-[Upsert Conflict Resolution](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/UPSERT_CONFLICT_RESOLUTION.md).
+[Upsert Conflict Resolution](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/UPSERT_CONFLICT_RESOLUTION.md).
 
 ### Lookups
 
@@ -301,7 +307,7 @@ await client.Entity<Contact>()
 ```
 
 `SetFrom` never writes navigation properties (related records loaded with `$expand`), so a retrieved record can be
-written back as is. See [Lookup References](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/LOOKUP_REFERENCES.md).
+written back as is. See [Lookup References](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/LOOKUP_REFERENCES.md).
 
 ## Batches
 
@@ -370,7 +376,7 @@ var raw = await client.Fetch<Account>("""
 ```
 
 `BuildFetchXml()` returns the XML without sending it, and `StreamAsync()` yields rows page by page. See
-[FetchXML Examples](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/FETCHXML_EXAMPLES.md).
+[FetchXML Examples](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/FETCHXML_EXAMPLES.md).
 
 ## Delta queries
 
@@ -386,7 +392,7 @@ foreach (var deleted in changes.Deleted) Console.WriteLine($"Deleted: {deleted.G
 ```
 
 An expired token returns HTTP 410; restart with an initial query. See
-[Delta Queries](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DELTA_QUERIES.md).
+[Delta Queries](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DELTA_QUERIES.md).
 
 ## Actions, functions and notes
 
@@ -433,22 +439,22 @@ be sent through `client.Transport`.
 
 | Guide | Covers |
 |-------|--------|
-| [Getting Started](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/GETTING_STARTED.md) | App registration, authentication, a first program |
-| [API Reference](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/API_REFERENCE.md) | Entry points and builders |
-| [Best Practices](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/BEST_PRACTICES.md) | Production guidance |
-| [Design Philosophy](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DESIGN_PHILOSOPHY.md) | Why there is no metadata dependency |
-| [Custom Type Mapping](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/CUSTOM_TYPE_MAPPING.md) | Using generated types |
-| [Error Handling](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ERROR_HANDLING.md) | `DataverseException` and what is retried |
-| [Actions and Functions](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ACTIONS_AND_FUNCTIONS.md) | Bound and unbound actions and functions |
-| [Annotations](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ANNOTATIONS.md) | Notes and file attachments |
-| [Deep Insert](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DEEP_INSERT_GUIDE.md) | Creating related records in one request |
-| [Delta Queries](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DELTA_QUERIES.md) | Change tracking |
-| [FetchXML Examples](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/FETCHXML_EXAMPLES.md) | Fluent and raw FetchXML |
-| [Lookup References](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/LOOKUP_REFERENCES.md) | Mapping and setting lookups |
-| [SetFrom](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/SETFROM.md) | Writing POCOs and leaving out read-only columns |
-| [Upsert Conflict Resolution](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/UPSERT_CONFLICT_RESOLUTION.md) | Upsert modes and ETags |
+| [Getting Started](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/GETTING_STARTED.md) | App registration, authentication, a first program |
+| [API Reference](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/API_REFERENCE.md) | Entry points and builders |
+| [Best Practices](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/BEST_PRACTICES.md) | Production guidance |
+| [Design Philosophy](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DESIGN_PHILOSOPHY.md) | Why there is no metadata dependency |
+| [Custom Type Mapping](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/CUSTOM_TYPE_MAPPING.md) | Using generated types |
+| [Error Handling](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ERROR_HANDLING.md) | `DataverseException` and what is retried |
+| [Actions and Functions](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ACTIONS_AND_FUNCTIONS.md) | Bound and unbound actions and functions |
+| [Annotations](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ANNOTATIONS.md) | Notes and file attachments |
+| [Deep Insert](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DEEP_INSERT_GUIDE.md) | Creating related records in one request |
+| [Delta Queries](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DELTA_QUERIES.md) | Change tracking |
+| [FetchXML Examples](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/FETCHXML_EXAMPLES.md) | Fluent and raw FetchXML |
+| [Lookup References](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/LOOKUP_REFERENCES.md) | Mapping and setting lookups |
+| [SetFrom](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/SETFROM.md) | Writing POCOs and leaving out read-only columns |
+| [Upsert Conflict Resolution](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/UPSERT_CONFLICT_RESOLUTION.md) | Upsert modes and ETags |
 
 For Dynamics 365 Sales, the `Dataverse.Fluent.Sales` package adds mapped Sales tables and typed wrappers for actions
 such as `QualifyLead` and `WinOpportunity`.
 
-Licensed under the [MIT License](https://github.com/cfranchuk/Dataverse.Fluent/blob/main/LICENSE).
+Licensed under the [MIT License](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/LICENSE).

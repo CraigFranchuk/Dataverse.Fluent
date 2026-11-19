@@ -49,6 +49,28 @@ namespace Dataverse.Fluent.Tests.Builders
             Assert.Contains("%Test%", filter);
         }
 
+        [Theory]
+        [InlineData("a_b", "%a[_]b%")]
+        [InlineData("50%", "%50[%]%")]
+        [InlineData("[x]", "%[[]x]%")]
+        public void ToFetchXmlFilter_WithStringContains_EscapesLikeWildcards(string text, string expected)
+        {
+            // like treats %, _ and [ as wildcards; the text must match literally, as string.Contains does.
+            var visitor = new FetchXmlFilterVisitor();
+            var filter = visitor.ToFetchXmlFilter((TestAccount a) => a.Name.Contains(text));
+
+            Assert.Contains($"value=\"{expected}\"", filter);
+        }
+
+        [Fact]
+        public void ToFetchXmlFilter_WithStartsWith_EscapesWildcardsAndXml()
+        {
+            var visitor = new FetchXmlFilterVisitor();
+            var filter = visitor.ToFetchXmlFilter((TestAccount a) => a.Name.StartsWith("R&D_"));
+
+            Assert.Contains("value=\"R&amp;D[_]%\"", filter);
+        }
+
         [Fact]
         public void ToFetchXmlFilter_WithStringStartsWith_GeneratesLikeCondition()
         {

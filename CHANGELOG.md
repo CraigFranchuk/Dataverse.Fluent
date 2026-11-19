@@ -3,6 +3,30 @@
 All notable changes to the `Dataverse.Fluent` and `Dataverse.Fluent.Sales` packages are recorded here. The
 packages follow [semantic versioning](https://semver.org/).
 
+## 1.0.2 (unreleased)
+
+Filter translation was checked construct by construct against a live environment. These fixes follow from it.
+
+### Dataverse.Fluent
+
+- Fixed: `Contains`, `StartsWith` and `EndsWith` in lambda filters (OData and FetchXML) did not escape the SQL
+  wildcards Dataverse applies, so `Name.Contains("a_b")` also matched `aXb`, and `Contains("[x")` matched unrelated
+  records. `%`, `_` and `[` are now escaped and the text matches literally. Use a raw `Where("...")` filter for wildcard
+  patterns. **Queries that relied on the wildcards return fewer rows.**
+- Fixed: `list.Contains(x.Column)` was sent as the OData `in` operator, which Dataverse rejects (HTTP 501). It is now
+  sent as the equivalent `Microsoft.Dynamics.CRM.In` query function.
+- Fixed: `DataverseFunctions.In`, `NotIn`, `ContainValues` and `DoesNotContainValues` failed with "Invalid JSON" when a
+  value contained an apostrophe. The values are now sent as a JSON array of double-quoted strings.
+- Changed: filters using arithmetic (`+`, `-`, `*`, `/`, `%`) or the string functions `ToLower`, `ToUpper`, `Trim`,
+  `Length`, `Substring`, `IndexOf` and `string.Concat` were sent to Dataverse, which rejects them (HTTP 501). They now
+  throw `NotSupportedException` before the request is sent, with the reason. The 1.0.0 notes listed them as supported;
+  they never worked.
+- Changed: `Aggregate<T>().GroupBy(...)` and the aggregate methods throw `NotSupportedException` for a lookup column,
+  which OData `$apply` cannot group or aggregate by (Dataverse returned HTTP 400). Use a FetchXML aggregate instead.
+- Fixed: `SetFromExcept(x => x.Lookup)` and `SetFrom(entity, "lookupcolumn")` did not exclude a lookup, because a
+  lookup is written under its `@odata.bind` name rather than the name it is read by.
+- The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.
+
 ## 1.0.1 (2026-11-18)
 
 ### Dataverse.Fluent

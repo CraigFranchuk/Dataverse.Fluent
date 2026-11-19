@@ -1,6 +1,6 @@
 # Dataverse.Fluent.Sales
 
-Typed helpers for Dynamics 365 Sales, built on [Dataverse.Fluent](https://github.com/cfranchuk/Dataverse.Fluent).
+Typed helpers for Dynamics 365 Sales, built on [Dataverse.Fluent](https://github.com/CraigFranchuk/Dataverse.Fluent).
 
 - **Entity models** for accounts, contacts, leads, opportunities, quotes and cases, with the Dataverse logical
   names already mapped. The properties are virtual, so you can inherit from a model to add your organisation's
