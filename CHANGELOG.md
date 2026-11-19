@@ -72,6 +72,8 @@ Filter translation was checked construct by construct against a live environment
   which Dataverse rejects ("Cannot read the value '1' as a quote"). `WithParameter` and `WithRequest` now send it by
   member name (`"ReadAccess"`, or `"ReadAccess, WriteAccess"` for flags), and an undefined value throws
   `ArgumentException`. An enum inside an object parameter, a choice column, is still sent as an integer.
+- Fixed: `Annotation().CreateAsync()` without `ReturnRepresentation()` returned an `Annotation` whose `AnnotationId`
+  was `Guid.Empty`. Dataverse returns no body then, and the ID in the `OData-EntityId` header was not read. It is now.
 - Docs: a delta token comes only with the last page. On a table with more than 5,000 rows, an initial `ExecuteAsync()`
   returns a `NextLink` and no token; use `StreamAsync()` for the initial sync.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
