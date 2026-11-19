@@ -3,7 +3,7 @@
 All notable changes to the `Dataverse.Fluent` and `Dataverse.Fluent.Sales` packages are recorded here. The
 packages follow [semantic versioning](https://semver.org/).
 
-## 1.0.2 (unreleased)
+## 1.0.2 (2026-11-18)
 
 Filter translation was checked construct by construct against a live environment. These fixes follow from it.
 
