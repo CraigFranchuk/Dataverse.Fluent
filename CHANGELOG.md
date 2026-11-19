@@ -62,6 +62,12 @@ Filter translation was checked construct by construct against a live environment
   `$filter`, `$orderby`, `$top` and `$count` on every change-tracking query, so a delta query using them always failed
   (and `DeltaResults.Count` was never set). Filter and order the changes in code, and use `StreamAsync(pageSize)` for
   page size. This breaks semantic versioning for a patch release; the methods never worked.
+- Fixed: a lambda filter with the value on the left, such as `10 < x.Employees` or `null == x.Lookup`, failed. OData
+  sent `10 lt numberofemployees`, which Dataverse rejects ("The right side of the operator must be a constant value"),
+  and FetchXML sent the value as the attribute name (`attribute="10"`). The comparison is now turned around
+  (`numberofemployees gt 10`).
+- Fixed: `ids.Contains(x.NullableColumn.Value)`, the usual way to test a nullable lookup against a list of `Guid`s,
+  threw `NotSupportedException` in OData filters. FetchXML already accepted it.
 - Docs: a delta token comes only with the last page. On a table with more than 5,000 rows, an initial `ExecuteAsync()`
   returns a `NextLink` and no token; use `StreamAsync()` for the initial sync.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in

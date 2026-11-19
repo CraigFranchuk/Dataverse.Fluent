@@ -351,5 +351,49 @@ namespace Dataverse.Fluent.Tests.Builders
             Assert.Throws<NotSupportedException>(() =>
                 new FetchXmlFilterVisitor().ToFetchXmlFilter((TestAccount a) => DataverseFunctions.EqualUserId(a.AccountId)));
         }
+
+        // A value on the left was sent as the attribute name (attribute="42"), which Dataverse rejects.
+        [Theory]
+        [InlineData("eq")]
+        [InlineData("lt")]
+        [InlineData("ge")]
+        public void ToFetchXmlFilter_ValueOnTheLeft_PutsTheAttributeFirst(string expected)
+        {
+            var visitor = new FetchXmlFilterVisitor();
+            var filter = expected switch
+            {
+                // 42 == x is x == 42; 10 > x is x < 10; 10 <= x is x >= 10
+                "eq" => visitor.ToFetchXmlFilter((TestAccount a) => 42 == a.NumberOfEmployees),
+                "lt" => visitor.ToFetchXmlFilter((TestAccount a) => 10 > a.NumberOfEmployees),
+                _ => visitor.ToFetchXmlFilter((TestAccount a) => 10 <= a.NumberOfEmployees),
+            };
+
+            var value = expected == "eq" ? "42" : "10";
+            Assert.Equal($"<condition attribute=\"numberofemployees\" operator=\"{expected}\" value=\"{value}\" />", filter);
+        }
+
+        [Fact]
+        public void ToFetchXmlFilter_NullOnTheLeft_IsANullCondition()
+        {
+            var filter = new FetchXmlFilterVisitor().ToFetchXmlFilter((TestAccount a) => null == a.AccountNumber);
+
+            Assert.Equal("<condition attribute=\"accountnumber\" operator=\"null\" />", filter);
+        }
+
+        [Fact]
+        public void ToFetchXmlFilter_ContainsOnANullableValue_IsAnInCondition()
+        {
+            var ids = new List<int> { 1, 2 };
+
+            var filter = new FetchXmlFilterVisitor().ToFetchXmlFilter((NullableAccount a) => ids.Contains(a.Employees!.Value));
+
+            Assert.Equal("<condition attribute=\"numberofemployees\" operator=\"in\"><value>1</value><value>2</value></condition>", filter);
+        }
+
+        private class NullableAccount
+        {
+            [System.Text.Json.Serialization.JsonPropertyName("numberofemployees")]
+            public int? Employees { get; set; }
+        }
     }
 }

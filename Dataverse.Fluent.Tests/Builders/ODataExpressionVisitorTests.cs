@@ -947,4 +947,27 @@ public class ODataExpressionVisitorTests
         Assert.Throws<ArgumentException>(() =>
             new ODataExpressionVisitor().ToODataFilter((TestEntity x) => Array.Empty<string>().Contains(x.Name)));
     }
+
+    // Dataverse rejects a value on the left: "The right side of the 'Equal' operator must be a constant value".
+    [Fact]
+    public void Filter_ValueOnTheLeft_IsTurnedAround()
+    {
+        var visitor = new ODataExpressionVisitor();
+
+        Assert.Equal("age eq 42", visitor.ToODataFilter((TestEntity x) => 42 == x.Age));
+        Assert.Equal("age lt 10", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => 10 > x.Age));
+        Assert.Equal("age ge 10", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => 10 <= x.Age));
+        Assert.Equal("description eq null", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => null == x.Description));
+        Assert.Equal("age gt 1 and age lt 9", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => 1 < x.Age && 9 > x.Age));
+    }
+
+    [Fact]
+    public void Filter_ContainsOnANullableValue_UnwrapsTheColumn()
+    {
+        var counts = new List<int> { 1, 2 };
+
+        var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) => counts.Contains(x.NumberOfEmployees!.Value));
+
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='numberofemployees',PropertyValues=[\"1\",\"2\"])", result);
+    }
 }

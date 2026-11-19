@@ -76,7 +76,16 @@ internal class ODataExpressionVisitor : ExpressionVisitor
         if (NeedsParentheses(node.Right, precedence, isRightOperand: true, node.NodeType))
             right = $"({right})";
 
-        var odataOperator = node.NodeType switch
+        // Dataverse requires the value on the right ("The right side of the 'Equal' operator must be a constant value"),
+        // so a value on the left (10 < x.Employees) is turned around (numberofemployees gt 10).
+        var nodeType = node.NodeType;
+        if (precedence == 3 && IsValue(node.Left) && !IsValue(node.Right))
+        {
+            (left, right) = (right, left);
+            nodeType = Mirror(nodeType);
+        }
+
+        var odataOperator = nodeType switch
         {
             ExpressionType.Equal => "eq",
             ExpressionType.NotEqual => "ne",
@@ -94,6 +103,24 @@ internal class ODataExpressionVisitor : ExpressionVisitor
 
         return node;
     }
+
+    // A value computed on the client (a constant once PartialEvaluator has run), possibly behind a conversion.
+    private static bool IsValue(Expression expression)
+    {
+        while (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } convert)
+            expression = convert.Operand;
+        return expression is ConstantExpression;
+    }
+
+    // The comparison with its operands swapped: a < b is b > a.
+    private static ExpressionType Mirror(ExpressionType nodeType) => nodeType switch
+    {
+        ExpressionType.GreaterThan => ExpressionType.LessThan,
+        ExpressionType.GreaterThanOrEqual => ExpressionType.LessThanOrEqual,
+        ExpressionType.LessThan => ExpressionType.GreaterThan,
+        ExpressionType.LessThanOrEqual => ExpressionType.GreaterThanOrEqual,
+        _ => nodeType,
+    };
 
     // OData operator precedence (higher binds tighter): or < and < comparison < additive < multiplicative.
     // C# expression trees carry grouping structurally, so it must be re-expressed with parentheses
@@ -400,6 +427,10 @@ internal class ODataExpressionVisitor : ExpressionVisitor
         // Microsoft.Dynamics.CRM.In query function, which takes the column's logical name.
         while (item is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } convert)
             item = convert.Operand;
+
+        // ids.Contains(x.Lookup.Value): a nullable column, unwrapped so the list can be of the non-nullable type.
+        if (item is MemberExpression { Member.Name: "Value", Expression: { } nullable } && IsNullableType(nullable.Type))
+            item = nullable;
 
         if (item is not MemberExpression { Expression: ParameterExpression } column)
         {
