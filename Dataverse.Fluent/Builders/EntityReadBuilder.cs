@@ -216,7 +216,7 @@ public sealed class EntityReadBuilder<T>
         var url = BuildUrl();
 
         // Deserialized straight from the response stream (no intermediate JSON DOM).
-        return await KeyedRequestSender.ExecuteAsync<T>(_request.Client, HttpMethod.Get, url, BuildHeaders(), ct).ConfigureAwait(false);
+        return await RequestSender.ExecuteAsync<T>(_request.Client, HttpMethod.Get, url, BuildHeaders(), ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -247,7 +247,7 @@ public sealed class EntityReadBuilder<T>
         _request.ThrowIfAlreadyExecuted();
         var url = BuildUrl();
 
-        var json = await KeyedRequestSender.ExecuteJsonAsync(_request.Client, HttpMethod.Get, url, null, BuildHeaders(), ct).ConfigureAwait(false);
+        var json = await RequestSender.ExecuteJsonAsync(_request.Client, HttpMethod.Get, url, null, BuildHeaders(), ct).ConfigureAwait(false);
         return DataverseClient.DeserializeEntityResult<T>(json);
     }
 

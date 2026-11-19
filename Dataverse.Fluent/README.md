@@ -189,6 +189,10 @@ Dataverse does not support arithmetic or the other OData string functions (`tolo
 `substring`, `indexof`, `concat`) in `$filter`, so a lambda that needs them throws `NotSupportedException`. String
 comparisons are already case-insensitive, so `ToLower()` is not needed.
 
+A long query, such as an `In` filter with hundreds of IDs, can pass the URL length Dataverse accepts for a direct
+request (about 29,700 characters). The library then sends it, and its later pages, inside `$batch`, which accepts about
+64,000. Beyond that it throws `InvalidOperationException`; split the IDs into several queries.
+
 ### Selecting, ordering and expanding
 
 ```csharp

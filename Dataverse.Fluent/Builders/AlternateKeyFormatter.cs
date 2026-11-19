@@ -33,7 +33,7 @@ internal enum KeyPlacement
 /// <list type="bullet">
 /// <item>In the URL path: <c>/</c> and <c>\</c>, which Dataverse's OData parser rejects in any form. A key
 /// containing <c>&amp;</c>, <c>?</c> or <c>+</c> can be addressed, but only inside <c>$batch</c>, because IIS rejects
-/// them in a request path (see <see cref="KeyedRequestSender"/>).</item>
+/// them in a request path (see <see cref="RequestSender"/>).</item>
 /// <item>In a JSON body: <c>/</c>, <c>\</c>, <c>#</c> and <c>?</c>.</item>
 /// </list>
 /// </remarks>

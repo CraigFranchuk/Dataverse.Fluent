@@ -165,7 +165,7 @@ public sealed class DeltaBuilder<T>
         var url = BuildUrl();
         var headers = BuildHeaders();
         
-        var json = await _client.ExecuteRequestAsync(HttpMethod.Get, url, headers: headers, ct: ct).ConfigureAwait(false);
+        var json = await RequestSender.ExecuteJsonAsync(_client, HttpMethod.Get, url, null, headers, ct).ConfigureAwait(false);
 
         return DeserializeDeltaResults(json);
     }
@@ -194,7 +194,7 @@ public sealed class DeltaBuilder<T>
         {
             ct.ThrowIfCancellationRequested();
 
-            var json = await _client.ExecuteRequestAsync(HttpMethod.Get, nextLink, headers: headers, ct: ct).ConfigureAwait(false);
+            var json = await RequestSender.ExecuteJsonAsync(_client, HttpMethod.Get, nextLink, null, headers, ct).ConfigureAwait(false);
             var deltaResults = DeserializeDeltaResults(json);
 
             yield return deltaResults;

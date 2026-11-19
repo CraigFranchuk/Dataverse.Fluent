@@ -53,7 +53,7 @@ public sealed class FunctionBuilder<TResponse>
     {
         _guard.Use();
         var url = BuildFunctionUrl();
-        var resultJson = await _client.ExecuteRequestAsync(HttpMethod.Get, url, ct: ct).ConfigureAwait(false);
+        var resultJson = await RequestSender.ExecuteJsonAsync(_client, HttpMethod.Get, url, null, null, ct).ConfigureAwait(false);
 
         if (typeof(TResponse) == typeof(object))
         {

@@ -35,6 +35,11 @@ Filter translation was checked construct by construct against a live environment
 - Changed: an alternate key containing a character Dataverse cannot accept throws `ArgumentException` before anything
   is sent: `/` and `\` when addressing a record, and `/`, `\`, `#` and `?` in a bind. Dataverse rejected these
   requests anyway.
+- Fixed: a query whose URL was too long, such as an `In` filter with about 700 IDs or FetchXML with about 500, failed with
+  HTTP 400 or 414 and an HTML error page. A direct GET fails above about 29,700 characters, below the documented
+  32,768. Such a request, and its next links and FetchXML pages, is now sent inside `$batch`, which accepts URLs of up
+  to about 64,000 characters. Longer requests throw `InvalidOperationException` before sending, suggesting the query be
+  split.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
   `OData-EntityId`), contrary to the previous example. Use `ReturnRepresentation()` to get it.
 - The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.

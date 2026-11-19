@@ -370,7 +370,7 @@ public sealed class QueryBuilder<T>
         {
             var url = $"{_entitySet}?$filter={Uri.EscapeDataString(filter)}&$count=true";
             var headers = new Dictionary<string, string> { ["Prefer"] = ODataPaging.MaxPageSizePreference(1) };
-            var page = await _client.ExecuteRequestAsync<ODataCollectionResponse<T>>(HttpMethod.Get, url, headers: headers, ct: ct).ConfigureAwait(false);
+            var page = await RequestSender.ExecuteAsync<ODataCollectionResponse<T>>(_client, HttpMethod.Get, url, headers, ct).ConfigureAwait(false);
             return page?.Count
                 ?? throw new InvalidOperationException("Dataverse did not return @odata.count for the count request.");
         }
@@ -378,7 +378,7 @@ public sealed class QueryBuilder<T>
         // $count returns a bare number as text/plain rather than JSON.
         var request = new DataverseRequest(HttpMethod.Get, _entitySet + "/$count") { Headers = { ["Accept"] = "text/plain" } };
 
-        using var response = await _client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await RequestSender.SendAsync(_client, request, ct).ConfigureAwait(false);
         var text = await response.ReadStringAsync(ct).ConfigureAwait(false);
         return long.Parse(text.Trim(), System.Globalization.CultureInfo.InvariantCulture);
     }
@@ -467,7 +467,7 @@ public sealed class QueryBuilder<T>
     private async Task<ODataCollectionResponse<T>> ExecuteWithPreferences(string url, int? pageSize, CancellationToken ct)
     {
         var headers = BuildPreferHeaders(pageSize);
-        return await _client.ExecuteRequestAsync<ODataCollectionResponse<T>>(HttpMethod.Get, url, headers: headers, ct: ct).ConfigureAwait(false)
+        return await RequestSender.ExecuteAsync<ODataCollectionResponse<T>>(_client, HttpMethod.Get, url, headers, ct).ConfigureAwait(false)
             ?? new ODataCollectionResponse<T>();
     }
 

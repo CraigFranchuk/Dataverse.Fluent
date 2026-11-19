@@ -11,7 +11,7 @@ namespace Dataverse.Fluent.Tests.Builders;
 // - In a URL path, IIS rejects an encoded &, ? or + (HTML error page), but the same request works inside $batch.
 // - In a URL path, / and \ fail in any form.
 // - In a JSON body (@odata.bind), Dataverse does not URL-decode the key, and / \ # ? fail in any form.
-public class KeyedRequestSenderTests
+public class RequestSenderTests
 {
     private const string BaseUrl = "https://test.crm.dynamics.com/api/data/v9.2";
 
@@ -108,12 +108,55 @@ public class KeyedRequestSenderTests
     }
 
     [Fact]
-    public void NeedsBatch_LooksOnlyAtThePath()
+    public void NeedsBatch_LooksOnlyAtThePath_ForKeys()
     {
+        var transport = new FakeTransport();
+
         // An encoded & in a query string (e.g. a filter value) is fine; only the path is checked.
-        Assert.False(KeyedRequestSender.NeedsBatch(new DataverseRequest(HttpMethod.Get, "testaccounts?$filter=name eq 'a%26b'")));
-        Assert.True(KeyedRequestSender.NeedsBatch(new DataverseRequest(HttpMethod.Get, "testaccounts(accountnumber='a%26b')?$select=name")));
-        Assert.False(KeyedRequestSender.NeedsBatch(new DataverseRequest(HttpMethod.Get, $"{BaseUrl}/testaccounts(accountnumber='a%26b')")));
+        Assert.False(RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, "testaccounts?$filter=name eq 'a%26b'")));
+        Assert.True(RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, "testaccounts(accountnumber='a%26b')?$select=name")));
+        // An absolute URL on the transport's base (a next link) is judged on its path too; another base is left alone.
+        Assert.True(RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, $"{BaseUrl}/testaccounts(accountnumber='a%26b')")));
+        Assert.False(RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, "https://other.crm.dynamics.com/api/data/v9.2/x(k='a%26b')")));
+    }
+
+    [Fact]
+    public void NeedsBatch_ForAUrlLongerThanADirectRequestAllows()
+    {
+        // A direct GET failed above 29,725 characters of full URL; the library batches above 28,000.
+        var transport = new FakeTransport();
+        string Url(int fullLength) => "testaccounts?$filter=" + new string('x', fullLength - BaseUrl.Length - 1 - "testaccounts?$filter=".Length);
+
+        Assert.False(RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, Url(RequestSender.MaxDirectUrlLength))));
+        Assert.True(RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, Url(RequestSender.MaxDirectUrlLength + 1))));
+        Assert.True(RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, Url(RequestSender.MaxBatchedUrlLength))));
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            RequestSender.NeedsBatch(transport, new DataverseRequest(HttpMethod.Get, Url(RequestSender.MaxBatchedUrlLength + 1))));
+        Assert.Contains("Split", ex.Message);
+    }
+
+    [Fact]
+    public async Task ALongQuery_IsSentInsideBatch_AndItsNextLinkToo()
+    {
+        var ids = Enumerable.Range(0, 1000).Select(_ => Guid.NewGuid()).ToList();
+        var page = 0;
+        var transport = new FakeTransport
+        {
+            // Two pages; the first next link repeats the whole (long) filter, as Dataverse's do.
+            Respond = request => BatchResponse("200 OK", "", ++page == 1
+                ? $$"""{"value":[{"name":"A"}],"@odata.nextLink":"{{BaseUrl}}/testaccounts?$filter=x&$skiptoken={{new string('s', 30_000)}}"}"""
+                : """{"value":[{"name":"B"}]}""")
+        };
+
+        var rows = await new DataverseClient(transport).Query<TestAccount>()
+            .Where(a => ids.Contains(a.AccountId))
+            .GetAllAsync(pageSize: 1, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["A", "B"], rows.Select(r => r.Name));
+        Assert.All(transport.Requests, r => Assert.Equal("$batch", r.Url));
+        Assert.Contains("Prefer: odata.maxpagesize=1", transport.Bodies[0]);
+        Assert.Contains("GET https://test.crm.dynamics.com/api/data/v9.2/testaccounts?$filter=x&$skiptoken=", transport.Bodies[1]);
     }
 
     [Fact]
@@ -162,7 +205,7 @@ public class KeyedRequestSenderTests
 
     private sealed class FakeTransport : IDataverseTransport
     {
-        public string BaseUrl => KeyedRequestSenderTests.BaseUrl;
+        public string BaseUrl => RequestSenderTests.BaseUrl;
         public List<DataverseRequest> Requests { get; } = [];
         public List<string?> Bodies { get; } = [];
         public Func<DataverseRequest, DataverseResponse> Respond { get; init; } = _ => DataverseResponse.Empty();

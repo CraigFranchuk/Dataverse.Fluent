@@ -167,7 +167,7 @@ public sealed class AggregateBuilder<T>
         _guard.Use();
 
         var url = _entitySet + "?$apply=" + Uri.EscapeDataString(BuildApply());
-        var response = await _client.ExecuteRequestAsync<Models.ODataCollectionResponse<TResult>>(HttpMethod.Get, url, ct: ct).ConfigureAwait(false);
+        var response = await RequestSender.ExecuteAsync<Models.ODataCollectionResponse<TResult>>(_client, HttpMethod.Get, url, null, ct).ConfigureAwait(false);
 
         return response?.GetItems() ?? [];
     }
