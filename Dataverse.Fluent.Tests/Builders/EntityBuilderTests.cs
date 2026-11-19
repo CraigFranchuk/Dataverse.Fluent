@@ -323,22 +323,6 @@ public class EntityBuilderTests
         Assert.Equal("?$expand=" + Uri.EscapeDataString("contact_customer_accounts($filter=fullname eq 'R&D #1')"), query);
     }
 
-    [Fact]
-    public async Task SetLookupByAlternateKey_EscapesStringValue()
-    {
-        var handler = new TestHttpMessageHandler();
-        var client = CreateTestClient(handler);
-
-        string? body = null;
-        handler.AddResponse(req => { body = req.Content!.ReadAsStringAsync().Result; return true; },
-            new HttpResponseMessage(HttpStatusCode.NoContent));
-
-        await client.Entity<TestContact>()
-            .SetLookupByAlternateKey("parentcustomerid_account", "accounts", "accountnumber", "O'Brien & Co")
-            .CreateAsync();
-
-        Assert.Contains("/accounts(accountnumber='O''Brien%20%26%20Co')", body);
-    }
 
     [Fact]
     public async Task UsingAlternateKey_WithDateTimeValue_SendsIsoLiteral()
@@ -914,32 +898,6 @@ public class EntityBuilderTests
         Assert.Equal("ACC-002", result.AccountNumber);
     }
 
-    [Fact]
-    public async Task UsingAlternateKey_WithSpecialCharacters_EncodesUrl()
-    {
-        var handler = new TestHttpMessageHandler();
-        var client = CreateTestClient(handler);
-
-        string? capturedUrl = null;
-        handler.AddJsonResponse(
-            req =>
-            {
-                capturedUrl = req.RequestUri!.ToString();
-                // Embedded single quote must be doubled, and reserved characters percent-encoded.
-                return capturedUrl.Contains("testaccounts(accountnumber='O''Brien %26 Sons%2FCo%2Bunit')");
-            },
-            new { accountid = Guid.NewGuid(), name = "Special", accountnumber = "x" }
-        );
-
-        var entity = client.Entity<TestAccount>()
-            .UsingAlternateKey(x => x.AccountNumber, "O'Brien & Sons/Co+unit");
-
-        var result = await entity.RetrieveAsync();
-
-        Assert.NotNull(result);
-        Assert.NotNull(capturedUrl);
-        Assert.DoesNotContain("& Sons", capturedUrl);
-    }
 
     [Fact]
     public async Task UsingAlternateKey_WithTypedExpression_UpsertEntity()

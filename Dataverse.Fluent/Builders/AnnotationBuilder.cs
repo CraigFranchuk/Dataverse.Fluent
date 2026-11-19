@@ -297,20 +297,19 @@ public sealed class AnnotationBuilder
             payload["isdocument"] = true;
         }
 
-        var headers = _returnRepresentation
-            ? new Dictionary<string, string> { ["Prefer"] = "return=representation" }
-            : null;
+        var request = new DataverseRequest(HttpMethod.Post, "annotations") { Payload = payload };
+        if (_returnRepresentation)
+            request.Headers["Prefer"] = "return=representation";
 
-        var response = await _client.ExecuteRequestAsync(
-            HttpMethod.Post,
-            "annotations",
-            payload,
-            headers,
-            ct
-        ).ConfigureAwait(false);
+        using var response = await _client.SendAsync(request, ct).ConfigureAwait(false);
+        var body = await response.ReadJsonObjectAsync(ct).ConfigureAwait(false);
+        var annotation = body.Count == 0 ? new Annotation() : JsonSerializer.Deserialize<Annotation>(body) ?? new Annotation();
 
-        return JsonSerializer.Deserialize<Annotation>(response.ToJsonString()) 
-               ?? new Annotation();
+        // Without a representation the body is empty and the new ID is only in the OData-EntityId header.
+        if (annotation.AnnotationId == Guid.Empty && response.EntityId is { } id)
+            annotation.AnnotationId = id;
+
+        return annotation;
     }
 
     /// <summary>
@@ -469,7 +468,7 @@ public sealed class AnnotationBuilder
         if (_regardingAlternateKey == null || _regardingAlternateKey.Count == 0)
             throw new InvalidOperationException("Alternate key must be specified.");
 
-        return $"{_regardingEntitySet}({AlternateKeyFormatter.FormatCompositeKey(_regardingAlternateKey)})";
+        return $"{_regardingEntitySet}({AlternateKeyFormatter.FormatCompositeKey(_regardingAlternateKey, KeyPlacement.JsonBody)})";
     }
 
     private static string GetJsonPropertyName<T, TProperty>(Expression<Func<T, TProperty>> propertyExpression)

@@ -60,16 +60,7 @@ public sealed class ActionBuilder<TRequest, TResponse> where TRequest : class
         if (string.IsNullOrWhiteSpace(parameterName))
             throw new ArgumentNullException(nameof(parameterName));
 
-        if (value != null)
-        {
-            var serialized = JsonSerializer.SerializeToNode(value, value.GetType(), JsonDefaults.PayloadSerialization);
-            _parameters[parameterName] = serialized;
-        }
-        else
-        {
-            _parameters[parameterName] = null;
-        }
-
+        _parameters[parameterName] = ToParameterNode(value, JsonDefaults.PayloadSerialization);
         return this;
     }
 
@@ -87,6 +78,13 @@ public sealed class ActionBuilder<TRequest, TResponse> where TRequest : class
             foreach (var prop in obj)
             {
                 _parameters[prop.Key] = prop.Value?.DeepClone();
+            }
+
+            // Each property is a parameter: an enum one is written by member name, as WithParameter writes it.
+            foreach (var property in JsonDefaults.IgnoreNull.GetTypeInfo(request.GetType()).Properties)
+            {
+                if (property.Get is { } get && obj.ContainsKey(property.Name) && IsEnumParameter(get(request)))
+                    _parameters[property.Name] = ToParameterNode(get(request), JsonDefaults.IgnoreNull);
             }
         }
 
@@ -119,6 +117,30 @@ public sealed class ActionBuilder<TRequest, TResponse> where TRequest : class
         _guard.Use();
         return BuildRequest();
     }
+
+    // Dataverse reads an enum parameter (EntityFilters, AccessRights, ...) only by member name: "ReadAccess", or
+    // "ReadAccess, WriteAccess" for flags. The number is rejected ("Cannot read the value '1' as a quote", checked
+    // 2026-11-18). An enum nested inside an object parameter is a choice column and stays a number.
+    private static JsonNode? ToParameterNode(object? value, JsonSerializerOptions options) => value switch
+    {
+        null => null,
+        Enum e => JsonValue.Create(EnumMemberNames.Format(e)),
+        System.Collections.IEnumerable items when IsEnumParameter(value)
+            => new JsonArray(items.Cast<Enum?>().Select(e => e is null ? null : (JsonNode)JsonValue.Create(EnumMemberNames.Format(e))).ToArray()),
+        _ => JsonSerializer.SerializeToNode(value, value.GetType(), options),
+    };
+
+    // An enum, or a collection of enums.
+    private static bool IsEnumParameter(object? value) => value switch
+    {
+        Enum => true,
+        string => false,
+        System.Collections.IEnumerable => value.GetType() is var type
+            && (type.IsArray ? type.GetElementType()!
+                : type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>))?.GetGenericArguments()[0]) is { } element
+            && (Nullable.GetUnderlyingType(element) ?? element).IsEnum,
+        _ => false,
+    };
 
     private DataverseRequest BuildRequest()
         => new(HttpMethod.Post, BuildActionUrl()) { Payload = _parameters.DeepClone().AsObject() };

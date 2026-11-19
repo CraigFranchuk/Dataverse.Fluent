@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Dataverse.Fluent.Builders.Expressions;
 
 namespace Dataverse.Fluent.Builders;
@@ -51,6 +53,17 @@ internal class ODataExpressionVisitor : ExpressionVisitor
 
     protected override Expression VisitBinary(BinaryExpression node)
     {
+        // Dataverse rejects every OData arithmetic operator (HTTP 501), so an expression that needs one has no
+        // translation. Values that do not depend on the record were already computed on the client.
+        if (node.NodeType is ExpressionType.Add or ExpressionType.AddChecked or ExpressionType.Subtract
+            or ExpressionType.SubtractChecked or ExpressionType.Multiply or ExpressionType.MultiplyChecked
+            or ExpressionType.Divide or ExpressionType.Modulo)
+        {
+            throw new NotSupportedException(
+                $"'{node}' cannot be filtered: Dataverse does not support arithmetic in $filter. Compare the column with a value " +
+                "computed in C# instead (e.g., x => x.Revenue > limit - 1), or filter the results after reading them.");
+        }
+
         var precedence = GetPrecedence(node.NodeType);
 
         Visit(node.Left);
@@ -63,7 +76,16 @@ internal class ODataExpressionVisitor : ExpressionVisitor
         if (NeedsParentheses(node.Right, precedence, isRightOperand: true, node.NodeType))
             right = $"({right})";
 
-        var odataOperator = node.NodeType switch
+        // Dataverse requires the value on the right ("The right side of the 'Equal' operator must be a constant value"),
+        // so a value on the left (10 < x.Employees) is turned around (numberofemployees gt 10).
+        var nodeType = node.NodeType;
+        if (precedence == 3 && IsValue(node.Left) && !IsValue(node.Right))
+        {
+            (left, right) = (right, left);
+            nodeType = Mirror(nodeType);
+        }
+
+        var odataOperator = nodeType switch
         {
             ExpressionType.Equal => "eq",
             ExpressionType.NotEqual => "ne",
@@ -73,11 +95,6 @@ internal class ODataExpressionVisitor : ExpressionVisitor
             ExpressionType.LessThanOrEqual => "le",
             ExpressionType.AndAlso => "and",
             ExpressionType.OrElse => "or",
-            ExpressionType.Add => "add",
-            ExpressionType.Subtract => "sub",
-            ExpressionType.Multiply => "mul",
-            ExpressionType.Divide => "div",
-            ExpressionType.Modulo => "mod",
             _ => throw new NotSupportedException($"Binary operator '{node.NodeType}' is not supported in OData filters.")
         };
 
@@ -86,6 +103,24 @@ internal class ODataExpressionVisitor : ExpressionVisitor
 
         return node;
     }
+
+    // A value computed on the client (a constant once PartialEvaluator has run), possibly behind a conversion.
+    private static bool IsValue(Expression expression)
+    {
+        while (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } convert)
+            expression = convert.Operand;
+        return expression is ConstantExpression;
+    }
+
+    // The comparison with its operands swapped: a < b is b > a.
+    private static ExpressionType Mirror(ExpressionType nodeType) => nodeType switch
+    {
+        ExpressionType.GreaterThan => ExpressionType.LessThan,
+        ExpressionType.GreaterThanOrEqual => ExpressionType.LessThanOrEqual,
+        ExpressionType.LessThan => ExpressionType.GreaterThan,
+        ExpressionType.LessThanOrEqual => ExpressionType.GreaterThanOrEqual,
+        _ => nodeType,
+    };
 
     // OData operator precedence (higher binds tighter): or < and < comparison < additive < multiplicative.
     // C# expression trees carry grouping structurally, so it must be re-expressed with parentheses
@@ -149,13 +184,11 @@ internal class ODataExpressionVisitor : ExpressionVisitor
             return node;
         }
 
-        // string.Length → "length(propertyName)"
+        // Dataverse rejects the OData length() function (HTTP 501).
         if (node.Member.Name == "Length" && node.Member.DeclaringType == typeof(string))
         {
-            Visit(node.Expression!);
-            var inner = _operandStack.Pop();
-            _operandStack.Push($"length({inner})");
-            return node;
+            throw new NotSupportedException(
+                $"'{node}' cannot be filtered: Dataverse does not support the length() function in $filter.");
         }
 
         if (node.Expression?.NodeType == ExpressionType.Parameter)
@@ -222,69 +255,36 @@ internal class ODataExpressionVisitor : ExpressionVisitor
             return VisitStaticStringMethod(node);
         }
 
+        // Dataverse supports only contains, startswith and endswith; tolower, toupper, trim, substring, indexof and the
+        // other OData string functions are rejected (HTTP 501).
+        var function = node.Method.Name switch
+        {
+            "Contains" => "contains",
+            "StartsWith" => "startswith",
+            "EndsWith" => "endswith",
+            "ToLower" or "ToLowerInvariant" or "ToUpper" or "ToUpperInvariant" => throw new NotSupportedException(
+                $"'{node}' cannot be filtered: Dataverse does not support {node.Method.Name.ToLowerInvariant()}() in $filter. " +
+                "String comparisons in Dataverse are already case-insensitive, so compare the column directly."),
+            _ => throw new NotSupportedException(
+                $"'{node}' cannot be filtered: Dataverse supports only Contains, StartsWith and EndsWith on strings in $filter."),
+        };
+
         Visit(node.Object!);
         var target = _operandStack.Pop();
 
-        switch (node.Method.Name)
-        {
-            case "Contains":
-                Visit(node.Arguments[0]);
-                var containsArg = _operandStack.Pop();
-                _operandStack.Push($"contains({target}, {containsArg})");
-                break;
-
-            case "StartsWith":
-                Visit(node.Arguments[0]);
-                var startsWithArg = _operandStack.Pop();
-                _operandStack.Push($"startswith({target}, {startsWithArg})");
-                break;
-
-            case "EndsWith":
-                Visit(node.Arguments[0]);
-                var endsWithArg = _operandStack.Pop();
-                _operandStack.Push($"endswith({target}, {endsWithArg})");
-                break;
-
-            case "ToLower":
-            case "ToLowerInvariant":
-                _operandStack.Push($"tolower({target})");
-                break;
-
-            case "ToUpper":
-            case "ToUpperInvariant":
-                _operandStack.Push($"toupper({target})");
-                break;
-
-            case "Trim":
-                _operandStack.Push($"trim({target})");
-                break;
-
-            case "Substring":
-                Visit(node.Arguments[0]);
-                var substringStart = _operandStack.Pop();
-                if (node.Arguments.Count == 2)
-                {
-                    Visit(node.Arguments[1]);
-                    var substringLength = _operandStack.Pop();
-                    _operandStack.Push($"substring({target}, {substringStart}, {substringLength})");
-                }
-                else
-                {
-                    _operandStack.Push($"substring({target}, {substringStart})");
-                }
-                break;
-
-            case "IndexOf":
-                Visit(node.Arguments[0]);
-                var indexOfArg = _operandStack.Pop();
-                _operandStack.Push($"indexof({target}, {indexOfArg})");
-                break;
-
-            default:
-                throw new NotSupportedException($"String method '{node.Method.Name}' is not supported in OData filters.");
-        }
-
+        _operandStack.Push($"{function}({target}, {FormatPattern(node.Arguments[0])})");
         return node;
+    }
+
+    // The text of contains/startswith/endswith. Dataverse matches these like SQL LIKE, so %, _ and [ in the text
+    // would act as wildcards; they are escaped so the text matches literally, as string.Contains does.
+    private string FormatPattern(Expression argument)
+    {
+        if (argument is ConstantExpression { Value: string text })
+            return ODataLiteral.Quote(ODataLiteral.EscapeLikeWildcards(text));
+
+        Visit(argument);
+        return _operandStack.Pop();
     }
 
     private MethodCallExpression VisitStaticStringMethod(MethodCallExpression node)
@@ -297,13 +297,9 @@ internal class ODataExpressionVisitor : ExpressionVisitor
                 _operandStack.Push($"({fieldName} eq null or {fieldName} eq '')");
                 break;
 
-            case "Concat" when node.Arguments.Count == 2:
-                Visit(node.Arguments[0]);
-                var concatLeft = _operandStack.Pop();
-                Visit(node.Arguments[1]);
-                var concatRight = _operandStack.Pop();
-                _operandStack.Push($"concat({concatLeft}, {concatRight})");
-                break;
+            case "Concat":
+                throw new NotSupportedException(
+                    $"'{node}' cannot be filtered: Dataverse does not support concat() in $filter.");
 
             default:
                 throw new NotSupportedException($"Static string method '{node.Method.Name}' is not supported in OData filters.");
@@ -344,8 +340,8 @@ internal class ODataExpressionVisitor : ExpressionVisitor
             // params object[] values → PropertyValues=["a","b",...]. An array variable is passed as is, and
             // a value-type array (not an object[]) arrives wrapped as the single element, so nested
             // collections are flattened.
-            var values = FlattenValues(PartialEvaluator.EvaluateValue(node.Arguments[1])).Select(FormatFunctionValue);
-            builder.Append(CultureInfo.InvariantCulture, $",PropertyValues=[{string.Join(",", values)}]");
+            var values = FlattenValues(PartialEvaluator.EvaluateValue(node.Arguments[1]));
+            builder.Append(CultureInfo.InvariantCulture, $",PropertyValues={FormatFunctionValues(values)}");
         }
         else if (node.Arguments.Count > 1)
         {
@@ -364,22 +360,31 @@ internal class ODataExpressionVisitor : ExpressionVisitor
     /// quoted string literals (e.g., <c>'30'</c>, <c>'00000000-...'</c>).
     /// </summary>
     private static string FormatFunctionValue(object? value)
-    {
-        var raw = value switch
-        {
-            null => string.Empty,
-            string s => s,
-            Guid g => g.ToString(),
-            // Choice (option set) values are matched by their integer value, not the enum member name.
-            Enum e => Convert.ToString(
-                Convert.ChangeType(e, Enum.GetUnderlyingType(e.GetType()), CultureInfo.InvariantCulture),
-                CultureInfo.InvariantCulture)!,
-            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString() ?? string.Empty
-        };
+        => $"'{FunctionValueText(value).Replace("'", "''")}'";
 
-        return $"'{raw.Replace("'", "''")}'";
-    }
+    /// <summary>
+    /// Formats the <c>PropertyValues</c> array of a Dataverse query function as a JSON array of strings
+    /// (e.g., <c>["a","O'Brien"]</c>). Dataverse parses the array as JSON: single-quoted elements fail with
+    /// "Invalid JSON" when a value contains an apostrophe.
+    /// </summary>
+    private static string FormatFunctionValues(IEnumerable<object?> values)
+        => "[" + string.Join(",", values.Select(v => JsonSerializer.Serialize(FunctionValueText(v), FunctionValueJson))) + "]";
+
+    // Keeps apostrophes and other characters literal; only quotes, backslashes and control characters are escaped.
+    private static readonly JsonSerializerOptions FunctionValueJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    private static string FunctionValueText(object? value) => value switch
+    {
+        null => string.Empty,
+        string s => s,
+        Guid g => g.ToString(),
+        // Choice (option set) values are matched by their integer value, not the enum member name.
+        Enum e => Convert.ToString(
+            Convert.ChangeType(e, Enum.GetUnderlyingType(e.GetType()), CultureInfo.InvariantCulture),
+            CultureInfo.InvariantCulture)!,
+        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+        _ => value.ToString() ?? string.Empty
+    };
 
     private static IEnumerable<object?> FlattenValues(object? values)
     {
@@ -412,22 +417,32 @@ internal class ODataExpressionVisitor : ExpressionVisitor
             throw new NotSupportedException("The source of Contains() must be an IEnumerable.");
         }
 
-        var values = new List<string>();
-        foreach (var val in enumerable)
-        {
-            values.Add(ODataLiteral.Format(val));
-        }
-
+        var values = enumerable.Cast<object?>().ToList();
         if (values.Count == 0)
         {
             throw new ArgumentException("The collection used in Contains() must have at least one element.");
         }
 
-        // Visit the item expression to get the property name
-        Visit(item);
-        var property = _operandStack.Pop();
+        // Dataverse rejects the OData "in" operator (HTTP 501), so list.Contains(x.Column) is sent as the equivalent
+        // Microsoft.Dynamics.CRM.In query function, which takes the column's logical name.
+        while (item is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } convert)
+            item = convert.Operand;
 
-        _operandStack.Push($"{property} in ({string.Join(",", values)})");
+        // ids.Contains(x.Lookup.Value): a nullable column, unwrapped so the list can be of the non-nullable type.
+        if (item is MemberExpression { Member.Name: "Value", Expression: { } nullable } && IsNullableType(nullable.Type))
+            item = nullable;
+
+        if (item is not MemberExpression { Expression: ParameterExpression } column)
+        {
+            throw new NotSupportedException(
+                $"'{item}' cannot be used with Contains(): the item must be a column of the record (e.g., ids.Contains(x.AccountId)).");
+        }
+
+        if (values.Contains(null))
+            throw new NotSupportedException("The collection used in Contains() cannot contain null; test the column for null separately.");
+
+        var propertyName = EntityTypeMetadata.GetLogicalName(column.Member);
+        _operandStack.Push($"Microsoft.Dynamics.CRM.In(PropertyName='{propertyName}',PropertyValues={FormatFunctionValues(values)})");
         return source;
     }
 

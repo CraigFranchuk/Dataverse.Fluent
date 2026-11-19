@@ -198,7 +198,7 @@ public sealed class EntityWriteBuilder<T>
         if (string.IsNullOrWhiteSpace(alternateKeyName))
             throw new ArgumentNullException(nameof(alternateKeyName));
 
-        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatKeyValue(alternateKeyName, alternateKeyValue)})";
+        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatKeyValue(alternateKeyName, alternateKeyValue, KeyPlacement.JsonBody)})";
         return Set($"{lookupField}@odata.bind", bindingValue);
     }
 
@@ -267,7 +267,7 @@ public sealed class EntityWriteBuilder<T>
         if (alternateKeys == null || alternateKeys.Count == 0)
             throw new ArgumentException("At least one alternate key must be specified.", nameof(alternateKeys));
 
-        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatCompositeKey(alternateKeys)})";
+        var bindingValue = $"/{relatedEntitySet}({AlternateKeyFormatter.FormatCompositeKey(alternateKeys, KeyPlacement.JsonBody)})";
         return Set($"{lookupField}@odata.bind", bindingValue);
     }
 
@@ -307,7 +307,17 @@ public sealed class EntityWriteBuilder<T>
     /// <returns>Current EntityWriteBuilder instance for chaining</returns>
     public EntityWriteBuilder<T> SetFrom(T entity, params string[] exclude)
     {
-        return CopyFrom(entity, excludeReadOnly: true, new HashSet<string>(exclude, StringComparer.OrdinalIgnoreCase));
+        ArgumentNullException.ThrowIfNull(exclude);
+
+        // A lookup is written as a bind, so its logical or read name excludes its bind name too.
+        var excluded = new HashSet<string>(exclude, StringComparer.OrdinalIgnoreCase);
+        foreach (var member in EntityTypeMetadata.For(typeof(T)).Members)
+        {
+            if (excluded.Contains(member.LogicalName) || excluded.Contains(member.Name))
+                excluded.Add(member.WriteName);
+        }
+
+        return CopyFrom(entity, excludeReadOnly: true, excluded);
     }
 
     /// <summary>
@@ -321,10 +331,14 @@ public sealed class EntityWriteBuilder<T>
     {
         ArgumentNullException.ThrowIfNull(entity);
 
+        var metadata = EntityTypeMetadata.For(typeof(T));
         var excludedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var expr in exclude)
         {
-            excludedNames.Add(EntityRequest.GetJsonPropertyName(expr));
+            // A lookup is written under its bind name, not the _x_value name it is read by.
+            excludedNames.Add(metadata.Find(Expressions.MemberPathExtractor.GetProperty(expr)) is { } member
+                ? member.WriteName
+                : EntityRequest.GetJsonPropertyName(expr));
         }
 
         return CopyFrom(entity, excludeReadOnly: true, excludedNames);
@@ -452,7 +466,7 @@ public sealed class EntityWriteBuilder<T>
         _request.ThrowIfAlreadyExecuted();
         var request = BuildCreateRequest();
 
-        using var response = await _request.Client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await RequestSender.SendAsync(_request.Client, request, ct).ConfigureAwait(false);
 
         // Dataverse returns the new record's URL in OData-EntityId, and the record itself only when a
         // representation was requested.
@@ -475,7 +489,7 @@ public sealed class EntityWriteBuilder<T>
         _request.ThrowIfAlreadyExecuted();
         var request = BuildUpdateRequest();
 
-        using var response = await _request.Client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await RequestSender.SendAsync(_request.Client, request, ct).ConfigureAwait(false);
         return await response.ReadEntityAsync<T>(ct).ConfigureAwait(false);
     }
 
@@ -529,7 +543,7 @@ public sealed class EntityWriteBuilder<T>
         _request.ThrowIfAlreadyExecuted();
         var request = BuildUpsertRequest(conflictResolution);
 
-        using var response = await _request.Client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await RequestSender.SendAsync(_request.Client, request, ct).ConfigureAwait(false);
         var entity = await response.ReadEntityAsync<T>(ct).ConfigureAwait(false);
 
         // With a representation Dataverse answers 201 for a create and 200 for an update; without one,

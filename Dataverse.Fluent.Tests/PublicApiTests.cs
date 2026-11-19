@@ -13,7 +13,10 @@ public class PublicApiTests
     {
         var actual = Normalize(typeof(DataverseClient).Assembly.GeneratePublicApi(new ApiGeneratorOptions
         {
-            IncludeAssemblyAttributes = false
+            IncludeAssemblyAttributes = false,
+            // The compiler-generated state machine type (<StreamAsync>d__27) is renumbered whenever a method is
+            // added to the class, which is not an API change.
+            ExcludeAttributes = ["System.Runtime.CompilerServices.AsyncIteratorStateMachineAttribute"]
         }));
 
         var directory = Path.Combine(AppContext.BaseDirectory, "PublicApi");

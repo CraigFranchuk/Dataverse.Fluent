@@ -146,7 +146,7 @@ internal class FetchXmlExecutor<T>
         var encodedFetchXml = Uri.EscapeDataString(fetch.ToString(SaveOptions.DisableFormatting));
         var url = $"{ODataPropertyNameCache.GetEntitySetName<T>()}?fetchXml={encodedFetchXml}";
 
-        return await _client.ExecuteRequestAsync<ODataCollectionResponse<T>>(HttpMethod.Get, url, null, headers, ct).ConfigureAwait(false)
+        return await RequestSender.ExecuteAsync<ODataCollectionResponse<T>>(_client, HttpMethod.Get, url, headers, ct).ConfigureAwait(false)
             ?? new ODataCollectionResponse<T>();
     }
 }

@@ -949,6 +949,41 @@ public class BatchBuilderTests
     }
 
     [Fact]
+    public async Task ThrowIfAnyFailed_ReportsTheFailedPartsReqIdAsActivityId()
+    {
+        var handler = new TestHttpMessageHandler();
+        var client = CreateTestClient(handler);
+
+        // As Dataverse sends it (probed 2026-11-18): each part carries its own REQ_ID header.
+        var responseBody =
+            "--batchresponse_1\r\n" +
+            "Content-Type: application/http\r\n" +
+            "Content-ID: 2\r\n" +
+            "\r\n" +
+            "HTTP/1.1 400 Bad Request\r\n" +
+            "REQ_ID: 7d1a2f8e-0000-4000-8000-000000000002\r\n" +
+            "Content-Type: application/json\r\n" +
+            "\r\n" +
+            "{\"error\":{\"code\":\"0x80040265\",\"message\":\"validation failed\"}}\r\n" +
+            "--batchresponse_1--";
+
+        handler.AddResponse(req => true, new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(responseBody, Encoding.UTF8, "multipart/mixed")
+        });
+
+        var result = await client.Batch()
+            .AddCreate(new TestAccount { Name = "First" })
+            .AddCreate(new TestAccount { Name = "Second" })
+            .ExecuteAsync();
+
+        var ex = Assert.Throws<BatchOperationException>(result.ThrowIfAnyFailed);
+        var failed = ex.InnerExceptions.Cast<DataverseException>().Single(e => e.StatusCode == HttpStatusCode.BadRequest);
+        Assert.Equal("7d1a2f8e-0000-4000-8000-000000000002", failed.ActivityId);
+        Assert.Equal("0x80040265", failed.ErrorCode);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ErrorStatusWithMultipartBody_ReturnsFailedResults()
     {
         var handler = new TestHttpMessageHandler();

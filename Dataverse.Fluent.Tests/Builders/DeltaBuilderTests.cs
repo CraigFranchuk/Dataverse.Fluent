@@ -164,19 +164,33 @@ public class DeltaBuilderTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithWhere_AppliesFilter()
+    public async Task ExecuteAsync_ReadsDataversesDeletedEntityShape()
     {
-        var request = await SendDeltaAsync(d => d.Where("revenue gt 1000000"));
+        var handler = new TestHttpMessageHandler();
+        var client = CreateTestClient(handler);
 
-        Assert.Equal("revenue gt 1000000", request.QueryOption("$filter"));
-    }
+        // As Dataverse returned it on 2026-11-18: a deletion is a $deletedEntity with a bare id, not "@removed".
+        var jsonResponse = """
+            {
+              "@odata.context": "https://test.crm.dynamics.com/api/data/v9.2/$metadata#testaccounts(name)/$delta",
+              "@odata.deltaLink": "https://test.crm.dynamics.com/api/data/v9.2/testaccounts?$select=name&$deltatoken=2",
+              "value": [
+                { "@odata.etag": "W/\"1450899602\"", "name": "Changed", "accountid": "9ae3c50a-d3e3-f111-84ea-001dd80d92a5" },
+                { "@odata.context": "https://test.crm.dynamics.com/api/data/v9.2/$metadata#testaccounts/$deletedEntity", "id": "a0e3c50a-d3e3-f111-84ea-001dd80d92a5", "reason": "deleted" }
+              ]
+            }
+            """;
+        handler.AddResponse(_ => true, new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(jsonResponse, System.Text.Encoding.UTF8, "application/json")
+        });
 
-    [Fact]
-    public async Task ExecuteAsync_WithTop_SendsTop()
-    {
-        var request = await SendDeltaAsync(d => d.Top(50));
+        var results = await client.Delta<TestAccount>().Since("https://test.crm.dynamics.com/api/data/v9.2/testaccounts?$deltatoken=1").ExecuteAsync();
 
-        Assert.Equal("50", request.QueryOption("$top"));
+        Assert.Equal("Changed", Assert.Single(results.Value).Name);
+        var deleted = Assert.Single(results.Deleted);
+        Assert.Equal(Guid.Parse("a0e3c50a-d3e3-f111-84ea-001dd80d92a5"), deleted.GetEntityId());
+        Assert.Equal("deleted", deleted.Removed?.Reason);
     }
 
     [Fact]
@@ -187,37 +201,6 @@ public class DeltaBuilderTests
         Assert.Equal(
             "odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\",odata.track-changes",
             request.Header("Prefer"));
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_WithCount_RequestsCount()
-    {
-        // Arrange
-        var handler = new TestHttpMessageHandler();
-        var client = CreateTestClient(handler);
-
-        var jsonResponse = @"{
-            ""value"": [],
-            ""@odata.count"": 42,
-            ""@odata.deltaLink"": ""test""
-        }";
-
-        handler.AddResponse(
-            req => req.Method == HttpMethod.Get && req.DecodedUrl().Contains("$count=true"),
-            new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(jsonResponse, System.Text.Encoding.UTF8, "application/json")
-            }
-        );
-
-        // Act
-        var results = await client.Delta<TestAccount>()
-            .Count()
-            .ExecuteAsync();
-
-        // Assert
-        Assert.NotNull(results);
-        Assert.Equal(42, results.Count);
     }
 
     [Fact]
@@ -299,22 +282,6 @@ public class DeltaBuilderTests
         Assert.Equal(HttpMethod.Get, request.Method);
         Assert.Equal("/api/data/v9.2/testaccounts", request.Uri.AbsolutePath);
         Assert.Equal("odata.track-changes", request.Header("Prefer"));
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_WithOrderBy_SendsOrderBy()
-    {
-        var request = await SendDeltaAsync(d => d.OrderBy("name desc,revenue"));
-
-        Assert.Equal("name desc,revenue", request.QueryOption("$orderby"));
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_WithBlankOrderBy_SendsNoOrderBy()
-    {
-        var request = await SendDeltaAsync(d => d.OrderBy(" "));
-
-        Assert.Null(request.QueryOption("$orderby"));
     }
 
     [Fact]
