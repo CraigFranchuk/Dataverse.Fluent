@@ -236,4 +236,70 @@ public class DataverseExceptionTests
         Assert.Equal("0x1", exception.ErrorCode);
         Assert.StartsWith("Dataverse API request failed.", exception.Message);
     }
+
+    // ────────── As Dataverse actually responds (probed 2026-11-18; live tests in ErrorModelTests) ──────────
+
+    [Fact]
+    public async Task ActivityId_ComesFromTheServiceRequestIdHeader_ThatDataverseSends()
+    {
+        // Dataverse sends x-ms-service-request-id and REQ_ID, not x-ms-activity-id.
+        using var response = new HttpResponseMessage(HttpStatusCode.NotFound)
+        {
+            Content = new StringContent("{\"error\":{\"code\":\"0x80040217\",\"message\":\"Does Not Exist\"}}"),
+            Headers = { { "x-ms-service-request-id", "e4739bcc-2531-464f-9040-c9ae1eaec418" }, { "REQ_ID", "e4739bcc-2531-464f-9040-c9ae1eaec418" } }
+        };
+
+        var exception = await DataverseException.CreateAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal("e4739bcc-2531-464f-9040-c9ae1eaec418", exception.ActivityId);
+    }
+
+    [Fact]
+    public async Task ActivityId_FallsBackToReqId()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent(""), Headers = { { "REQ_ID", "abc" } } };
+
+        var exception = await DataverseException.CreateAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal("abc", exception.ActivityId);
+    }
+
+    [Fact]
+    public async Task AnHtmlErrorPage_GivesAShortMessage_AndKeepsThePage()
+    {
+        // IIS rejects some URLs before they reach Dataverse, with a page like this one.
+        const string html = "<!DOCTYPE html>\n<html>\n<head>\n<title>Runtime Error</title>\n</head><body>...</body></html>";
+        using var response = new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent(html) };
+
+        var exception = await DataverseException.CreateAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.StartsWith("Dataverse API failed with status 400 (BadRequest): Runtime Error. The response was an HTML page", exception.Message);
+        Assert.DoesNotContain("<", exception.Message);
+        Assert.Equal(html, exception.RawResponse);
+        Assert.Null(exception.ErrorCode);
+    }
+
+    [Fact]
+    public async Task A401WithAnEmptyBody_UsesTheReasonHeader()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = new StringContent(""),
+            Headers = { { "401_Error_Reason", "Authorization header value format is incorrect (Expected Format:Bearer access_token)." } }
+        };
+
+        var exception = await DataverseException.CreateAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Dataverse API failed with status 401 (Unauthorized): Authorization header value format is incorrect (Expected Format:Bearer access_token).", exception.Message);
+    }
+
+    [Fact]
+    public async Task AnEmptyBody_WithoutAReason_StatesTheStatus()
+    {
+        using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new StringContent("") };
+
+        var exception = await DataverseException.CreateAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Dataverse API failed with status 503 (ServiceUnavailable).", exception.Message);
+    }
 }

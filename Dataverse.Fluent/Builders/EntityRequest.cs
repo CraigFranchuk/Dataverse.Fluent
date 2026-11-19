@@ -38,6 +38,9 @@ internal sealed class EntityRequest
 
     public void AddAlternateKey(string keyName, object keyValue)
     {
+        // Rejected here, when the key is set, rather than when the request is sent.
+        AlternateKeyFormatter.ThrowIfUnusable(keyValue, KeyPlacement.UrlPath);
+
         _alternateKey ??= new Dictionary<string, object>();
         _alternateKey[keyName] = keyValue;
     }

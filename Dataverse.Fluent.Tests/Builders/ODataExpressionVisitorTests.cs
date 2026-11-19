@@ -1,4 +1,5 @@
-﻿using System;
+using System.Linq.Expressions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -285,84 +286,12 @@ public class ODataExpressionVisitorTests
     }
 
     [Fact]
-    public void Filter_StringToLower_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.ToLower() == "john");
-        
-        Assert.Equal("tolower(name) eq 'john'", result);
-    }
-
-    [Fact]
-    public void Filter_StringToUpper_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.ToUpper() == "JOHN");
-        
-        Assert.Equal("toupper(name) eq 'JOHN'", result);
-    }
-
-    [Fact]
-    public void Filter_StringTrim_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.Trim() == "John");
-        
-        Assert.Equal("trim(name) eq 'John'", result);
-    }
-
-    [Fact]
     public void Filter_JsonPropertyName_UsesCustomName()
     {
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => x.CustomField == "test");
         
         Assert.Equal("custom_field eq 'test'", result);
-    }
-
-    [Fact]
-    public void Filter_Add_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Age + 5 > 25);
-        
-        Assert.Equal("age add 5 gt 25", result);
-    }
-
-    [Fact]
-    public void Filter_Subtract_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Age - 5 < 15);
-        
-        Assert.Equal("age sub 5 lt 15", result);
-    }
-
-    [Fact]
-    public void Filter_Multiply_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Salary * 2 > 100000);
-        
-        Assert.Equal("salary mul 2 gt 100000", result);
-    }
-
-    [Fact]
-    public void Filter_Divide_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Salary / 12 > 5000);
-        
-        Assert.Equal("salary div 12 gt 5000", result);
-    }
-
-    [Fact]
-    public void Filter_Modulo_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Age % 2 == 0);
-        
-        Assert.Equal("age mod 2 eq 0", result);
     }
 
     [Fact]
@@ -411,25 +340,6 @@ public class ODataExpressionVisitorTests
         
         Assert.Throws<NotSupportedException>(() => 
             visitor.ToODataFilter((TestEntity x) => x.Age ^ 2));
-    }
-
-    [Fact]
-    public void Filter_StringSubstring_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.Substring(0, 3) == "Joh");
-
-        Assert.Equal("substring(name, 0, 3) eq 'Joh'", result);
-    }
-
-    [Fact]
-    public void Filter_ChainedStringMethods_GeneratesCorrectODataFilter()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => 
-            x.Name.Trim().ToLower() == "john");
-        
-        Assert.Equal("tolower(trim(name)) eq 'john'", result);
     }
 
     [Fact]
@@ -598,36 +508,36 @@ public class ODataExpressionVisitorTests
         Assert.Equal("(custom_field eq null or custom_field eq '')", result);
     }
 
-    // ────────── Collection Contains → OData 'in' operator ──────────
+    // ────────── Collection Contains → Microsoft.Dynamics.CRM.In (Dataverse rejects the OData 'in' operator) ──────────
 
     [Fact]
-    public void Filter_ArrayContains_GeneratesInOperator()
+    public void Filter_ArrayContains_GeneratesInFunction()
     {
         var statuses = new[] { 0, 1 };
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => statuses.Contains(x.Age));
 
-        Assert.Equal("age in (0,1)", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='age',PropertyValues=[\"0\",\"1\"])", result);
     }
 
     [Fact]
-    public void Filter_ListContains_GeneratesInOperator()
+    public void Filter_ListContains_GeneratesInFunction()
     {
         var names = new List<string> { "Alpha", "Beta", "Gamma" };
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => names.Contains(x.Name));
 
-        Assert.Equal("name in ('Alpha','Beta','Gamma')", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='name',PropertyValues=[\"Alpha\",\"Beta\",\"Gamma\"])", result);
     }
 
     [Fact]
-    public void Filter_EnumerableContainsExtension_GeneratesInOperator()
+    public void Filter_EnumerableContainsExtension_GeneratesInFunction()
     {
         var ids = new[] { Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222") };
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => ids.Contains(x.Id));
 
-        Assert.Equal("id in ('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222')", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='id',PropertyValues=[\"11111111-1111-1111-1111-111111111111\",\"22222222-2222-2222-2222-222222222222\"])", result);
     }
 
     [Fact]
@@ -637,98 +547,74 @@ public class ODataExpressionVisitorTests
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => allowedStatuses.Contains(x.Status));
 
-        Assert.Equal("statecode in (0,2)", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='statecode',PropertyValues=[\"0\",\"2\"])", result);
     }
 
-    // ────────── string.Length ──────────
+    // ────────── Constructs Dataverse rejects (HTTP 501) fail before the request is sent ──────────
 
-    [Fact]
-    public void Filter_StringLength_GeneratesLengthFunction()
+    // Each construct, and the reason its error gives.
+    private static readonly Dictionary<string, (string Reason, Expression<Func<TestEntity, bool>> Filter)> UnsupportedFilters = new()
     {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.Length > 10);
+        ["ToLower"] = ("tolower", x => x.Name.ToLower() == "john"),
+        ["ToLowerInvariant"] = ("tolowerinvariant", x => x.Name.ToLowerInvariant() == "john"),
+        ["ToUpper"] = ("toupper", x => x.Name.ToUpper() == "JOHN"),
+        ["ToUpperInvariant"] = ("toupperinvariant", x => x.Name.ToUpperInvariant() == "JOHN"),
+        ["Trim"] = ("Contains, StartsWith and EndsWith", x => x.Name.Trim() == "John"),
+        ["Substring"] = ("Contains, StartsWith and EndsWith", x => x.Name.Substring(0, 3) == "Joh"),
+        ["IndexOf"] = ("Contains, StartsWith and EndsWith", x => x.Name.IndexOf("oh") > 0),
+        ["Length"] = ("length()", x => x.Name.Length > 10),
+        ["Concat"] = ("concat()", x => string.Concat(x.Name, x.CustomField) == "test"),
+        ["Add"] = ("arithmetic", x => x.Age + 5 > 25),
+        ["Subtract"] = ("arithmetic", x => x.Age - 5 < 15),
+        ["Multiply"] = ("arithmetic", x => x.Salary * 2 > 100000),
+        ["Divide"] = ("arithmetic", x => x.Salary / 12 > 5000),
+        ["Modulo"] = ("arithmetic", x => x.Age % 2 == 0),
+    };
 
-        Assert.Equal("length(name) gt 10", result);
-    }
+    public static TheoryData<string> UnsupportedFilterNames => [.. UnsupportedFilters.Keys];
 
-    [Fact]
-    public void Filter_StringLengthEqual_GeneratesLengthFunction()
+    [Theory]
+    [MemberData(nameof(UnsupportedFilterNames))]
+    public void Filter_ThatDataverseRejects_ThrowsNotSupported_WithTheReason(string construct)
     {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.Length == 5);
+        var (reason, filter) = UnsupportedFilters[construct];
 
-        Assert.Equal("length(name) eq 5", result);
-    }
+        var ex = Assert.Throws<NotSupportedException>(() => new ODataExpressionVisitor().ToODataFilter(filter));
 
-    [Fact]
-    public void Filter_StringLengthChained_GeneratesNestedFunctions()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.Trim().Length > 0);
-
-        Assert.Equal("length(trim(name)) gt 0", result);
-    }
-
-    // ────────── string.Concat ──────────
-
-    [Fact]
-    public void Filter_StringConcat_GeneratesConcatFunction()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => string.Concat(x.Name, x.CustomField) == "test");
-
-        Assert.Equal("concat(name, custom_field) eq 'test'", result);
-    }
-
-    // ────────── string.Substring ──────────
-
-    [Fact]
-    public void Filter_StringSubstringWithLength_GeneratesSubstringFunction()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.Substring(0, 3) == "Joh");
-
-        Assert.Equal("substring(name, 0, 3) eq 'Joh'", result);
+        Assert.Contains(reason, ex.Message);
     }
 
     [Fact]
-    public void Filter_StringSubstringWithoutLength_GeneratesSubstringFunction()
+    public void Filter_ArithmeticOnCapturedValues_IsComputedOnTheClient()
     {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.Substring(2) == "hn");
+        var limit = 10;
 
-        Assert.Equal("substring(name, 2) eq 'hn'", result);
+        Assert.Equal("age gt 9", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.Age > limit - 1));
     }
 
-    // ────────── string.IndexOf ──────────
-
-    [Fact]
-    public void Filter_StringIndexOf_GeneratesIndexOfFunction()
+    [Theory]
+    [InlineData("a_b", "contains(name, 'a[_]b')")]
+    [InlineData("50%", "contains(name, '50[%]')")]
+    [InlineData("[x]", "contains(name, '[[]x]')")]
+    [InlineData("O'Neil", "contains(name, 'O''Neil')")]
+    public void Filter_StringFunctions_EscapeLikeWildcards(string text, string expected)
     {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.IndexOf("oh") > 0);
-
-        Assert.Equal("indexof(name, 'oh') gt 0", result);
-    }
-
-    // ────────── ToLowerInvariant / ToUpperInvariant ──────────
-
-    [Fact]
-    public void Filter_StringToLowerInvariant_GeneratesToLowerFunction()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.ToLowerInvariant() == "john");
-
-        Assert.Equal("tolower(name) eq 'john'", result);
+        Assert.Equal(expected, new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.Name.Contains(text)));
     }
 
     [Fact]
-    public void Filter_StringToUpperInvariant_GeneratesToUpperFunction()
+    public void Filter_StartsWithAndEndsWith_EscapeLikeWildcards()
     {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Name.ToUpperInvariant() == "JOHN");
+        Assert.Equal("startswith(name, 'a[_]')", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.Name.StartsWith("a_")));
+        Assert.Equal("endswith(name, '[%]')", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.Name.EndsWith("%")));
+    }
 
-        Assert.Equal("toupper(name) eq 'JOHN'", result);
+    [Fact]
+    public void Filter_ListContains_WithANullValue_Throws()
+    {
+        var names = new List<string?> { "a", null };
+
+        Assert.Throws<NotSupportedException>(() => new ODataExpressionVisitor().ToODataFilter((TestEntity x) => names.Contains(x.Name)));
     }
 
     // ────────── Combined complex filters ──────────
@@ -761,7 +647,7 @@ public class ODataExpressionVisitorTests
         var result = visitor.ToODataFilter((TestEntity x) =>
             validStatuses.Contains(x.Status) && x.Revenue != null);
 
-        Assert.Equal("statecode in (0,2) and revenue ne null", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='statecode',PropertyValues=[\"0\",\"2\"]) and revenue ne null", result);
     }
 
     // ────────── DateTimeOffset literals ──────────
@@ -842,7 +728,7 @@ public class ODataExpressionVisitorTests
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => DataverseFunctions.In(x.Age, 1, 2, 3));
 
-        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='age',PropertyValues=['1','2','3'])", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='age',PropertyValues=[\"1\",\"2\",\"3\"])", result);
     }
 
     [Fact]
@@ -862,7 +748,7 @@ public class ODataExpressionVisitorTests
     }
 
     // ────────── Operator precedence ──────────
-    // OData 'and' binds tighter than 'or' (and arithmetic tighter than comparison), so grouping
+    // OData 'and' binds tighter than 'or', so grouping
     // expressed structurally in the C# expression tree must be re-emitted as parentheses.
 
     [Fact]
@@ -909,33 +795,6 @@ public class ODataExpressionVisitorTests
             (x.Age == 1 || x.Age == 2) && (x.Name == "a" || x.Name == "b"));
 
         Assert.Equal("(age eq 1 or age eq 2) and (name eq 'a' or name eq 'b')", result);
-    }
-
-    [Fact]
-    public void Precedence_AdditionInsideMultiplication_IsParenthesized()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => (x.Salary + 1) * 2 > 10);
-
-        Assert.Equal("(salary add 1) mul 2 gt 10", result);
-    }
-
-    [Fact]
-    public void Precedence_RightOperandOfSubtraction_IsParenthesized()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Age - (x.Age - 1) == 1);
-
-        Assert.Equal("age sub (age sub 1) eq 1", result);
-    }
-
-    [Fact]
-    public void Precedence_LeftAssociativeSubtraction_StaysFlat()
-    {
-        var visitor = new ODataExpressionVisitor();
-        var result = visitor.ToODataFilter((TestEntity x) => x.Age - 1 - 2 == 0);
-
-        Assert.Equal("age sub 1 sub 2 eq 0", result);
     }
 
     [Fact]
@@ -1021,7 +880,7 @@ public class ODataExpressionVisitorTests
     [InlineData("DoesNotContainValues")]
     public void MultiValueFunction_TranslatesWithPropertyValues(string function)
     {
-        Assert.Equal($"Microsoft.Dynamics.CRM.{function}(PropertyName='ownerid',PropertyValues=['a','2'])", TranslateFunction(function, "a", 2));
+        Assert.Equal($"Microsoft.Dynamics.CRM.{function}(PropertyName='ownerid',PropertyValues=[\"a\",\"2\"])", TranslateFunction(function, "a", 2));
     }
 
     [Fact]
@@ -1030,7 +889,7 @@ public class ODataExpressionVisitorTests
         var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) =>
             DataverseFunctions.In(x.Status, AccountStatus.Active, AccountStatus.Suspended));
 
-        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='statecode',PropertyValues=['0','2'])", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='statecode',PropertyValues=[\"0\",\"2\"])", result);
     }
 
     [Fact]
@@ -1040,7 +899,7 @@ public class ODataExpressionVisitorTests
 
         var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) => DataverseFunctions.In(x.Name, names));
 
-        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='name',PropertyValues=['Alpha','Beta'])", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='name',PropertyValues=[\"Alpha\",\"Beta\"])", result);
     }
 
     [Fact]
@@ -1051,35 +910,35 @@ public class ODataExpressionVisitorTests
 
         var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) => DataverseFunctions.In(x.Age, ages));
 
-        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='age',PropertyValues=['30','40'])", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='age',PropertyValues=[\"30\",\"40\"])", result);
     }
 
     [Fact]
-    public void In_WithAQuoteInAValue_EscapesIt()
+    public void In_WithAnApostropheInAValue_SendsADoubleQuotedJsonArray()
     {
         var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) => DataverseFunctions.In(x.Name, "O'Neil"));
 
-        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='name',PropertyValues=['O''Neil'])", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='name',PropertyValues=[\"O'Neil\"])", result);
     }
 
     // ────────── Inline array literals ──────────
 
     [Fact]
-    public void Filter_InlineStringArrayContains_GeneratesIn()
+    public void Filter_InlineStringArrayContains_GeneratesInFunction()
     {
         var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) => new[] { "Alpha", "O'Neil" }.Contains(x.Name));
 
-        Assert.Equal("name in ('Alpha','O''Neil')", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='name',PropertyValues=[\"Alpha\",\"O'Neil\"])", result);
     }
 
     [Fact]
-    public void Filter_InlineIntArrayWithCapturedElement_GeneratesIn()
+    public void Filter_InlineIntArrayWithCapturedElement_GeneratesInFunction()
     {
         var minimum = 18;
 
         var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) => new[] { minimum, 65 }.Contains(x.Age));
 
-        Assert.Equal("age in (18,65)", result);
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='age',PropertyValues=[\"18\",\"65\"])", result);
     }
 
     [Fact]
@@ -1087,5 +946,28 @@ public class ODataExpressionVisitorTests
     {
         Assert.Throws<ArgumentException>(() =>
             new ODataExpressionVisitor().ToODataFilter((TestEntity x) => Array.Empty<string>().Contains(x.Name)));
+    }
+
+    // Dataverse rejects a value on the left: "The right side of the 'Equal' operator must be a constant value".
+    [Fact]
+    public void Filter_ValueOnTheLeft_IsTurnedAround()
+    {
+        var visitor = new ODataExpressionVisitor();
+
+        Assert.Equal("age eq 42", visitor.ToODataFilter((TestEntity x) => 42 == x.Age));
+        Assert.Equal("age lt 10", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => 10 > x.Age));
+        Assert.Equal("age ge 10", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => 10 <= x.Age));
+        Assert.Equal("description eq null", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => null == x.Description));
+        Assert.Equal("age gt 1 and age lt 9", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => 1 < x.Age && 9 > x.Age));
+    }
+
+    [Fact]
+    public void Filter_ContainsOnANullableValue_UnwrapsTheColumn()
+    {
+        var counts = new List<int> { 1, 2 };
+
+        var result = new ODataExpressionVisitor().ToODataFilter((TestEntity x) => counts.Contains(x.NumberOfEmployees!.Value));
+
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='numberofemployees',PropertyValues=[\"1\",\"2\"])", result);
     }
 }

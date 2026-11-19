@@ -169,9 +169,10 @@ public sealed class QueryBuilder<T>
     /// Limits the total number of rows returned (<c>$top</c>).
     /// </summary>
     /// <remarks>
-    /// <c>$top</c> is a limit, not a page size: Dataverse does not page a <c>$top</c> query. Use
-    /// <see cref="PageSize"/> to page through results. With <see cref="StreamAsync"/> and
-    /// <see cref="GetAllAsync"/>, <c>Top</c> caps the total number of rows yielded across pages.
+    /// <c>$top</c> is a limit, not a page size. Use <see cref="PageSize"/> to page through results. With
+    /// <see cref="StreamAsync"/> and <see cref="GetAllAsync"/>, <c>Top</c> caps the total number of rows yielded across
+    /// pages. Dataverse returns at most 5,000 rows per response, so with a <c>Top</c> above 5,000,
+    /// <see cref="GetListAsync"/> and <see cref="GetListWithCountAsync"/> follow the next links to return up to that many.
     /// </remarks>
     public QueryBuilder<T> Top(int top)
     {
@@ -221,7 +222,8 @@ public sealed class QueryBuilder<T>
     }
 
     /// <summary>
-    /// Executes the query and returns a single page of results.
+    /// Executes the query and returns a single page of results. With <see cref="Top"/> above 5,000 it returns up to
+    /// that many rows, following the next links.
     /// </summary>
     public async Task<List<T>> GetListAsync(CancellationToken ct = default)
     {
@@ -230,7 +232,28 @@ public sealed class QueryBuilder<T>
         var url = BuildUrl(includeTop: true, includeCount: true);
         var page = await ExecuteWithPreferences(url, _pageSize, ct).ConfigureAwait(false);
 
-        return page.GetItems();
+        return await CollectUpToTopAsync(page, ct).ConfigureAwait(false);
+    }
+
+    // Dataverse returns at most 5,000 rows per response. A $top above that comes back as 5,000 rows and a next link
+    // (confirmed 2026-11-18), so a single response would silently hold fewer rows than Top asked for.
+    private async Task<List<T>> CollectUpToTopAsync(ODataCollectionResponse<T> page, CancellationToken ct)
+    {
+        var items = page.GetItems();
+        if (_top is not { } top || top <= ODataPaging.MaxPageSize)
+            return items;
+
+        var followed = new HashSet<string>(StringComparer.Ordinal);
+        while (items.Count < top && page.NextLink is { } nextLink)
+        {
+            ODataPaging.TrackNextLink(followed, nextLink);
+            page = await ExecuteWithPreferences(nextLink, _pageSize, ct).ConfigureAwait(false);
+            items.AddRange(page.GetItems());
+        }
+
+        if (items.Count > top)
+            items.RemoveRange(top, items.Count - top);
+        return items;
     }
 
     /// <summary>
@@ -370,7 +393,7 @@ public sealed class QueryBuilder<T>
         {
             var url = $"{_entitySet}?$filter={Uri.EscapeDataString(filter)}&$count=true";
             var headers = new Dictionary<string, string> { ["Prefer"] = ODataPaging.MaxPageSizePreference(1) };
-            var page = await _client.ExecuteRequestAsync<ODataCollectionResponse<T>>(HttpMethod.Get, url, headers: headers, ct: ct).ConfigureAwait(false);
+            var page = await RequestSender.ExecuteAsync<ODataCollectionResponse<T>>(_client, HttpMethod.Get, url, headers, ct).ConfigureAwait(false);
             return page?.Count
                 ?? throw new InvalidOperationException("Dataverse did not return @odata.count for the count request.");
         }
@@ -378,7 +401,7 @@ public sealed class QueryBuilder<T>
         // $count returns a bare number as text/plain rather than JSON.
         var request = new DataverseRequest(HttpMethod.Get, _entitySet + "/$count") { Headers = { ["Accept"] = "text/plain" } };
 
-        using var response = await _client.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await RequestSender.SendAsync(_client, request, ct).ConfigureAwait(false);
         var text = await response.ReadStringAsync(ct).ConfigureAwait(false);
         return long.Parse(text.Trim(), System.Globalization.CultureInfo.InvariantCulture);
     }
@@ -393,7 +416,8 @@ public sealed class QueryBuilder<T>
         ThrowIfTopAndPageSizeCombined();
         var url = BuildUrl(includeTop: true, includeCount: true);
         var page = await ExecuteWithPreferences(url, _pageSize, ct).ConfigureAwait(false);
-        return (page.GetItems(), page.Count);
+        var count = page.Count;
+        return (await CollectUpToTopAsync(page, ct).ConfigureAwait(false), count);
     }
 
     private async IAsyncEnumerable<T> StreamCore(
@@ -467,7 +491,7 @@ public sealed class QueryBuilder<T>
     private async Task<ODataCollectionResponse<T>> ExecuteWithPreferences(string url, int? pageSize, CancellationToken ct)
     {
         var headers = BuildPreferHeaders(pageSize);
-        return await _client.ExecuteRequestAsync<ODataCollectionResponse<T>>(HttpMethod.Get, url, headers: headers, ct: ct).ConfigureAwait(false)
+        return await RequestSender.ExecuteAsync<ODataCollectionResponse<T>>(_client, HttpMethod.Get, url, headers, ct).ConfigureAwait(false)
             ?? new ODataCollectionResponse<T>();
     }
 

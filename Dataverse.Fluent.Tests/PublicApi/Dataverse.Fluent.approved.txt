@@ -407,16 +407,11 @@ namespace Dataverse.Fluent.Builders
     }
     public sealed class DeltaBuilder<T>
     {
-        public Dataverse.Fluent.Builders.DeltaBuilder<T> Count(bool include = true) { }
         public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DeltaResults<T>> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> IncludeFormattedValues(bool include = true) { }
-        public Dataverse.Fluent.Builders.DeltaBuilder<T> OrderBy(string orderBy) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> Select(params string[] properties) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> Since(string deltaToken) { }
-        [System.Runtime.CompilerServices.AsyncIteratorStateMachine(typeof(Dataverse.Fluent.Builders.DeltaBuilder<T>.<StreamAsync>d__19))]
         public System.Collections.Generic.IAsyncEnumerable<Dataverse.Fluent.Models.DeltaResults<T>> StreamAsync(int pageSize = 2000, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default) { }
-        public Dataverse.Fluent.Builders.DeltaBuilder<T> Top(int top) { }
-        public Dataverse.Fluent.Builders.DeltaBuilder<T> Where(string filter) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> WithHeaders(System.Collections.Generic.IDictionary<string, string> headers) { }
     }
     public sealed class EntityBuilder<T>
@@ -560,7 +555,6 @@ namespace Dataverse.Fluent.Builders
         [System.Obsolete("Dataverse does not support $skip. Page with PageSize() and GetPagedAsync()/GetNex" +
             "tPageAsync(), or use StreamAsync().", true)]
         public Dataverse.Fluent.Builders.QueryBuilder<T> Skip(int skip) { }
-        [System.Runtime.CompilerServices.AsyncIteratorStateMachine(typeof(Dataverse.Fluent.Builders.QueryBuilder<T>.<StreamAsync>d__27))]
         public System.Collections.Generic.IAsyncEnumerable<T> StreamAsync(int pageSize = 2000, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default) { }
         public Dataverse.Fluent.Builders.QueryBuilder<T> Top(int top) { }
         public Dataverse.Fluent.Builders.QueryBuilder<T> Where(System.Linq.Expressions.Expression<System.Func<T, bool>> predicate) { }
@@ -704,8 +698,6 @@ namespace Dataverse.Fluent.Models
     public class DeltaResults<T>
     {
         public DeltaResults() { }
-        [System.Text.Json.Serialization.JsonPropertyName("@odata.count")]
-        public long? Count { get; set; }
         public System.Collections.Generic.List<Dataverse.Fluent.Models.EntityReference> Deleted { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("@odata.deltaLink")]
         public string? DeltaToken { get; set; }

@@ -151,6 +151,18 @@ await client.Entity<OrderLine>()
 Strings are single-quoted, numbers and GUIDs are not. Invalid arguments throw `ArgumentNullException` or `ArgumentException`
 before any request is sent.
 
+### Characters in alternate key values
+
+Dataverse handles some characters in a key differently depending on where the key goes. The library encodes each
+place correctly, and rejects a key it cannot send before any request is made:
+
+| Used in | Works | Rejected with `ArgumentException` |
+|---------|-------|----------------------------------|
+| A bind (`SetLookupByAlternateKey`): the key is written as is | spaces, `'`, `&`, `+`, `%`, Unicode, most punctuation | `/`, `\`, `#`, `?` |
+| Addressing a record (`UsingAlternateKey`, `Associate().From(...)`): the key is in the URL | everything else, including spaces, `'`, `#`, `%`, `:`, `*`, Unicode. Keys with `&`, `?` or `+` are sent inside a `$batch`, because IIS rejects them in a URL path | `/`, `\` |
+
+A record whose key contains a rejected character can still be reached by its ID, or found with a filter.
+
 ## Common Lookup Field Names
 
 | Lookup Type | Dataverse Field Name | Example |

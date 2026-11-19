@@ -9,7 +9,9 @@ namespace Dataverse.Fluent.Builders;
 /// <remarks>
 /// All output is culture-invariant. Date/time values are written in UTC: a <see cref="DateTimeKind.Local"/>
 /// <see cref="DateTime"/> and a <see cref="DateTimeOffset"/> are converted, and a
-/// <see cref="DateTimeKind.Unspecified"/> <see cref="DateTime"/> is taken to be UTC already.
+/// <see cref="DateTimeKind.Unspecified"/> <see cref="DateTime"/> is taken to be UTC already. Fractional seconds are
+/// dropped: Dataverse stores date/time columns to the second and itself ignores a literal's fraction (checked
+/// 2026-11-18: <c>eq 12:00:01.500Z</c> matches a record created at 12:00:01), so the result is the same.
 /// </remarks>
 internal static class ODataLiteral
 {
@@ -55,4 +57,12 @@ internal static class ODataLiteral
 
     /// <summary>Wraps text in single quotes, doubling any embedded single quote.</summary>
     public static string Quote(string text) => $"'{text.Replace("'", "''")}'";
+
+    /// <summary>
+    /// Escapes the SQL LIKE wildcards <c>%</c>, <c>_</c> and <c>[</c> as <c>[%]</c>, <c>[_]</c> and <c>[[]</c>, so the text
+    /// matches literally. Dataverse applies these wildcards in OData <c>contains</c>, <c>startswith</c> and
+    /// <c>endswith</c>, and in the FetchXML <c>like</c> operator.
+    /// </summary>
+    public static string EscapeLikeWildcards(string text)
+        => text.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 }

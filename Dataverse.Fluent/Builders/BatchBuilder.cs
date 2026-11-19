@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -551,7 +551,7 @@ public sealed partial class BatchBuilder
         for (int i = 0; i < results.Count; i++)
         {
             if (results[i].ContentId == 0)
-                results[i] = new BatchOperationResult(i + 1, results[i].StatusCode, results[i].Body, results[i].EntityId, results[i].Location);
+                results[i] = new BatchOperationResult(i + 1, results[i].StatusCode, results[i].Body, results[i].EntityId, results[i].Location) { RequestId = results[i].RequestId };
         }
 
         return results;
@@ -665,7 +665,7 @@ public sealed partial class BatchBuilder
             result.Body,
             result.EntityId,
             result.Location,
-            result.WasRolledBack);
+            result.WasRolledBack) { RequestId = result.RequestId };
     }
 
     private static void ParseMultipartParts(string body, string boundary, List<BatchOperationResult> results)
@@ -739,7 +739,7 @@ public sealed partial class BatchBuilder
         var location = ExtractEntityIdHeader(innerHeaders);
         var entityId = ODataEntityId.TryParse(location);
 
-        return new BatchOperationResult(contentId, statusCode, body, entityId, location);
+        return new BatchOperationResult(contentId, statusCode, body, entityId, location) { RequestId = ExtractHeader(innerHeaders, "REQ_ID") };
     }
 
     private static (string Headers, string Body) SplitHeadersAndBody(string segment)
@@ -793,6 +793,18 @@ public sealed partial class BatchBuilder
 
     // Reads the OData-EntityId header (preferred) or Location header from a response part's
     // inner HTTP headers. Dataverse returns the URL of a newly created record in these headers.
+    // The value of one inner header of a response part (e.g. REQ_ID), or null.
+    private static string? ExtractHeader(string headers, string name)
+    {
+        foreach (var line in headers.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith(name + ":", StringComparison.OrdinalIgnoreCase))
+                return trimmed[(name.Length + 1)..].Trim() is { Length: > 0 } value ? value : null;
+        }
+        return null;
+    }
+
     private static string? ExtractEntityIdHeader(string headers)
     {
         string? location = null;

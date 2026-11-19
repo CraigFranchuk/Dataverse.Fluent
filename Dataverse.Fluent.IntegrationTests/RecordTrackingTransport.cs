@@ -163,6 +163,9 @@ internal sealed partial class RecordTrackingTransport(IDataverseTransport inner)
             yield return entitySet[..^2];
         if (entitySet.EndsWith('s'))
             yield return entitySet[..^1];
+
+        // Activity tables (tasks, emails, appointments, ...) all key on activityid.
+        yield return "activity";
     }
 
     private string RelativePath(string url)

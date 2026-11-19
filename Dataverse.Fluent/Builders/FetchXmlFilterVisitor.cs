@@ -14,8 +14,8 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
     private readonly Stack<Operand> _operandStack = new();
 
     // An attribute name, an XML-escaped value, or a finished <condition>/<filter> element. IsNull marks
-    // the null literal, which is distinct from a string whose text happens to be "null".
-    private readonly record struct Operand(string Text, bool IsNull = false);
+    // the null literal, which is distinct from a string whose text happens to be "null"; IsAttribute marks a column.
+    private readonly record struct Operand(string Text, bool IsNull = false, bool IsAttribute = false);
 
     public string ToFetchXmlFilter(Expression expression)
     {
@@ -60,28 +60,37 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
         Visit(node.Right);
         var right = _operandStack.Pop();
 
-        if (node.NodeType == ExpressionType.AndAlso || node.NodeType == ExpressionType.OrElse)
+        // A condition names its attribute first, so a value on the left (10 < x.Employees) is turned around
+        // (x.Employees > 10). Otherwise the value would be sent as the attribute name, which Dataverse rejects.
+        var nodeType = node.NodeType;
+        if (right.IsAttribute && !left.IsAttribute)
         {
-            var filterType = node.NodeType == ExpressionType.AndAlso ? "and" : "or";
+            (left, right) = (right, left);
+            nodeType = Mirror(nodeType);
+        }
+
+        if (nodeType == ExpressionType.AndAlso || nodeType == ExpressionType.OrElse)
+        {
+            var filterType = nodeType == ExpressionType.AndAlso ? "and" : "or";
             _operandStack.Push(new Operand($"<filter type=\"{filterType}\">{left.Text}{right.Text}</filter>"));
             return node;
         }
 
         if (right.IsNull)
         {
-            var nullOperator = node.NodeType switch
+            var nullOperator = nodeType switch
             {
                 ExpressionType.Equal => "null",
                 ExpressionType.NotEqual => "not-null",
                 _ => throw new NotSupportedException(
-                    $"Binary operator '{node.NodeType}' cannot compare with null in FetchXML filters.")
+                    $"Binary operator '{nodeType}' cannot compare with null in FetchXML filters.")
             };
 
             _operandStack.Push(new Operand($"<condition attribute=\"{left.Text}\" operator=\"{nullOperator}\" />"));
             return node;
         }
 
-        var fetchOperator = node.NodeType switch
+        var fetchOperator = nodeType switch
         {
             ExpressionType.Equal => "eq",
             ExpressionType.NotEqual => "ne",
@@ -89,7 +98,7 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
             ExpressionType.GreaterThanOrEqual => "ge",
             ExpressionType.LessThan => "lt",
             ExpressionType.LessThanOrEqual => "le",
-            _ => throw new NotSupportedException($"Binary operator '{node.NodeType}' is not supported in FetchXML filters.")
+            _ => throw new NotSupportedException($"Binary operator '{nodeType}' is not supported in FetchXML filters.")
         };
 
         _operandStack.Push(new Operand(
@@ -117,7 +126,7 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
 
         if (node.Expression?.NodeType == ExpressionType.Parameter)
         {
-            _operandStack.Push(new Operand(EntityTypeMetadata.GetLogicalName(node.Member)));
+            _operandStack.Push(new Operand(EntityTypeMetadata.GetLogicalName(node.Member), IsAttribute: true));
             return node;
         }
 
@@ -177,11 +186,21 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
         Visit(node.Object);
         var target = _operandStack.Pop();
 
-        Visit(node.Arguments[0]);
-        var value = _operandStack.Pop();
+        // The like operator treats %, _ and [ as wildcards; they are escaped so the text matches literally, as
+        // string.Contains does.
+        string text;
+        if (node.Arguments[0] is ConstantExpression { Value: string literal })
+        {
+            text = EscapeXml(ODataLiteral.EscapeLikeWildcards(literal));
+        }
+        else
+        {
+            Visit(node.Arguments[0]);
+            text = _operandStack.Pop().Text;
+        }
 
         _operandStack.Push(new Operand(
-            $"<condition attribute=\"{target.Text}\" operator=\"like\" value=\"{string.Format(CultureInfo.InvariantCulture, pattern, value.Text)}\" />"));
+            $"<condition attribute=\"{target.Text}\" operator=\"like\" value=\"{string.Format(CultureInfo.InvariantCulture, pattern, text)}\" />"));
         return node;
     }
 
@@ -295,6 +314,16 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
 
         return xml;
     }
+
+    // The operator with its operands swapped: a < b is b > a.
+    private static ExpressionType Mirror(ExpressionType nodeType) => nodeType switch
+    {
+        ExpressionType.GreaterThan => ExpressionType.LessThan,
+        ExpressionType.GreaterThanOrEqual => ExpressionType.LessThanOrEqual,
+        ExpressionType.LessThan => ExpressionType.GreaterThan,
+        ExpressionType.LessThanOrEqual => ExpressionType.GreaterThanOrEqual,
+        _ => nodeType,
+    };
 
     private static Operand FormatValue(object? value)
     {

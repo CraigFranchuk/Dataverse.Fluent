@@ -88,11 +88,11 @@ public class TranslationCorrectnessTests
         => Assert.StartsWith("createdon lt 20", Filter(x => x.CreatedOn < DateTime.UtcNow.AddYears(1)));
 
     [Fact]
-    public void Filter_ContainsOverLocalCollection_StillTranslatesToIn()
+    public void Filter_ContainsOverLocalCollection_TranslatesToTheInFunction()
     {
         var states = new[] { 1, 2 };
 
-        Assert.Equal("statecode in (1,2)", Filter(x => states.Contains(x.StateCode)));
+        Assert.Equal("Microsoft.Dynamics.CRM.In(PropertyName='statecode',PropertyValues=[\"1\",\"2\"])", Filter(x => states.Contains(x.StateCode)));
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class TranslationCorrectnessTests
 
         await client.Function<object>("F").WithParameter("At", value).ExecuteAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal("'2026-11-15T16:00:00Z'", handler.Requests[0].QueryOption("@p1"));
+        Assert.Equal("2026-11-15T16:00:00Z", handler.Requests[0].QueryOption("@p1"));
     }
 
     // ───────── Projections ─────────
@@ -196,19 +196,6 @@ public class TranslationCorrectnessTests
     }
 
     // ───────── Options that accumulate ─────────
-
-    [Fact]
-    public async Task Delta_RepeatedWhere_IsCombinedIntoOneFilter()
-    {
-        var (client, handler) = CreateClient();
-
-        await client.Delta<Probe>().Where("a eq 1").Where("b eq 2").Select("name").ExecuteAsync(TestContext.Current.CancellationToken);
-
-        var request = handler.Requests[0];
-        Assert.Equal("(a eq 1) and (b eq 2)", request.QueryOption("$filter"));
-        Assert.Equal(1, request.Uri.Query.Split("filter=").Length - 1);
-        Assert.Equal("name", request.QueryOption("$select"));
-    }
 
     [Fact]
     public async Task Expand_RepeatedWhere_IsCombinedWithAnd()

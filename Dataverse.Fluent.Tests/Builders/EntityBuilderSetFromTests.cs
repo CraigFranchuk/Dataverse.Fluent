@@ -42,8 +42,53 @@ public class EntityBuilderSetFromTests
         CreatedOn = DateTime.UtcNow
     };
 
+    [EntitySet("testaccounts")]
+    private class LookupAccount
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [DataverseLookup("primarycontactid", "contacts")]
+        public Guid? PrimaryContactId { get; set; }
+
+        [DataverseLookup("parentaccountid", "accounts")]
+        public Guid? ParentAccountId { get; set; }
+    }
+
+    private static LookupAccount LookupSample() => new()
+    {
+        Name = "Contoso",
+        PrimaryContactId = Guid.NewGuid(),
+        ParentAccountId = Guid.NewGuid()
+    };
+
+    [Fact]
+    public async Task SetFromExcept_ExcludesALookup()
+    {
+        // A lookup is written as "primarycontactid@odata.bind", not under the "_primarycontactid_value" name it is
+        // read by, so excluding it by that name left it in the payload.
+        var sent = await SentPropertiesAsync<LookupAccount>(b => b.WithId(Guid.NewGuid())
+            .SetFromExcept(LookupSample(), x => x.PrimaryContactId!).UpdateAsync());
+
+        Assert.Equal(["name", "parentaccountid@odata.bind"], sent);
+    }
+
+    [Theory]
+    [InlineData("primarycontactid")]
+    [InlineData("_primarycontactid_value")]
+    [InlineData("primarycontactid@odata.bind")]
+    public async Task SetFrom_ExcludingALookupByName_ExcludesItsBind(string excluded)
+    {
+        var sent = await SentPropertiesAsync<LookupAccount>(b => b.SetFrom(LookupSample(), excluded).CreateAsync());
+
+        Assert.Equal(["name", "parentaccountid@odata.bind"], sent);
+    }
+
     // Runs the operation and returns the names of the properties in the request body.
-    private static async Task<string[]> SentPropertiesAsync(Func<EntityBuilder<ReadOnlyRulesAccount>, Task> execute)
+    private static Task<string[]> SentPropertiesAsync(Func<EntityBuilder<ReadOnlyRulesAccount>, Task> execute)
+        => SentPropertiesAsync<ReadOnlyRulesAccount>(execute);
+
+    private static async Task<string[]> SentPropertiesAsync<T>(Func<EntityBuilder<T>, Task> execute)
     {
         var handler = new TestHttpMessageHandler();
         var client = new DataverseClient("https://test.crm.dynamics.com/api/data/v9.2", () => Task.FromResult("t"), new HttpClient(handler));
@@ -53,7 +98,7 @@ public class EntityBuilderSetFromTests
             req => { body = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult(); return true; },
             new HttpResponseMessage(HttpStatusCode.NoContent));
 
-        await execute(client.Entity<ReadOnlyRulesAccount>());
+        await execute(client.Entity<T>());
 
         using var json = JsonDocument.Parse(body);
         return json.RootElement.EnumerateObject().Select(p => p.Name).Order().ToArray();

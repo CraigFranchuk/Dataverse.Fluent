@@ -25,8 +25,83 @@ packages follow [semantic versioning](https://semver.org/).
   automatically when a type needs it, so reads fill in the table. Filters use `x.Lookup.Id`. See
   [Lookup References](Dataverse.Fluent/docs/LOOKUP_REFERENCES.md#polymorphic-lookups).
 - `DataverseLookupAttribute.TargetEntitySet` is now `string?`: it is `null` for a polymorphic lookup.
+
+## 1.0.2 (2026-11-18)
+
+Filter translation was checked construct by construct against a live environment. These fixes follow from it.
+
+### Dataverse.Fluent
+
+- Fixed: `Contains`, `StartsWith` and `EndsWith` in lambda filters (OData and FetchXML) did not escape the SQL
+  wildcards Dataverse applies, so `Name.Contains("a_b")` also matched `aXb`, and `Contains("[x")` matched unrelated
+  records. `%`, `_` and `[` are now escaped and the text matches literally. Use a raw `Where("...")` filter for wildcard
+  patterns. **Queries that relied on the wildcards return fewer rows.**
+- Fixed: `list.Contains(x.Column)` was sent as the OData `in` operator, which Dataverse rejects (HTTP 501). It is now
+  sent as the equivalent `Microsoft.Dynamics.CRM.In` query function.
+- Fixed: `DataverseFunctions.In`, `NotIn`, `ContainValues` and `DoesNotContainValues` failed with "Invalid JSON" when a
+  value contained an apostrophe. The values are now sent as a JSON array of double-quoted strings.
+- Changed: filters using arithmetic (`+`, `-`, `*`, `/`, `%`) or the string functions `ToLower`, `ToUpper`, `Trim`,
+  `Length`, `Substring`, `IndexOf` and `string.Concat` were sent to Dataverse, which rejects them (HTTP 501). They now
+  throw `NotSupportedException` before the request is sent, with the reason. The 1.0.0 notes listed them as supported;
+  they never worked.
+- Changed: `Aggregate<T>().GroupBy(...)` and the aggregate methods throw `NotSupportedException` for a lookup column,
+  which OData `$apply` cannot group or aggregate by (Dataverse returned HTTP 400). Use a FetchXML aggregate instead.
 - Fixed: `SetFromExcept(x => x.Lookup)` and `SetFrom(entity, "lookupcolumn")` did not exclude a lookup, because a
   lookup is written under its `@odata.bind` name rather than the name it is read by.
+- Fixed: retrieving, updating, upserting, deleting or associating a record by an alternate key containing `&`, `?` or
+  `+` always failed with an HTML error page, because IIS rejects these characters in a URL path. Such a request is now
+  sent inside `$batch`, where it works. The caller sees the same result or `DataverseException` as from a direct
+  request.
+- Fixed: `SetLookupByAlternateKey` (and an annotation's "regarding" alternate key) percent-encoded the key, but a bind is
+  in the JSON body, which Dataverse does not URL-decode. A key with a space, `&`, `+` or `%` was looked up literally
+  (`a%20b`) and not found. The key is now written as is.
+- Changed: an alternate key containing a character Dataverse cannot accept throws `ArgumentException` before anything
+  is sent: `/` and `\` when addressing a record, and `/`, `\`, `#` and `?` in a bind. Dataverse rejected these
+  requests anyway.
+- Fixed: a query whose URL was too long, such as an `In` filter with about 700 IDs or FetchXML with about 500, failed with
+  HTTP 400 or 414 and an HTML error page. A direct GET fails above about 29,700 characters, below the documented
+  32,768. Such a request, and its next links and FetchXML pages, is now sent inside `$batch`, which accepts URLs of up
+  to about 64,000 characters. Longer requests throw `InvalidOperationException` before sending, suggesting the query be
+  split.
+- Fixed: function parameters of type `Guid`, `DateTime` and `DateTimeOffset` were sent quoted, and enums as integers,
+  so every such call failed with "Expression of type 'Edm.String' (or 'Edm.Int32') cannot be converted…". GUIDs and
+  dates are now unquoted (dates in UTC), `DateOnly` is supported, and an enum is sent as
+  `Microsoft.Dynamics.CRM.{Type}'{Member}'` (comma-separated for `[Flags]`). The C# enum's type and member names must
+  match Dataverse's; an undefined value throws `ArgumentException`.
+- Fixed: `Top(n).GetListAsync()` and `GetListWithCountAsync()` with `n` above 5,000 returned only 5,000 rows, with no
+  sign that more existed. Dataverse returns at most 5,000 rows per response and answers a larger `$top` with a next
+  link. These methods now follow the next links to return up to `n` rows.
+- Fixed: `DataverseException.ActivityId` was always `null`, because it read `x-ms-activity-id`, a header Dataverse
+  does not send. It now reads the request ID from `x-ms-service-request-id` (or `REQ_ID`), and for an operation that
+  failed inside `$batch`, that operation's own `REQ_ID`.
+- Fixed: when IIS rejected a request before it reached Dataverse, the exception message was the whole HTML error page.
+  It is now a one-line message with the page title. The page is still in `RawResponse`.
+- Fixed: a 401 had an empty body, so the message gave no reason. It now includes the reason from Dataverse's
+  `401_Error_Reason` header.
+- Fixed: a delta query with `Since(token)` reported a deleted record as a changed one, an item in `Value` with an
+  empty ID, and left `Deleted` empty. Dataverse sends a deletion as a `$deletedEntity` with a bare `id`, not the
+  `@removed` form the library looked for. Deletions are now in `Deleted`, with `GetEntityId()` and `Removed.Reason`.
+- **Breaking:** removed `DeltaBuilder.Where`, `OrderBy`, `Top` and `Count`, and `DeltaResults.Count`. Dataverse rejects
+  `$filter`, `$orderby`, `$top` and `$count` on every change-tracking query, so a delta query using them always failed
+  (and `DeltaResults.Count` was never set). Filter and order the changes in code, and use `StreamAsync(pageSize)` for
+  page size. This breaks semantic versioning for a patch release; the methods never worked.
+- Fixed: a lambda filter with the value on the left, such as `10 < x.Employees` or `null == x.Lookup`, failed. OData
+  sent `10 lt numberofemployees`, which Dataverse rejects ("The right side of the operator must be a constant value"),
+  and FetchXML sent the value as the attribute name (`attribute="10"`). The comparison is now turned around
+  (`numberofemployees gt 10`).
+- Fixed: `ids.Contains(x.NullableColumn.Value)`, the usual way to test a nullable lookup against a list of `Guid`s,
+  threw `NotSupportedException` in OData filters. FetchXML already accepted it.
+- Fixed: an enum action parameter (such as `AccessRights` for `GenerateSharedLink`) was sent as its integer value,
+  which Dataverse rejects ("Cannot read the value '1' as a quote"). `WithParameter` and `WithRequest` now send it by
+  member name (`"ReadAccess"`, or `"ReadAccess, WriteAccess"` for flags), and an undefined value throws
+  `ArgumentException`. An enum inside an object parameter, a choice column, is still sent as an integer.
+- Fixed: `Annotation().CreateAsync()` without `ReturnRepresentation()` returned an `Annotation` whose `AnnotationId`
+  was `Guid.Empty`. Dataverse returns no body then, and the ID in the `OData-EntityId` header was not read. It is now.
+- Docs: a delta token comes only with the last page. On a table with more than 5,000 rows, an initial `ExecuteAsync()`
+  returns a `NextLink` and no token; use `StreamAsync()` for the initial sync.
+- Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
+  `OData-EntityId`), contrary to the previous example. Use `ReturnRepresentation()` to get it.
+- The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.
 
 ## 1.0.1 (2026-11-18)
 
