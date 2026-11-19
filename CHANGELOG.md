@@ -45,6 +45,9 @@ Filter translation was checked construct by construct against a live environment
   dates are now unquoted (dates in UTC), `DateOnly` is supported, and an enum is sent as
   `Microsoft.Dynamics.CRM.{Type}'{Member}'` (comma-separated for `[Flags]`). The C# enum's type and member names must
   match Dataverse's; an undefined value throws `ArgumentException`.
+- Fixed: `Top(n).GetListAsync()` and `GetListWithCountAsync()` with `n` above 5,000 returned only 5,000 rows, with no
+  sign that more existed. Dataverse returns at most 5,000 rows per response and answers a larger `$top` with a next
+  link. These methods now follow the next links to return up to `n` rows.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
   `OData-EntityId`), contrary to the previous example. Use `ReturnRepresentation()` to get it.
 - The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.

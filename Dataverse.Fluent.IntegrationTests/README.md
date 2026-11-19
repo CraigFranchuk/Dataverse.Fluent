@@ -173,6 +173,14 @@ environment does not have by default, and are skipped without it:
   fail with a message saying so, rather than skipping.
 - **Change tracking.** `DeltaQueryTests` need change tracking enabled on the Account table.
 
+**Contract tests** (`Contracts/`, `[Trait("Category", "Contract")]`) check Dataverse's own behaviour that the library
+depends on, such as how paging and `$top` work, with raw requests. They are skipped unless the environment variable
+`DATAVERSE_RUN_CONTRACT_TESTS` is `true`. Run them before a release and after Dataverse updates:
+
+```bash
+DATAVERSE_RUN_CONTRACT_TESTS=true dotnet test --filter "Category=Contract"
+```
+
 Keep values that identify your environment, such as custom column names, in user secrets or CI secrets rather than
 in the tests.
 
