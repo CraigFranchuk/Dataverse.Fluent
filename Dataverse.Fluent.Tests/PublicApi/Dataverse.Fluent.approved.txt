@@ -353,14 +353,22 @@ namespace Dataverse.Fluent.Builders
     }
     public sealed class DeltaBuilder<T>
     {
+        [System.Obsolete("Dataverse does not support $count on a delta (change-tracking) query. Use Value.C" +
+            "ount for the rows in a page.")]
         public Dataverse.Fluent.Builders.DeltaBuilder<T> Count(bool include = true) { }
         public System.Threading.Tasks.Task<Dataverse.Fluent.Models.DeltaResults<T>> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> IncludeFormattedValues(bool include = true) { }
+        [System.Obsolete("Dataverse does not support $orderby on a delta (change-tracking) query. Order the" +
+            " returned changes in code.")]
         public Dataverse.Fluent.Builders.DeltaBuilder<T> OrderBy(string orderBy) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> Select(params string[] properties) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> Since(string deltaToken) { }
         public System.Collections.Generic.IAsyncEnumerable<Dataverse.Fluent.Models.DeltaResults<T>> StreamAsync(int pageSize = 2000, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default) { }
+        [System.Obsolete("Dataverse does not support $top on a delta (change-tracking) query. Use StreamAsy" +
+            "nc(pageSize) to control the page size.")]
         public Dataverse.Fluent.Builders.DeltaBuilder<T> Top(int top) { }
+        [System.Obsolete("Dataverse does not support $filter on a delta (change-tracking) query. Filter the" +
+            " returned changes in code.")]
         public Dataverse.Fluent.Builders.DeltaBuilder<T> Where(string filter) { }
         public Dataverse.Fluent.Builders.DeltaBuilder<T> WithHeaders(System.Collections.Generic.IDictionary<string, string> headers) { }
     }

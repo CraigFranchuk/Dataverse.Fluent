@@ -140,7 +140,7 @@ sequentially and share a single authenticated client.
 | `UpsertConflictResolutionTests` | Upsert, `PreventUpdate`, `PreventCreate`, `IfUnmodifiedSince` |
 | `AnnotationTests` | Notes and file attachments |
 | `FetchXmlTests` | Fluent and raw FetchXML, paging, options |
-| `DeltaQueryTests` | Change tracking, deletions, streaming, token persistence |
+| `DeltaQueryTests` | Change tracking on Competitor: tokens, changes, deletions, paging, formatted values |
 | `ActionAndFunctionTests` | Bound and unbound actions and functions, error handling |
 | `LookupMappingTests` | `[DataverseLookup]` binds on create, update and in batches; clearing a lookup; writing back an expanded record |
 
@@ -171,7 +171,7 @@ environment does not have by default, and are skipped without it:
   `[Trait("Requires", "AccountAlternateKey")]` run when `Dataverse:AccountAlternateKeyColumn` names a text column with
   an active single-column alternate key on Account. If the setting names a column without an active key, the tests
   fail with a message saying so, rather than skipping.
-- **Change tracking.** `DeltaQueryTests` need change tracking enabled on the Account table.
+- **Change tracking.** `DeltaQueryTests` need the Sales competitor table, with change tracking enabled.
 
 **Contract tests** (`Contracts/`, `[Trait("Category", "Contract")]`) check Dataverse's own behaviour that the library
 depends on, such as how paging and `$top` work, with raw requests. They are skipped unless the environment variable
@@ -186,10 +186,10 @@ in the tests.
 
 ## Known issues and environment requirements
 
-**Delta queries need change tracking.** Enable it on the Account table. Without it the server returns no delta token and
-the `DeltaQueryTests` that need one are skipped. Dataverse also rejects `$top` and `$count` on change-tracked queries
-and may reject `$filter` and `$orderby`, so the tests that use them are skipped when Dataverse rejects the option.
-See [DELTA_QUERIES.md](../Dataverse.Fluent/docs/DELTA_QUERIES.md#limitations).
+**Delta queries use the Competitor table.** `DeltaQueryTests` need the Dynamics 365 Sales competitor table with change
+tracking enabled (it is by default) and no other process writing to it, because a test asserts every change since its
+token. Account is not used: it has more than 5,000 rows, so its first delta page has no token. See
+[DELTA_QUERIES.md](../Dataverse.Fluent/docs/DELTA_QUERIES.md#limitations).
 
 **Deep insert relationship names vary by environment.** Names such as `contact_customer_accounts` depend on the
 environment and Dataverse version. If `DeepOperationsTests` fail with a navigation-property error, look up the

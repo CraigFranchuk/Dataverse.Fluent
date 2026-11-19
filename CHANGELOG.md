@@ -55,6 +55,14 @@ Filter translation was checked construct by construct against a live environment
   It is now a one-line message with the page title. The page is still in `RawResponse`.
 - Fixed: a 401 had an empty body, so the message gave no reason. It now includes the reason from Dataverse's
   `401_Error_Reason` header.
+- Fixed: a delta query with `Since(token)` reported a deleted record as a changed one, an item in `Value` with an
+  empty ID, and left `Deleted` empty. Dataverse sends a deletion as a `$deletedEntity` with a bare `id`, not the
+  `@removed` form the library looked for. Deletions are now in `Deleted`, with `GetEntityId()` and `Removed.Reason`.
+- Changed: `DeltaBuilder.Where`, `OrderBy`, `Top` and `Count` are obsolete and throw `NotSupportedException`. Dataverse
+  rejects `$filter`, `$orderby`, `$top` and `$count` on every change-tracking query, so a delta query using them always
+  failed. Filter and order the changes in code, and use `StreamAsync(pageSize)` for page size.
+- Docs: a delta token comes only with the last page. On a table with more than 5,000 rows, an initial `ExecuteAsync()`
+  returns a `NextLink` and no token; use `StreamAsync()` for the initial sync.
 - Docs: an upsert by alternate key does not return the record's ID (Dataverse identifies the record by key in
   `OData-EntityId`), contrary to the previous example. Use `ReturnRepresentation()` to get it.
 - The package and repository URLs point to `github.com/CraigFranchuk/Dataverse.Fluent`.

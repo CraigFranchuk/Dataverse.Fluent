@@ -3,13 +3,15 @@ using Dataverse.Fluent.Models;
 
 namespace Dataverse.Fluent.IntegrationTests;
 
+// Delta queries on Competitor, which has change tracking enabled and no rows of its own in the reference environment,
+// so every row a test sees is one it created. (Account and Contact have more than 5,000 rows: an initial query there
+// returns a next link and no token on its first page; see Contracts/DeltaContractTests.)
+// A 2026-11-18 probe found: a change is visible to the next delta query at once; a deletion comes back as a
+// $deletedEntity with a bare id (which the library read as a changed record until 1.0.2); and Dataverse rejects
+// $filter, $orderby, $top and $count, so DeltaBuilder's Where, OrderBy, Top and Count throw.
 [Collection("Dataverse Integration Tests")]
 public class DeltaQueryTests : IClassFixture<DataverseTestFixture>
 {
-    // Without change tracking on the table, Dataverse returns no delta token and these tests cannot run.
-    private const string NoDeltaToken =
-        "Dataverse returned no delta token. Enable change tracking on the Account table to run this test.";
-
     private readonly DataverseTestFixture _fixture;
 
     public DeltaQueryTests(DataverseTestFixture fixture)
@@ -17,575 +19,185 @@ public class DeltaQueryTests : IClassFixture<DataverseTestFixture>
         _fixture = fixture;
     }
 
-    [Fact]
-    public async Task InitialDeltaQuery_ReturnsCurrentEntitiesAndToken()
-    {
-        // Act
-        var results = await _fixture.Client.Delta<Account>()
-            .Select("accountid", "name", "revenue")
-            .ExecuteAsync();
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-        // Assert
-        Assert.NotNull(results);
-        
-        // Skip test if delta token is not available (change tracking not enabled)
-        if (string.IsNullOrEmpty(results.DeltaToken))
-        {
-            Assert.Skip(NoDeltaToken);
-        }
-        
-        Assert.NotNull(results.DeltaToken);
-        Assert.NotEmpty(results.Value);
+    private async Task<Guid> CreateAsync(string label, string? website = null)
+    {
+        var created = await _fixture.Client.Entity<Competitor>()
+            .SetFrom(new Competitor { Name = $"Delta {label} {Guid.NewGuid()}", WebSiteUrl = website })
+            .ReturnRepresentation()
+            .CreateAsync(Ct);
+        return created.Entity!.CompetitorId;
+    }
+
+    private Task DeleteAsync(Guid id) => _fixture.Client.Entity<Competitor>(id).DeleteAsync(Ct);
+
+    private async Task<string> TokenAsync()
+    {
+        var initial = await _fixture.Client.Delta<Competitor>().Select("name", "websiteurl").ExecuteAsync(Ct);
+        Assert.False(string.IsNullOrEmpty(initial.DeltaToken), "Dataverse returned no delta token for competitors.");
+        Assert.Null(initial.NextLink);
+        return initial.DeltaToken!;
+    }
+
+    [Fact]
+    public async Task InitialQuery_ReturnsCurrentRowsAndAToken()
+    {
+        var a = await CreateAsync("initial a");
+        var b = await CreateAsync("initial b");
+
+        var results = await _fixture.Client.Delta<Competitor>().Select("name").ExecuteAsync(Ct);
+
+        Assert.StartsWith(_fixture.Client.Transport.BaseUrl.TrimEnd('/') + "/competitors?", results.DeltaToken);
+        Assert.Contains("$deltatoken=", results.DeltaToken);
+        Assert.Contains(results.Value, c => c.CompetitorId == a);
+        Assert.Contains(results.Value, c => c.CompetitorId == b);
         Assert.Empty(results.Deleted);
+        Assert.Null(results.NextLink);
     }
 
     [Fact]
-    public async Task DeltaQuery_WithFilter_ReturnsFilteredResults()
+    public async Task Since_ReturnsCreatedChangedAndDeletedRecords()
     {
-        try
-        {
-            // Act
-            var results = await _fixture.Client.Delta<Account>()
-                .Select("accountid", "name", "revenue")
-                .Where("statecode eq 0")
-                .Top(10)
-                .ExecuteAsync();
+        var changed = await CreateAsync("changed", "https://before.example.com");
+        var deleted = await CreateAsync("deleted");
+        var untouched = await CreateAsync("untouched");
+        var token = await TokenAsync();
 
-            // Assert
-            Assert.NotNull(results);
-            
-            // Skip test if delta token is not available
-            if (string.IsNullOrEmpty(results.DeltaToken))
-            {
-                Assert.Skip(NoDeltaToken);
-            }
-            
-            Assert.NotNull(results.DeltaToken);
-            
-            if (results.Value.Count > 0)
-            {
-                Assert.All(results.Value, account => 
-                    Assert.Equal(0, account.StateCode));
-            }
-        }
-        catch (DataverseException ex) when (ex.Message.Contains("$filter") && ex.Message.Contains("Change Tracking"))
-        {
-            // Dataverse doesn't support $filter with change tracking on some environments
-            Assert.Skip("$filter may not be supported with Change Tracking in this environment.");
-        }
+        await _fixture.Client.Entity<Competitor>(changed).Set("websiteurl", "https://after.example.com").UpdateAsync(Ct);
+        await DeleteAsync(deleted);
+        var created = await CreateAsync("created");
+
+        var changes = await _fixture.Client.Delta<Competitor>().Since(token).ExecuteAsync(Ct);
+
+        Assert.Equal("https://after.example.com", Assert.Single(changes.Value, c => c.CompetitorId == changed).WebSiteUrl);
+        Assert.Contains(changes.Value, c => c.CompetitorId == created);
+        Assert.DoesNotContain(changes.Value, c => c.CompetitorId == untouched);
+        Assert.DoesNotContain(changes.Value, c => c.CompetitorId == deleted || c.CompetitorId == Guid.Empty);
+
+        var removal = Assert.Single(changes.Deleted);
+        Assert.Equal(deleted, removal.GetEntityId());
+        Assert.Equal("deleted", removal.Removed?.Reason);
+        Assert.False(string.IsNullOrEmpty(changes.DeltaToken));
     }
 
     [Fact]
-    public async Task DeltaQuery_AfterChanges_ReturnsModifiedEntities()
+    public async Task Since_WithNoChanges_ReturnsNothing()
     {
-        // Arrange - Get initial delta token
-        var initial = await _fixture.Client.Delta<Account>()
-            .ExecuteAsync();
-        
-        // Skip test if delta token is not available
-        if (string.IsNullOrEmpty(initial.DeltaToken))
-        {
-            Assert.Skip(NoDeltaToken);
-        }
-        
-        var deltaToken = initial.DeltaToken;
-        
-        // Create a new account
-        var newAccount = (await _fixture.Client.Entity<Account>()
-            .Set("name", $"Test Delta Account {Guid.NewGuid()}")
-            .Set("revenue", 5000000m)
-            .ReturnRepresentation()
-            .CreateAsync()).Entity!;
-        
-        // Update an existing account if available
-        Guid? updatedAccountId = null;
-        if (initial.Value.Count > 0)
-        {
-            updatedAccountId = initial.Value[0].AccountId;
-            await _fixture.Client.Entity<Account>()
-                .WithId(updatedAccountId.Value)
-                .Set("revenue", 9999999m)
-                .UpdateAsync();
-        }
+        await CreateAsync("quiet");
+        var token = await TokenAsync();
 
-        // Wait for change tracking to propagate
-        await Task.Delay(TimeSpan.FromSeconds(10));
+        var changes = await _fixture.Client.Delta<Competitor>().Since(token).ExecuteAsync(Ct);
 
-        try
-        {
-            // Act
-            var changes = await _fixture.Client.Delta<Account>()
-                .Since(deltaToken)
-                .ExecuteAsync();
-
-            // Assert
-            Assert.NotNull(changes);
-            Assert.NotEmpty(changes.Value);
-            Assert.Contains(changes.Value, a => a.AccountId == newAccount.AccountId);
-            
-            if (updatedAccountId.HasValue)
-            {
-                Assert.Contains(changes.Value, a => a.AccountId == updatedAccountId.Value);
-            }
-        }
-        finally
-        {
-            // Cleanup
-            await _fixture.Client.Entity<Account>()
-                .WithId(newAccount.AccountId)
-                .DeleteAsync();
-        }
+        Assert.Empty(changes.Value);
+        Assert.Empty(changes.Deleted);
+        Assert.False(string.IsNullOrEmpty(changes.DeltaToken));
     }
 
     [Fact]
-    public async Task DeltaQuery_AfterDelete_ReturnsDeletedReference()
+    public async Task EachToken_ReturnsOnlyTheChangesAfterIt()
     {
-        // Arrange - Create test account
-        var account = (await _fixture.Client.Entity<Account>()
-            .Set("name", $"Test Delete Account {Guid.NewGuid()}")
-            .ReturnRepresentation()
-            .CreateAsync()).Entity!;
-        
-        // Get delta token after creation
-        var initial = await _fixture.Client.Delta<Account>().ExecuteAsync();
-        
-        // Skip test if delta token is not available
-        if (string.IsNullOrEmpty(initial.DeltaToken))
-        {
-            // Cleanup before skipping
-            await _fixture.Client.Entity<Account>()
-                .WithId(account.AccountId)
-                .DeleteAsync();
-            Assert.Skip(NoDeltaToken);
-        }
-        
-        var deltaToken = initial.DeltaToken;
-        
-        // Delete the account
-        await _fixture.Client.Entity<Account>()
-            .WithId(account.AccountId)
-            .DeleteAsync();
-        
-        // Wait for change tracking
-        await Task.Delay(TimeSpan.FromSeconds(10));
+        var token1 = await TokenAsync();
+        var first = await CreateAsync("first");
 
-        // Act
-        var changes = await _fixture.Client.Delta<Account>()
-            .Since(deltaToken)
-            .ExecuteAsync();
+        var changes1 = await _fixture.Client.Delta<Competitor>().Since(token1).ExecuteAsync(Ct);
+        Assert.Contains(changes1.Value, c => c.CompetitorId == first);
 
-        // Assert
-        Assert.NotNull(changes);
-        Assert.NotEmpty(changes.Deleted);
-        
-        var deleted = changes.Deleted.FirstOrDefault(d => 
-            d.GetEntityId() == account.AccountId);
-        
-        Assert.NotNull(deleted);
-        Assert.Equal("deleted", deleted.Removed?.Reason);
+        var second = await CreateAsync("second");
+        var changes2 = await _fixture.Client.Delta<Competitor>().Since(changes1.DeltaToken!).ExecuteAsync(Ct);
+
+        Assert.Contains(changes2.Value, c => c.CompetitorId == second);
+        Assert.DoesNotContain(changes2.Value, c => c.CompetitorId == first);
     }
 
     [Fact]
-    public async Task DeltaQuery_Streaming_ProcessesAllPages()
+    public async Task Since_KeepsTheSelectOfTheInitialQuery()
     {
-        // Arrange
-        var totalAccounts = 0;
-        var pageCount = 0;
-        var maxPages = 3;
+        // The delta link carries the initial query's $select; a later Select() cannot change it.
+        var id = await CreateAsync("select", "https://example.com");
+        var initial = await _fixture.Client.Delta<Competitor>().Select("name").ExecuteAsync(Ct);
 
-        // Act
-        // Note: pageSize parameter is ignored for delta queries
-        // Dataverse handles pagination automatically
-        await foreach (var deltaPage in _fixture.Client.Delta<Account>()
-            .Select("accountid", "name")
-            .StreamAsync(pageSize: 10))
-        {
-            pageCount++;
-            totalAccounts += deltaPage.Value.Count;
-            
-            // Process page
-            foreach (var account in deltaPage.Value)
-            {
-                Assert.NotEqual(Guid.Empty, account.AccountId);
-            }
-            
-            // Skip if delta token is not available
-            if (string.IsNullOrEmpty(deltaPage.DeltaToken))
-            {
-                Assert.Skip(NoDeltaToken);
-            }
-            
-            // Verify delta token exists
-            Assert.NotNull(deltaPage.DeltaToken);
-            
-            // Limit pages for test performance
-            if (pageCount >= maxPages)
-                break;
-        }
-
-        // Assert
-        Assert.True(totalAccounts > 0);
-        Assert.True(pageCount >= 1);
+        var row = Assert.Single(initial.Value, c => c.CompetitorId == id);
+        Assert.Null(row.WebSiteUrl);
+        Assert.Contains("$select=name&", initial.DeltaToken);
     }
 
     [Fact]
-    public async Task DeltaQuery_TokenPersistence_MaintainsState()
+    public async Task StreamAsync_PagesTheInitialQuery_AndTheTokenComesWithTheLastPage()
     {
-        // Arrange
-        var tokenStore = new Dictionary<string, string>();
-        
-        // Initial query
-        var initial = await _fixture.Client.Delta<Account>().ExecuteAsync();
-        
-        // Skip test if delta token is not available
-        if (string.IsNullOrEmpty(initial.DeltaToken))
-        {
-            // This can happen if change tracking is not properly enabled
-            Assert.Skip(NoDeltaToken);
-        }
-        
-        tokenStore["accounts"] = initial.DeltaToken;
-        
-        // Make a change
-        var account = (await _fixture.Client.Entity<Account>()
-            .Set("name", $"Test Token Persistence {Guid.NewGuid()}")
-            .ReturnRepresentation()
-            .CreateAsync()).Entity!;
-        
-        await Task.Delay(TimeSpan.FromSeconds(10));
-        
-        try
-        {
-            // Query with saved token
-            var changes1 = await _fixture.Client.Delta<Account>()
-                .Since(tokenStore["accounts"])
-                .ExecuteAsync();
-            
-            // Skip if no delta token returned
-            if (string.IsNullOrEmpty(changes1.DeltaToken))
-            {
-                Assert.Skip(NoDeltaToken);
-            }
-            
-            tokenStore["accounts"] = changes1.DeltaToken;
-            Assert.Contains(changes1.Value, a => a.AccountId == account.AccountId);
-            
-            // Make another change
-            await _fixture.Client.Entity<Account>()
-                .WithId(account.AccountId)
-                .Set("revenue", 12345m)
-                .UpdateAsync();
-            
-            await Task.Delay(TimeSpan.FromSeconds(10));
-            
-            // Query with new token
-            var changes2 = await _fixture.Client.Delta<Account>()
-                .Since(tokenStore["accounts"])
-                .ExecuteAsync();
-            
-            // Should see the second change
-            Assert.Contains(changes2.Value, a => a.AccountId == account.AccountId);
-        }
-        finally
-        {
-            // Cleanup
-            await _fixture.Client.Entity<Account>()
-                .WithId(account.AccountId)
-                .DeleteAsync();
-        }
+        var ids = new[] { await CreateAsync("page 1"), await CreateAsync("page 2"), await CreateAsync("page 3") };
+        var pages = new List<DeltaResults<Competitor>>();
+
+        await foreach (var page in _fixture.Client.Delta<Competitor>().Select("name").StreamAsync(pageSize: 2, Ct))
+            pages.Add(page);
+
+        Assert.True(pages.Count >= 2, $"Expected at least 2 pages of 2, got {pages.Count}.");
+        Assert.All(pages, p => Assert.True(p.Value.Count <= 2));
+        Assert.All(pages[..^1], p => { Assert.Null(p.DeltaToken); Assert.NotNull(p.NextLink); });
+        Assert.False(string.IsNullOrEmpty(pages[^1].DeltaToken));
+        Assert.Null(pages[^1].NextLink);
+
+        var seen = pages.SelectMany(p => p.Value).Select(c => c.CompetitorId).ToList();
+        Assert.All(ids, id => Assert.Contains(id, seen));
+        Assert.Equal(seen.Count, seen.Distinct().Count());
     }
 
     [Fact]
-    public async Task DeltaQuery_WithFormattedValues_IncludesAnnotations()
+    public async Task StreamAsync_Since_ReturnsTheChanges()
     {
-        // Act
-        var results = await _fixture.Client.Delta<Account>()
-            .Select("accountid", "name", "statecode")
+        var token = await TokenAsync();
+        var created = await CreateAsync("streamed");
+
+        var pages = new List<DeltaResults<Competitor>>();
+        await foreach (var page in _fixture.Client.Delta<Competitor>().Since(token).StreamAsync(ct: Ct))
+            pages.Add(page);
+
+        Assert.Contains(pages.SelectMany(p => p.Value), c => c.CompetitorId == created);
+        Assert.False(string.IsNullOrEmpty(pages[^1].DeltaToken));
+    }
+
+    [Fact]
+    public async Task IncludeFormattedValues_ReturnsTheAnnotations()
+    {
+        var id = await CreateAsync("formatted");
+
+        var results = await _fixture.Client.Delta<Competitor>()
+            .Select("name", "createdon")
             .IncludeFormattedValues()
-            .ExecuteAsync();
+            .ExecuteAsync(Ct);
 
-        // Assert
-        Assert.NotNull(results);
-        
-        // Skip if delta token is not available
-        if (string.IsNullOrEmpty(results.DeltaToken))
-        {
-            Assert.Skip(NoDeltaToken);
-        }
-        
-        Assert.NotEmpty(results.Value);
+        var row = Assert.Single(results.Value, c => c.CompetitorId == id);
+        Assert.NotNull(row.CreatedOn);
+        Assert.False(string.IsNullOrEmpty(row.CreatedOnFormatted));
+        Assert.False(string.IsNullOrEmpty(results.DeltaToken));
     }
 
     [Fact]
-    public async Task DeltaQuery_WithCount_ReturnsCount()
+    public async Task WithHeaders_SendsThemAlongsideChangeTracking()
     {
-        try
-        {
-            // Act
-            var results = await _fixture.Client.Delta<Account>()
-                .Count()
-                .ExecuteAsync();
+        var results = await _fixture.Client.Delta<Competitor>()
+            .WithHeaders(new Dictionary<string, string> { ["MSCRM.SuppressDuplicateDetection"] = "true" })
+            .ExecuteAsync(Ct);
 
-            // Assert
-            Assert.NotNull(results);
-            
-            // Skip if delta token is not available
-            if (string.IsNullOrEmpty(results.DeltaToken))
-            {
-                Assert.Skip(NoDeltaToken);
-            }
-            
-            // Note: $count is not actually supported with delta queries
-            // This test verifies the API doesn't break when Count() is called
-            // The count may be null since $count parameter is ignored
-            Assert.True(true, "Count() method accepted (parameter ignored in delta queries)");
-        }
-        catch (DataverseException ex) when (ex.Message.Contains("$count") && ex.Message.Contains("Change Tracking"))
-        {
-            // Dataverse doesn't support $count with change tracking enabled
-            Assert.Skip("$count is not supported with Change Tracking in Dataverse.");
-        }
+        Assert.False(string.IsNullOrEmpty(results.DeltaToken));
     }
 
     [Fact]
-    public async Task DeltaQuery_WithOrderBy_OrdersResults()
+    public async Task AnInvalidToken_FailsWithADataverseException()
     {
-        try
-        {
-            // Act
-            var results = await _fixture.Client.Delta<Account>()
-                .Select("accountid", "name")
-                .OrderBy("name")
-                .ExecuteAsync();
+        var token = await TokenAsync();
+        var broken = token[..token.IndexOf("$deltatoken=", StringComparison.Ordinal)] + "$deltatoken=not-a-token";
 
-            // Assert
-            Assert.NotNull(results);
-            
-            // Skip if delta token is not available
-            if (string.IsNullOrEmpty(results.DeltaToken))
-            {
-                Assert.Skip(NoDeltaToken);
-            }
-            
-            Assert.NotEmpty(results.Value);
-            
-            if (results.Value.Count > 1)
-            {
-                for (int i = 0; i < results.Value.Count - 1; i++)
-                {
-                    Assert.True(
-                        string.Compare(results.Value[i].Name, results.Value[i + 1].Name, StringComparison.OrdinalIgnoreCase) <= 0,
-                        $"Expected {results.Value[i].Name} <= {results.Value[i + 1].Name}");
-                }
-            }
-        }
-        catch (DataverseException ex) when (ex.Message.Contains("$orderby") && ex.Message.Contains("Change Tracking"))
-        {
-            // Dataverse may not support $orderby with change tracking on some environments
-            Assert.Skip("$orderby may not be supported with Change Tracking in this environment.");
-        }
+        var ex = await Assert.ThrowsAsync<DataverseException>(() =>
+            _fixture.Client.Delta<Competitor>().Since(broken).ExecuteAsync(Ct));
+
+        Assert.True((int)ex.StatusCode is >= 400 and < 500, $"Expected a 4xx, got {(int)ex.StatusCode}: {ex.Message}");
     }
 
     [Fact]
-    public async Task DeltaQuery_ContinuousPolling_TracksChanges()
+    public void Since_WithNullOrEmptyToken_Throws()
     {
-        // Arrange
-        var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        string? deltaToken = null;
-        var changesDetected = 0;
-
-        // Create test account for changes
-        var testAccount = (await _fixture.Client.Entity<Account>()
-            .Set("name", $"Test Polling Account {Guid.NewGuid()}")
-            .ReturnRepresentation()
-            .CreateAsync()).Entity!;
-
-        try
-        {
-            // Polling loop (limited iterations for test)
-            for (int i = 0; i < 3 && !cts.Token.IsCancellationRequested; i++)
-            {
-                var builder = _fixture.Client.Delta<Account>()
-                    .Select("accountid", "name", "revenue");
-
-                if (!string.IsNullOrEmpty(deltaToken))
-                {
-                    builder = builder.Since(deltaToken);
-                }
-
-                var results = await builder.ExecuteAsync(cts.Token);
-                
-                changesDetected += results.Value.Count + results.Deleted.Count;
-                deltaToken = results.DeltaToken;
-
-                // Without a token every iteration is a full query, which would pass without tracking anything.
-                if (string.IsNullOrEmpty(deltaToken))
-                {
-                    Assert.Skip(NoDeltaToken);
-                }
-
-                // Make a change for next iteration
-                if (i < 2)
-                {
-                    await _fixture.Client.Entity<Account>()
-                        .WithId(testAccount.AccountId)
-                        .Set("revenue", (i + 1) * 1000000m)
-                        .UpdateAsync();
-                    
-                    await Task.Delay(TimeSpan.FromSeconds(10), cts.Token);
-                }
-            }
-
-            // Assert
-            Assert.True(changesDetected > 0);
-        }
-        finally
-        {
-            // Cleanup
-            await _fixture.Client.Entity<Account>()
-                .WithId(testAccount.AccountId)
-                .DeleteAsync();
-        }
-    }
-
-    [Fact]
-    public async Task DeltaQuery_WithMultipleFilters_AppliesAllFilters()
-    {
-        try
-        {
-            // Act
-            var results = await _fixture.Client.Delta<Account>()
-                .Select("accountid", "name", "revenue")
-                .Where("statecode eq 0 and revenue gt 0")
-                .Top(10)
-                .ExecuteAsync();
-
-            // Assert
-            Assert.NotNull(results);
-            
-            if (results.Value.Count > 0)
-            {
-                Assert.All(results.Value, account =>
-                {
-                    Assert.Equal(0, account.StateCode);
-                    Assert.True(account.Revenue > 0);
-                });
-            }
-        }
-        catch (DataverseException ex) when (ex.Message.Contains("$filter") && ex.Message.Contains("Change Tracking"))
-        {
-            // Dataverse doesn't support $filter with change tracking on some environments
-            Assert.Skip("$filter may not be supported with Change Tracking in this environment.");
-        }
-    }
-
-    [Fact]
-    public async Task DeltaQuery_WithCustomHeaders_SendsHeaders()
-    {
-        // Arrange
-        var customHeaders = new Dictionary<string, string>
-        {
-            { "CustomHeader", "TestValue" }
-        };
-
-        // Act
-        var results = await _fixture.Client.Delta<Account>()
-            .WithHeaders(customHeaders)
-            .ExecuteAsync();
-
-        // Assert
-        Assert.NotNull(results);
-        
-        // Skip if delta token is not available
-        if (string.IsNullOrEmpty(results.DeltaToken))
-        {
-            Assert.Skip(NoDeltaToken);
-        }
-        
-        Assert.NotNull(results.DeltaToken);
-    }
-
-    [Fact]
-    public async Task EntityReference_GetEntityId_ParsesGuidCorrectly()
-    {
-        // Arrange
-        var entityRef1 = new EntityReference
-        {
-            Id = "accounts(12345678-1234-1234-1234-123456789012)"
-        };
-
-        var entityRef2 = new EntityReference
-        {
-            Id = "https://test.crm.dynamics.com/api/data/v9.2/accounts(12345678-1234-1234-1234-123456789012)"
-        };
-
-        var entityRef3 = new EntityReference { Id = null };
-
-        // Act
-        var guid1 = entityRef1.GetEntityId();
-        var guid2 = entityRef2.GetEntityId();
-        var guid3 = entityRef3.GetEntityId();
-
-        // Assert
-        Assert.NotNull(guid1);
-        Assert.Equal(Guid.Parse("12345678-1234-1234-1234-123456789012"), guid1);
-        
-        Assert.NotNull(guid2);
-        Assert.Equal(Guid.Parse("12345678-1234-1234-1234-123456789012"), guid2);
-        
-        Assert.Null(guid3);
-    }
-
-    [Fact]
-    public async Task DeltaQuery_LargePageSize_ReturnsResults()
-    {
-        // Arrange
-        var pageCount = 0;
-        var maxPages = 2;
-
-        // Act
-        // Note: pageSize parameter is ignored for delta queries
-        // Dataverse handles pagination automatically
-        await foreach (var deltaPage in _fixture.Client.Delta<Account>()
-            .StreamAsync(pageSize: 100))
-        {
-            pageCount++;
-            
-            Assert.NotNull(deltaPage);
-            
-            // Skip if delta token is not available
-            if (string.IsNullOrEmpty(deltaPage.DeltaToken))
-            {
-                Assert.Skip(NoDeltaToken);
-            }
-            
-            Assert.NotNull(deltaPage.DeltaToken);
-            
-            if (pageCount >= maxPages)
-                break;
-        }
-
-        // Assert
-        Assert.True(pageCount >= 1);
-    }
-
-    [Fact]
-    public void DeltaBuilder_Since_WithNullToken_ThrowsArgumentException()
-    {
-        // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() =>
-            _fixture.Client.Delta<Account>().Since(null!));
-
-        Assert.Contains("Delta token cannot be null", exception.Message);
-    }
-
-    [Fact]
-    public void DeltaBuilder_Since_WithEmptyToken_ThrowsArgumentException()
-    {
-        // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() =>
-            _fixture.Client.Delta<Account>().Since(string.Empty));
-
-        Assert.Contains("Delta token cannot be null", exception.Message);
+        Assert.Throws<ArgumentException>(() => _fixture.Client.Delta<Competitor>().Since(null!));
+        Assert.Throws<ArgumentException>(() => _fixture.Client.Delta<Competitor>().Since(string.Empty));
     }
 }

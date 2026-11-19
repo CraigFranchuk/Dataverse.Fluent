@@ -56,11 +56,7 @@ Query Since(T2)          -> C4, C5 + token T3
 | `Delta<T>()` | Create a delta query builder |
 | `Since(token)` | Resume from a delta token |
 | `Select(...)` | Choose columns |
-| `Where(filter)` | OData filter string for the initial query (see [Limitations](#limitations)) |
-| `OrderBy(...)` | Order the initial query (see [Limitations](#limitations)) |
-| `Top(n)` | Limit results (see [Limitations](#limitations)) |
 | `IncludeFormattedValues()` | Return formatted values for option sets and lookups |
-| `Count()` | Request a total count (see [Limitations](#limitations)) |
 | `WithHeaders(...)` | Add custom request headers |
 | `ExecuteAsync()` | Execute and return one `DeltaResults<T>` |
 | `StreamAsync(pageSize)` | Stream pages, following `@odata.nextLink` |
@@ -74,8 +70,11 @@ A builder instance can be executed once; create a new builder for every query.
 | `Value` | `List<T>` | Created or updated entities |
 | `Deleted` | `List<EntityReference>` | References to deleted entities |
 | `DeltaToken` | `string?` | Token for the next query |
-| `Count` | `long?` | Total count, when returned by the server |
 | `NextLink` | `string?` | Paging link (used internally by `StreamAsync`) |
+
+`DeltaToken` is set only on the last page. `ExecuteAsync()` returns the first page only, so on a table with more rows
+than one page (5,000 by default) an initial `ExecuteAsync()` returns a `NextLink` and no token. Use `StreamAsync()` for
+the initial sync, and keep the token from the last page.
 
 `EntityReference.GetEntityId()` extracts the `Guid`; `Removed.Reason` gives the deletion reason.
 
@@ -147,19 +146,17 @@ catch (DataverseException ex) when (ex.StatusCode == HttpStatusCode.Gone)
 |---------|--------------|
 | HTTP 410 Gone | Token expired. Restart with an initial query. |
 | HTTP 400 Bad Request | Change tracking not enabled, an unsupported query option, or an invalid token. |
-| `DeltaToken` is `null` | Change tracking is not enabled on the table. |
-| Recent change missing | Changes can take a few seconds to appear; poll again. |
+| `DeltaToken` is `null` | More pages follow (`NextLink` is set): use `StreamAsync()`. Otherwise, change tracking is not enabled on the table. |
 | Deletions missing | Change tracking not enabled. |
 
 For general error handling see [ERROR_HANDLING.md](ERROR_HANDLING.md).
 
 ## Limitations
 
-- **Filter and order only apply to the initial query.** Queries that use a delta token return all changes regardless of
-  the original filter.
-- **Unsupported query options.** Dataverse rejects `$top` and `$count` on change-tracked queries, and `$filter` or
-  `$orderby` may be rejected as well, depending on the table. If a call fails with HTTP 400, remove those options and
-  use `StreamAsync(pageSize)` for page control and `Value.Count` for a per-page count.
+- **Only `$select`.** Dataverse rejects `$filter`, `$orderby`, `$top` and `$count` on a change-tracking query ("isn't
+  supported when Change Tracking is enabled"). `Where`, `OrderBy`, `Top` and `Count` are obsolete and throw
+  `NotSupportedException`. Filter and order the returned changes in code, and use `StreamAsync(pageSize)` for page size.
+- **The columns are fixed by the initial query.** The token carries its `$select`; a `Select()` with `Since()` is ignored.
 - **Tokens expire**, typically after about 90 days.
 - **Page size** is at most 5000 records.
 - **Deletions** carry only the id and the reason, not the deleted record's data.
@@ -176,6 +173,6 @@ For general error handling see [ERROR_HANDLING.md](ERROR_HANDLING.md).
 ## Tests
 
 - Unit tests: `Dataverse.Fluent.Tests/Builders/DeltaBuilderTests.cs`.
-- Integration tests: `DeltaQueryTests.cs` in the integration test project. They need change tracking enabled on the
-  account table; tests that need a delta token return early when the environment returns none. See the
+- Integration tests: `DeltaQueryTests.cs` in the integration test project. They run on the Sales competitor table, which has
+  change tracking enabled by default. See the
   [integration test README](../../Dataverse.Fluent.IntegrationTests/README.md).

@@ -198,19 +198,6 @@ public class TranslationCorrectnessTests
     // ───────── Options that accumulate ─────────
 
     [Fact]
-    public async Task Delta_RepeatedWhere_IsCombinedIntoOneFilter()
-    {
-        var (client, handler) = CreateClient();
-
-        await client.Delta<Probe>().Where("a eq 1").Where("b eq 2").Select("name").ExecuteAsync(TestContext.Current.CancellationToken);
-
-        var request = handler.Requests[0];
-        Assert.Equal("(a eq 1) and (b eq 2)", request.QueryOption("$filter"));
-        Assert.Equal(1, request.Uri.Query.Split("filter=").Length - 1);
-        Assert.Equal("name", request.QueryOption("$select"));
-    }
-
-    [Fact]
     public async Task Expand_RepeatedWhere_IsCombinedWithAnd()
     {
         var (client, handler) = CreateClient();
