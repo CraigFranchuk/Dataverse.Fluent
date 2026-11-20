@@ -456,8 +456,24 @@ var note = await client.Annotation()
 
 ## Testing your code
 
-Fake the one-method `IDataverseTransport` interface and wrap it in a `DataverseClient`. Your code then runs the real
-builders, and the fake sees the exact requests they produce.
+The `Dataverse.Fluent.Testing` package has a fake transport. Your code runs the real builders, the fake answers from
+routes the test sets up, and the test asserts on the exact requests that were sent, including each operation of a
+batch.
+
+```csharp
+var fake = new FakeDataverseTransport();
+fake.OnGet("accounts").RespondWithEntities([new Account { Name = "Contoso" }]);
+fake.OnPatch("accounts(*)").RespondWithError(HttpStatusCode.PreconditionFailed);
+
+await new MyService(fake.CreateClient()).RunAsync();
+
+Assert.Equal("revenue gt 0", fake.Requests[0].Query["$filter"]);
+```
+
+See the [Dataverse.Fluent.Testing README](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent.Testing/README.md).
+
+Without the package, fake the one-method `IDataverseTransport` interface yourself and wrap it in a `DataverseClient`.
+`DataverseResponse.FromEntity` and `FromEntities` build responses with records in the shape Dataverse returns them.
 
 ```csharp
 sealed class FakeTransport : IDataverseTransport

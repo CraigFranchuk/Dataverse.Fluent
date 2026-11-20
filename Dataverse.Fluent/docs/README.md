@@ -30,6 +30,8 @@ Start with the [package README](../README.md) for installation and the quick sta
 
 ## Contributing and testing
 
+- [Dataverse.Fluent.Testing](../../Dataverse.Fluent.Testing/README.md): the fake transport for unit testing your code.
+
 - [Integration test README](../../Dataverse.Fluent.IntegrationTests/README.md): credentials, running the live
   tests, known issues.
 - [CHANGELOG](../../CHANGELOG.md)

@@ -165,6 +165,8 @@ namespace Dataverse.Fluent
         public System.Threading.Tasks.Task<System.Text.Json.Nodes.JsonObject> ReadJsonObjectAsync(System.Threading.CancellationToken ct = default) { }
         public System.Threading.Tasks.Task<string> ReadStringAsync(System.Threading.CancellationToken ct = default) { }
         public static Dataverse.Fluent.DataverseResponse Empty(System.Net.HttpStatusCode statusCode = 204, string? entityUrl = null) { }
+        public static Dataverse.Fluent.DataverseResponse FromEntities<T>(System.Collections.Generic.IEnumerable<T> entities, string? nextLink = null, long? totalCount = default) { }
+        public static Dataverse.Fluent.DataverseResponse FromEntity<T>(T entity, System.Net.HttpStatusCode statusCode = 200) { }
         public static Dataverse.Fluent.DataverseResponse FromJson(System.Text.Json.Nodes.JsonNode? body, System.Net.HttpStatusCode statusCode = 200) { }
     }
     public static class DataverseTelemetry

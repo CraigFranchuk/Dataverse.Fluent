@@ -41,6 +41,52 @@ public sealed class DataverseResponse : IDisposable
     }
 
     /// <summary>
+    /// Creates a response whose body is one record in the shape Dataverse returns it, for transports that are not
+    /// HTTP (such as test fakes). The builders read it back into <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The record's type: a mapped POCO, or any type a builder reads (an action's response).</typeparam>
+    /// <param name="entity">The record. Columns are written under the names a read expects: mapped names, lookups as
+    /// <c>_x_value</c>, and a <see cref="DataverseReference"/> with its <c>lookuplogicalname</c> annotation.</param>
+    /// <param name="statusCode">The status code. Default: 200 OK. A create or upsert that returns the record uses 201
+    /// Created.</param>
+    /// <example>
+    /// <code>
+    /// return DataverseResponse.FromEntity(new Account { AccountId = id, Name = "Contoso" });
+    /// </code>
+    /// </example>
+    public static DataverseResponse FromEntity<T>(T entity, HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        return FromJson(SerializeRecord(entity), statusCode);
+    }
+
+    /// <summary>
+    /// Creates a response whose body is a collection of records (<c>{ "value": [...] }</c>) in the shape Dataverse
+    /// returns it, for transports that are not HTTP (such as test fakes). See <see cref="FromEntity{T}"/>.
+    /// </summary>
+    /// <typeparam name="T">The records' type.</typeparam>
+    /// <param name="entities">The records of this page.</param>
+    /// <param name="nextLink">The <c>@odata.nextLink</c> of a page that is not the last, or <see langword="null"/>.
+    /// It may be absolute or relative to the transport's base URL.</param>
+    /// <param name="totalCount">The <c>@odata.count</c>, for a query that requested it, or <see langword="null"/>.</param>
+    public static DataverseResponse FromEntities<T>(IEnumerable<T> entities, string? nextLink = null, long? totalCount = null)
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+
+        var body = new JsonObject();
+        if (totalCount is { } count)
+            body["@odata.count"] = count;
+        body["value"] = new JsonArray([.. entities.Select(e => (JsonNode?)SerializeRecord(e))]);
+        if (nextLink != null)
+            body["@odata.nextLink"] = nextLink;
+
+        return FromJson(body);
+    }
+
+    private static JsonNode? SerializeRecord<T>(T entity)
+        => entity is null ? null : JsonSerializer.SerializeToNode(entity, entity.GetType(), JsonDefaults.Response);
+
+    /// <summary>
     /// Creates a response without a body, for transports that are not HTTP (such as test fakes).
     /// </summary>
     /// <param name="statusCode">The status code. Default: 204 No Content.</param>

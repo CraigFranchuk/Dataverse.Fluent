@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <!-- The shipped libraries build warning-free; a new warning fails the build. -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Dataverse.Fluent' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Sales'">
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Dataverse.Fluent' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Sales' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Testing'">
     <IsSourceProject>true</IsSourceProject>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>

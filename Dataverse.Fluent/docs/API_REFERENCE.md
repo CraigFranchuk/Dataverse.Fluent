@@ -210,7 +210,10 @@ implementation. The extension methods `ExecuteRequestAsync(...)`, `ExecuteReques
 var whoAmI = await client.Transport.ExecuteRequestAsync(HttpMethod.Get, "WhoAmI");
 ```
 
-For a test fake, `DataverseResponse.FromJson(json)` and `DataverseResponse.Empty(entityUrl: ...)` build responses.
+For a test fake, `DataverseResponse.FromEntity(record)` and `DataverseResponse.FromEntities(records, nextLink, totalCount)`
+build responses with records in the shape Dataverse returns them, and `DataverseResponse.FromJson(json)` and
+`DataverseResponse.Empty(entityUrl: ...)` build any other response. The `Dataverse.Fluent.Testing` package has a
+ready-made fake: see its [README](../../Dataverse.Fluent.Testing/README.md).
 
 ## Errors
 

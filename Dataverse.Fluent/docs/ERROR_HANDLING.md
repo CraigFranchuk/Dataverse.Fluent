@@ -81,7 +81,9 @@ var json = """{ "error": { "code": "0x80040217", "message": "Record not found" }
 var exception = DataverseException.FromErrorContent(json, HttpStatusCode.NotFound);
 ```
 
-`FromErrorContent` is also useful for fake transports that need to simulate Dataverse failures.
+`FromErrorContent` is also useful for fake transports that need to simulate Dataverse failures. With the
+`Dataverse.Fluent.Testing` package, a route does it for you:
+`fake.OnGet("accounts(*)").RespondWithError(HttpStatusCode.NotFound, "0x80040217", "Record not found")`.
 
 ## Network failures
 
