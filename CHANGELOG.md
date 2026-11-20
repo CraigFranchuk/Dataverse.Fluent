@@ -4,6 +4,16 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 `Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
 [semantic versioning](https://semver.org/).
 
+## 1.3.0 (unreleased)
+
+### Dataverse.Fluent
+
+- `client.Action<TRequest>(name)` runs an action that returns nothing; `ExecuteAsync` returns a `Task`. It replaces
+  writing `object` as the response type (`Action<TRequest, object>`), which still works.
+- `client.Action(name)` runs an action without a request class: parameters are set by name with `WithParameter`, and
+  `ExecuteAsync()` or `ExecuteAsync<TResponse>()` sends it.
+- Both are also on `ForEntity<T>(id)` for bound actions, and both have `ToRequest()` for use in a batch.
+
 ## 1.2.0 (2026-11-20)
 
 Two new packages check models against an environment's metadata at design time. The client itself still never reads

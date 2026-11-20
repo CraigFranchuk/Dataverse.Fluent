@@ -66,6 +66,42 @@ public static class DataverseClientExtensions
     }
 
     /// <summary>
+    /// Creates a fluent builder for executing an unbound action that returns nothing.
+    /// </summary>
+    /// <typeparam name="TRequest">The request POCO type containing action parameters.</typeparam>
+    /// <param name="client">The client to send through.</param>
+    /// <param name="actionName">The logical name of the action.</param>
+    /// <example>
+    /// <code>
+    /// await client.Action&lt;WinOpportunityRequest&gt;("WinOpportunity").WithRequest(request).ExecuteAsync();
+    /// </code>
+    /// </example>
+    public static ActionBuilder<TRequest> Action<TRequest>(this IDataverseClient client, string actionName)
+        where TRequest : class
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        return new ActionBuilder<TRequest>(client.Transport, actionName);
+    }
+
+    /// <summary>
+    /// Creates a fluent builder for executing an unbound action whose parameters are given by name, without a
+    /// request class.
+    /// </summary>
+    /// <param name="client">The client to send through.</param>
+    /// <param name="actionName">The logical name of the action.</param>
+    /// <example>
+    /// <code>
+    /// await client.Action("new_Recalculate").WithParameter("Mode", 2).ExecuteAsync();
+    /// var score = await client.Action("new_Score").WithParameter("Mode", 2).ExecuteAsync&lt;ScoreResult&gt;();
+    /// </code>
+    /// </example>
+    public static ActionBuilder Action(this IDataverseClient client, string actionName)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        return new ActionBuilder(client.Transport, actionName);
+    }
+
+    /// <summary>
     /// Creates a builder that writes many records of one table with the bulk operation messages
     /// (<c>CreateMultiple</c>, <c>UpdateMultiple</c>, <c>UpsertMultiple</c>), in chunks and optionally in parallel.
     /// </summary>
