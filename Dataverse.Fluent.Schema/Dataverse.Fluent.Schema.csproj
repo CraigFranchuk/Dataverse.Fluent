@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Dataverse.Fluent.Schema.Tests" />
+    <!-- The tool's tests build findings and fixes directly; the tool itself uses only the public API. -->
+    <InternalsVisibleTo Include="Dataverse.Fluent.Tool.Tests" />
   </ItemGroup>
 
   <ItemGroup>

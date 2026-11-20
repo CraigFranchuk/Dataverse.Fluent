@@ -189,7 +189,9 @@ internal sealed class ModelChecker
         if (member.IsWrittenOnCreate || member.IsWrittenOnUpdate)
         {
             SchemaFix? fix = null;
-            if (column.Targets.Count == 1 && table.NavigationPropertyFor(lookupName, column.Targets[0]) is { } navigation
+            // [DataverseLookup] with an entity set maps a Guid; a DataverseReference needs targets instead.
+            if (column.Targets.Count == 1 && Underlying(member.Property.PropertyType) == typeof(Guid)
+                && table.NavigationPropertyFor(lookupName, column.Targets[0]) is { } navigation
                 && (await _reader.GetEntitySetsAsync(column.Targets, ct).ConfigureAwait(false))[column.Targets[0]] is { } entitySet)
             {
                 fix = SchemaFix.MapAsLookup(lookupName, entitySet, navigation);

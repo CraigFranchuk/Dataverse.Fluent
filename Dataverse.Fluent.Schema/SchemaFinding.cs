@@ -161,7 +161,19 @@ public sealed class SchemaFix
         };
 
     internal static SchemaFix SetReadOnly(DataverseOperation readOnlyFor)
-        => new(SchemaFixKind.SetReadOnly, $"mark it [DataverseReadOnly(DataverseOperation.{readOnlyFor})]") { ReadOnlyFor = readOnlyFor };
+        => new(SchemaFixKind.SetReadOnly, $"mark it [DataverseReadOnly(DataverseOperation.{OperationName(readOnlyFor)})]") { ReadOnlyFor = readOnlyFor };
+
+    /// <summary>
+    /// The member name to write for <paramref name="operations"/>. <c>CreateAndUpdate</c> and <c>All</c> share a value,
+    /// so <see cref="Enum.ToString()"/> may return either; the code base writes <c>CreateAndUpdate</c>.
+    /// </summary>
+    internal static string OperationName(DataverseOperation operations) => operations switch
+    {
+        DataverseOperation.Create => nameof(DataverseOperation.Create),
+        DataverseOperation.Update => nameof(DataverseOperation.Update),
+        DataverseOperation.CreateAndUpdate => nameof(DataverseOperation.CreateAndUpdate),
+        _ => nameof(DataverseOperation.None)
+    };
 
     internal static SchemaFix MapAsLookup(string logicalName, string entitySet, string navigationProperty)
         => new(SchemaFixKind.MapAsLookup, logicalName == navigationProperty

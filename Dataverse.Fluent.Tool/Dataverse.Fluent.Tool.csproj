@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Runs on any newer .NET too, so a machine with only a later SDK can install it. -->
+    <RollForward>LatestMajor</RollForward>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dataverse-fluent</ToolCommandName>
+    <PackageId>Dataverse.Fluent.Tool</PackageId>
+    <AssemblyName>dataverse-fluent</AssemblyName>
+    <RootNamespace>Dataverse.Fluent.Tool</RootNamespace>
+    <Description>The dataverse-fluent command: checks a project's Dataverse.Fluent models against an environment's metadata, and fixes the mechanical mistakes (lookup navigation properties and target entity sets, polymorphic targets, read-only markers) in the source.</Description>
+    <PackageTags>dataverse;dynamics;crm;fluent;schema;validation;cli;tool</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dataverse.Fluent.Schema\Dataverse.Fluent.Schema.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Dataverse.Fluent.Tool.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
