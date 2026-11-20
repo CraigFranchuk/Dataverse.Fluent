@@ -1,0 +1,102 @@
+namespace Dataverse.Fluent.Schema
+{
+    public static class DataverseSchemaValidator
+    {
+        public static System.Collections.Generic.IReadOnlyList<System.Type> FindModels(System.Reflection.Assembly assembly) { }
+        public static System.Threading.Tasks.Task<Dataverse.Fluent.Schema.SchemaReport> ValidateAsync(Dataverse.Fluent.IDataverseTransport transport, System.Collections.Generic.IEnumerable<System.Type> models, Dataverse.Fluent.Schema.SchemaValidationOptions? options = null, System.Threading.CancellationToken ct = default) { }
+        public static System.Threading.Tasks.Task<Dataverse.Fluent.Schema.SchemaReport> ValidateAsync(Dataverse.Fluent.IDataverseTransport transport, System.Reflection.Assembly assembly, Dataverse.Fluent.Schema.SchemaValidationOptions? options = null, System.Threading.CancellationToken ct = default) { }
+    }
+    public static class SchemaCodes
+    {
+        public const string AnnotationWritten = "DVS042";
+        public const string CollectionNavigationNotFound = "DVS030";
+        public const string ColumnNotFound = "DVS010";
+        public const string CompanionColumn = "DVS016";
+        public const string EntitySetMismatch = "DVS002";
+        public const string EnumValueNotAnOption = "DVS014";
+        public const string IncompatibleType = "DVS011";
+        public const string InvalidMapping = "DVS003";
+        public const string LookupMappedAsColumn = "DVS027";
+        public const string LookupNavigationPropertyMismatch = "DVS021";
+        public const string LookupNotFound = "DVS020";
+        public const string LookupTargetEntitySetMismatch = "DVS022";
+        public const string LookupTargetMismatch = "DVS026";
+        public const string LookupValueWritten = "DVS028";
+        public const string LossyType = "DVS012";
+        public const string MissingLookupTarget = "DVS024";
+        public const string NavigationNotFound = "DVS031";
+        public const string NotWritable = "DVS041";
+        public const string OptionWithoutEnumMember = "DVS015";
+        public const string PolymorphicColumnMappedAsSingleTable = "DVS023";
+        public const string RejectedBySelect = "DVS013";
+        public const string RelatedTypeMismatch = "DVS032";
+        public const string SelectCheckSkipped = "DVS005";
+        public const string SentOnUpdate = "DVS040";
+        public const string TableNotFound = "DVS001";
+        public const string UnknownLookupTarget = "DVS025";
+    }
+    public sealed class SchemaFinding
+    {
+        public string Code { get; }
+        public Dataverse.Fluent.Schema.SchemaFix? Fix { get; }
+        public string Location { get; }
+        public string Message { get; }
+        public System.Type Model { get; }
+        public System.Reflection.PropertyInfo? Property { get; }
+        public Dataverse.Fluent.Schema.SchemaSeverity Severity { get; }
+        public string? Suggestion { get; }
+        public override string ToString() { }
+    }
+    public sealed class SchemaFix
+    {
+        public string Description { get; }
+        public string? EntitySet { get; }
+        public Dataverse.Fluent.Schema.SchemaFixKind Kind { get; }
+        public string? LookupLogicalName { get; }
+        public string? NavigationProperty { get; }
+        public Dataverse.Fluent.DataverseOperation ReadOnlyFor { get; }
+        public string? TargetLogicalName { get; }
+        public override string ToString() { }
+    }
+    public enum SchemaFixKind
+    {
+        SetEntitySet = 0,
+        SetLookupTargetEntitySet = 1,
+        SetLookupNavigationProperty = 2,
+        AddLookupTarget = 3,
+        SetLookupTarget = 4,
+        SetReadOnly = 5,
+        MapAsLookup = 6,
+    }
+    public sealed class SchemaReport
+    {
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Schema.SchemaFinding> Findings { get; }
+        public bool HasErrors { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Type> Models { get; }
+        public System.Collections.Generic.IEnumerable<Dataverse.Fluent.Schema.SchemaFinding> AtLeast(Dataverse.Fluent.Schema.SchemaSeverity minimum) { }
+        public void ThrowIfAny(Dataverse.Fluent.Schema.SchemaSeverity minimum = 2) { }
+        public override string ToString() { }
+    }
+    public enum SchemaSeverity
+    {
+        Info = 0,
+        Warning = 1,
+        Error = 2,
+    }
+    public sealed class SchemaValidationException : System.Exception
+    {
+        public SchemaValidationException() { }
+        public SchemaValidationException(System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Schema.SchemaFinding> findings) { }
+        public SchemaValidationException(string message) { }
+        public SchemaValidationException(string message, System.Exception innerException) { }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Schema.SchemaFinding> Findings { get; }
+    }
+    public sealed class SchemaValidationOptions
+    {
+        public SchemaValidationOptions() { }
+        public bool CheckChoiceEnums { get; set; }
+        public bool CheckSelect { get; set; }
+        public System.Collections.Generic.ISet<string> IgnoreCodes { get; }
+        public int MaxDegreeOfParallelism { get; set; }
+    }
+}

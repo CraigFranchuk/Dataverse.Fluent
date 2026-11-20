@@ -2,6 +2,8 @@
   <Project Path="Examples/Examples.csproj" />
   <Project Path="Dataverse.Fluent.Benchmarks/Dataverse.Fluent.Benchmarks.csproj" />
   <Project Path="Dataverse.Fluent.IntegrationTests/Dataverse.Fluent.IntegrationTests.csproj" Id="19a5614a-278e-4f12-975a-df74c5579aaa" />
+  <Project Path="Dataverse.Fluent.Schema.Tests/Dataverse.Fluent.Schema.Tests.csproj" />
+  <Project Path="Dataverse.Fluent.Schema/Dataverse.Fluent.Schema.csproj" />
   <Project Path="Dataverse.Fluent.Testing.Tests/Dataverse.Fluent.Testing.Tests.csproj" />
   <Project Path="Dataverse.Fluent.Testing/Dataverse.Fluent.Testing.csproj" />
   <Project Path="Dataverse.Fluent.Tests/Dataverse.Fluent.Tests.csproj" Id="3ed8f40a-9473-487e-b619-0b1aff9f9e93" />
