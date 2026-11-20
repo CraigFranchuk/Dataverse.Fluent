@@ -84,6 +84,52 @@ public class EntityBuilderSetFromTests
         Assert.Equal(["name", "parentaccountid@odata.bind"], sent);
     }
 
+    // ────────── A property's own converter ──────────
+
+    // Writes a DateTime as a date, the way a date-only (Edm.Date) column accepts it.
+    private sealed class DateOnlyText : JsonConverter<DateTime?>
+    {
+        public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.GetDateTime();
+
+        public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value!.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [EntitySet("testaccounts")]
+    private class ConverterAccount
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonConverter(typeof(DateOnlyText))]
+        [JsonPropertyName("closedon")]
+        public DateTime? ClosedOn { get; set; }
+    }
+
+    private sealed class NoTransport : IDataverseTransport
+    {
+        public string BaseUrl => "https://test.crm.dynamics.com/api/data/v9.2";
+        public Task<DataverseResponse> SendAsync(DataverseRequest request, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public void Set_WithAnExpression_UsesThePropertysConverter_AsSetFromDoes()
+    {
+        // Until 1.1.1 Set(x => x.ClosedOn, d) ignored the property's [JsonConverter] and sent a date-time, which
+        // Dataverse rejects for a date-only column (HTTP 400, "Cannot convert the literal ... to the expected type 'Edm.Date'").
+        var client = new DataverseClient(new NoTransport());
+        var date = new DateTime(2026, 3, 15, 23, 30, 0, DateTimeKind.Utc);
+
+        var set = client.Entity<ConverterAccount>().Set(x => x.ClosedOn, date).ToCreateRequest().Payload!;
+        var setFrom = client.Entity<ConverterAccount>().SetFrom(new ConverterAccount { ClosedOn = date }).ToCreateRequest().Payload!;
+        var cleared = client.Entity<ConverterAccount>(Guid.NewGuid()).Set(x => x.ClosedOn, null).ToUpdateRequest().Payload!;
+
+        Assert.Equal("2026-03-15", (string?)set["closedon"]);
+        Assert.Equal("2026-03-15", (string?)setFrom["closedon"]);
+        Assert.True(cleared.ContainsKey("closedon"));
+        Assert.Null(cleared["closedon"]);
+    }
+
     // Runs the operation and returns the names of the properties in the request body.
     private static Task<string[]> SentPropertiesAsync(Func<EntityBuilder<ReadOnlyRulesAccount>, Task> execute)
         => SentPropertiesAsync<ReadOnlyRulesAccount>(execute);

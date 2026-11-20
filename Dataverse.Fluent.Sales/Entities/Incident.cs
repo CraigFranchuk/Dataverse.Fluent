@@ -20,6 +20,8 @@ public class Incident
     [JsonPropertyName("description")]
     public virtual string? Description { get; set; }
 
+    /// <summary>The case number. Dataverse generates it when none is given, and it cannot be changed afterwards.</summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
     [JsonPropertyName("ticketnumber")]
     public virtual string? TicketNumber { get; set; }
 
@@ -35,7 +37,8 @@ public class Incident
     [JsonPropertyName("caseorigincode")]
     public virtual int? CaseOriginCode { get; set; }
 
-    [JsonPropertyName("satisfactioncode")]
+    /// <summary>The customer's satisfaction (<c>customersatisfactioncode</c>, a choice column).</summary>
+    [JsonPropertyName("customersatisfactioncode")]
     public virtual int? SatisfactionCode { get; set; }
 
     [JsonPropertyName("isescalated")]
@@ -47,6 +50,8 @@ public class Incident
     [JsonPropertyName("resolveby")]
     public virtual DateTime? ResolveBy { get; set; }
 
+    /// <summary>When the case was escalated, set by Dataverse.</summary>
+    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("escalatedon")]
     public virtual DateTime? EscalatedOn { get; set; }
 
@@ -74,13 +79,11 @@ public class Incident
 
     // ───────────────────────── Lookups ─────────────────────────
 
-    /// <summary>
-    /// The customer (account or contact). Read-only here because the lookup is polymorphic: set it with
-    /// <c>SetLookup("customerid_account", "accounts", id)</c> or <c>SetLookup("customerid_contact", "contacts", id)</c>.
-    /// </summary>
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_customerid_value")]
-    public virtual Guid? CustomerId { get; set; }
+    /// <summary>The customer, an account or a contact.</summary>
+    [DataverseLookup("customerid")]
+    [DataverseLookupTarget("account", "accounts", "customerid_account")]
+    [DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+    public virtual DataverseReference? CustomerId { get; set; }
 
     [DataverseLookup("primarycontactid", "contacts")]
     public virtual Guid? PrimaryContactId { get; set; }
@@ -97,7 +100,13 @@ public class Incident
     [DataverseLookup("parentcaseid", "incidents")]
     public virtual Guid? ParentCaseId { get; set; }
 
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_ownerid_value")]
-    public virtual Guid? OwnerId { get; set; }
+    /// <summary>
+    /// The owner, a user or a team. <c>SetFrom</c> sends it on create only, so writing back a retrieved record never
+    /// reassigns the record; assign an existing record with <c>Set(x =&gt; x.OwnerId, reference)</c>.
+    /// </summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
+    [DataverseLookup("ownerid")]
+    [DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+    [DataverseLookupTarget("team", "teams", "ownerid")]
+    public virtual DataverseReference? OwnerId { get; set; }
 }

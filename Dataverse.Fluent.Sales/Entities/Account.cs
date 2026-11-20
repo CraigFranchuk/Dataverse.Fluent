@@ -97,9 +97,15 @@ public class Account
     [DataverseLookup("parentaccountid", "accounts")]
     public virtual Guid? ParentAccountId { get; set; }
 
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_ownerid_value")]
-    public virtual Guid? OwnerId { get; set; }
+    /// <summary>
+    /// The owner, a user or a team. <c>SetFrom</c> sends it on create only, so writing back a retrieved record never
+    /// reassigns the record; assign an existing record with <c>Set(x =&gt; x.OwnerId, reference)</c>.
+    /// </summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
+    [DataverseLookup("ownerid")]
+    [DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+    [DataverseLookupTarget("team", "teams", "ownerid")]
+    public virtual DataverseReference? OwnerId { get; set; }
 
     // ───────────────────────── Navigation properties ─────────────────────────
 

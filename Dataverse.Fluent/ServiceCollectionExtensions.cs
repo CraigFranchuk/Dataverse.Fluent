@@ -261,6 +261,10 @@ public static class ServiceCollectionExtensions
                 configureClient?.Invoke(client);
             });
 
+        // Drops the ARRAffinity cookie from the factory's default primary handler (see DisableAffinityCookie). A primary
+        // handler the caller sets on the returned builder replaces that handler afterwards and is not changed.
+        builder.ConfigurePrimaryHttpMessageHandler((handler, _) => DataverseHttpTransport.DisableAffinityCookie(handler));
+
         // Resilience is added first so it is the outer handler; authentication is inside it, so every
         // retry attempt is sent with a currently valid token.
         builder.AddResilienceHandler(DataverseResiliencePipeline.PipelineName, (pipeline, context) =>

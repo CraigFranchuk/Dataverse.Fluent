@@ -38,6 +38,8 @@ public class QuoteDetail
     [JsonPropertyName("ispriceoverridden")]
     public virtual bool? IsPriceOverridden { get; set; }
 
+    /// <summary>Whether the line is a write-in product. Set when the line is created; it cannot be changed afterwards.</summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
     [JsonPropertyName("isproductoverridden")]
     public virtual bool? IsProductOverridden { get; set; }
 

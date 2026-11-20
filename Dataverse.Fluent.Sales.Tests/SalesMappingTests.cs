@@ -45,7 +45,7 @@ public class SalesMappingTests
     }
 
     [Fact]
-    public void SetFrom_WritesLookupsAsBinds_AndSkipsRelatedRecordsAndPolymorphicLookups()
+    public void SetFrom_WritesLookupsAsBinds_AndSkipsRelatedRecords()
     {
         var client = new DataverseClient(new FakeTransport());
         var retrieved = new Account
@@ -62,10 +62,65 @@ public class SalesMappingTests
         Assert.False(payload.ContainsKey("_primarycontactid_value"));
         Assert.False(payload.ContainsKey("contact_customer_accounts"));
 
-        var contact = client.Entity<Contact>(Guid.NewGuid())
-            .SetFrom(new Contact { LastName = "x", ParentCustomerId = Guid.NewGuid() })
-            .ToUpdateRequest().Payload!;
-        Assert.DoesNotContain(contact, p => p.Key.Contains("parentcustomerid", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PolymorphicLookups_AreWrittenForTheirTable_AndTheOwnerOnCreateOnly()
+    {
+        var client = new DataverseClient(new FakeTransport());
+        var accountId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var opportunity = new Opportunity
+        {
+            Name = "o",
+            CustomerId = DataverseReference.To<Account>(accountId),
+            OwnerId = new DataverseReference("team", teamId)
+        };
+
+        var create = client.Entity<Opportunity>().SetFrom(opportunity).ToCreateRequest().Payload!;
+        var update = client.Entity<Opportunity>(Guid.NewGuid()).SetFrom(opportunity).ToUpdateRequest().Payload!;
+        var reassign = client.Entity<Opportunity>(Guid.NewGuid()).Set(o => o.OwnerId, new DataverseReference("systemuser", teamId)).ToUpdateRequest().Payload!;
+        var contact = client.Entity<Contact>()
+            .SetFrom(new Contact { LastName = "x", ParentCustomerId = DataverseReference.To<Contact>(accountId) })
+            .ToCreateRequest().Payload!;
+
+        Assert.Equal($"/accounts({accountId})", (string?)create["customerid_account@odata.bind"]);
+        Assert.Equal($"/teams({teamId})", (string?)create["ownerid@odata.bind"]);
+        Assert.Equal($"/accounts({accountId})", (string?)update["customerid_account@odata.bind"]);
+        Assert.False(update.ContainsKey("ownerid@odata.bind"));
+        Assert.Equal($"/systemusers({teamId})", (string?)reassign["ownerid@odata.bind"]);
+        Assert.Equal($"/contacts({accountId})", (string?)contact["parentcustomerid_contact@odata.bind"]);
+    }
+
+    [Fact]
+    public void SetFrom_LeavesOutColumnsDataverseSetsItself()
+    {
+        // Dataverse silently ignores these values (checked 2026-11-20), so a retrieved record written back must not
+        // send them: the quote number can be given on create only, the revision number and full name never.
+        var client = new DataverseClient(new FakeTransport());
+        var quote = new Quote { Name = "Q", QuoteNumber = "QUO-1", RevisionNumber = 2 };
+
+        var create = client.Entity<Quote>().SetFrom(quote).ToCreateRequest().Payload!;
+        var update = client.Entity<Quote>(Guid.NewGuid()).SetFrom(quote).ToUpdateRequest().Payload!;
+        var contact = client.Entity<Contact>().SetFrom(new Contact { LastName = "x", FullName = "y" }).ToCreateRequest().Payload!;
+
+        Assert.Equal("QUO-1", (string?)create["quotenumber"]);
+        Assert.False(create.ContainsKey("revisionnumber"));
+        Assert.False(update.ContainsKey("quotenumber"));
+        Assert.False(update.ContainsKey("revisionnumber"));
+        Assert.False(contact.ContainsKey("fullname"));
+    }
+
+    [Fact]
+    public void DateOnlyColumns_AreWrittenAsADate()
+    {
+        var client = new DataverseClient(new FakeTransport());
+
+        var payload = client.Entity<Opportunity>()
+            .SetFrom(new Opportunity { Name = "o", EstimatedCloseDate = new DateOnly(2026, 3, 15) })
+            .ToCreateRequest().Payload!;
+
+        Assert.Equal("2026-03-15", (string?)payload["estimatedclosedate"]);
     }
 
     [Fact]

@@ -236,7 +236,7 @@ public class SalesClientTests : IAsyncDisposable
         // Create an incident linked to the account
         var incident = (await _fixture.Client.Entity<Incident>(entitySet: "incidents")
             .Set(i => i.Title, $"Test Case {Guid.NewGuid():N}")
-            .SetLookup("customerid_account", "accounts", account.AccountId)
+            .Set(i => i.CustomerId, DataverseReference.To<Account>(account.AccountId))
             .ReturnRepresentation()
             .CreateAsync()).Entity!;
 

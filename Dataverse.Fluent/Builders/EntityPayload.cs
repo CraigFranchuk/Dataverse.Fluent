@@ -1,5 +1,8 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace Dataverse.Fluent.Builders;
 
@@ -28,5 +31,32 @@ internal static class EntityPayload
             PropertyFilter.RemoveReadOnlyProperties<T>(jsonObject, operation);
 
         return jsonObject;
+    }
+
+    // Options that write a value with one property's converter, built once per converter.
+    private static readonly ConditionalWeakTable<JsonConverter, JsonSerializerOptions> ConverterOptions = new();
+
+    /// <summary>
+    /// Serializes <paramref name="value"/> as the <c>[JsonConverter]</c> on <paramref name="property"/> writes it, so
+    /// <c>Set(x =&gt; x.Property, value)</c> sends what <c>SetFrom</c> sends. Returns <see langword="false"/> when the
+    /// property has no converter of its own, or the value is <see langword="null"/>.
+    /// </summary>
+    internal static bool TrySerializeWithPropertyConverter(Type entityType, PropertyInfo property, object? value, out JsonNode? node)
+    {
+        node = null;
+        if (value is null)
+            return false;
+
+        var info = JsonDefaults.EntityPayload.GetTypeInfo(entityType).Properties
+            .FirstOrDefault(p => p.AttributeProvider is PropertyInfo candidate && candidate.Name == property.Name);
+        if (info?.CustomConverter is not { } converter)
+            return false;
+
+        var options = ConverterOptions.GetValue(converter,
+            static c => new JsonSerializerOptions(JsonDefaults.PayloadSerialization) { Converters = { c } });
+
+        // Serialized as the property's type: a converter for DateTime? does not handle a boxed DateTime.
+        node = JsonSerializer.SerializeToNode(value, info.PropertyType, options);
+        return true;
     }
 }

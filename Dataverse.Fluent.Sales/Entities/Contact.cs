@@ -20,6 +20,8 @@ public class Contact
     [JsonPropertyName("lastname")]
     public virtual string LastName { get; set; } = string.Empty;
 
+    /// <summary>The full name, composed by Dataverse from the first and last names.</summary>
+    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("fullname")]
     public virtual string? FullName { get; set; }
 
@@ -94,15 +96,19 @@ public class Contact
 
     // ───────────────────────── Lookups ─────────────────────────
 
-    /// <summary>
-    /// The customer (account or contact). Read-only here because the lookup is polymorphic: set it with
-    /// <c>SetLookup("parentcustomerid_account", "accounts", id)</c> or <c>SetLookup("parentcustomerid_contact", "contacts", id)</c>.
-    /// </summary>
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_parentcustomerid_value")]
-    public virtual Guid? ParentCustomerId { get; set; }
+    /// <summary>The customer, an account or a contact.</summary>
+    [DataverseLookup("parentcustomerid")]
+    [DataverseLookupTarget("account", "accounts", "parentcustomerid_account")]
+    [DataverseLookupTarget("contact", "contacts", "parentcustomerid_contact")]
+    public virtual DataverseReference? ParentCustomerId { get; set; }
 
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_ownerid_value")]
-    public virtual Guid? OwnerId { get; set; }
+    /// <summary>
+    /// The owner, a user or a team. <c>SetFrom</c> sends it on create only, so writing back a retrieved record never
+    /// reassigns the record; assign an existing record with <c>Set(x =&gt; x.OwnerId, reference)</c>.
+    /// </summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
+    [DataverseLookup("ownerid")]
+    [DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+    [DataverseLookupTarget("team", "teams", "ownerid")]
+    public virtual DataverseReference? OwnerId { get; set; }
 }

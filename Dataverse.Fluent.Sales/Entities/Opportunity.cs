@@ -41,11 +41,13 @@ public class Opportunity
     [JsonPropertyName("totaltax")]
     public virtual decimal? TotalTax { get; set; }
 
+    /// <summary>The estimated close date, a date-only column.</summary>
     [JsonPropertyName("estimatedclosedate")]
-    public virtual DateTime? EstimatedCloseDate { get; set; }
+    public virtual DateOnly? EstimatedCloseDate { get; set; }
 
+    /// <summary>The actual close date, a date-only column.</summary>
     [JsonPropertyName("actualclosedate")]
-    public virtual DateTime? ActualCloseDate { get; set; }
+    public virtual DateOnly? ActualCloseDate { get; set; }
 
     [JsonPropertyName("closeprobability")]
     public virtual int? CloseProbability { get; set; }
@@ -101,13 +103,11 @@ public class Opportunity
     [DataverseLookup("parentaccountid", "accounts")]
     public virtual Guid? ParentAccountId { get; set; }
 
-    /// <summary>
-    /// The customer (account or contact). Read-only here because the lookup is polymorphic: set it with
-    /// <c>SetLookup("customerid_account", "accounts", id)</c> or <c>SetLookup("customerid_contact", "contacts", id)</c>.
-    /// </summary>
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_customerid_value")]
-    public virtual Guid? CustomerId { get; set; }
+    /// <summary>The customer, an account or a contact.</summary>
+    [DataverseLookup("customerid")]
+    [DataverseLookupTarget("account", "accounts", "customerid_account")]
+    [DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+    public virtual DataverseReference? CustomerId { get; set; }
 
     [DataverseLookup("pricelevelid", "pricelevels")]
     public virtual Guid? PriceLevelId { get; set; }
@@ -118,9 +118,15 @@ public class Opportunity
     [DataverseLookup("originatingleadid", "leads")]
     public virtual Guid? OriginatingLeadId { get; set; }
 
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_ownerid_value")]
-    public virtual Guid? OwnerId { get; set; }
+    /// <summary>
+    /// The owner, a user or a team. <c>SetFrom</c> sends it on create only, so writing back a retrieved record never
+    /// reassigns the record; assign an existing record with <c>Set(x =&gt; x.OwnerId, reference)</c>.
+    /// </summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
+    [DataverseLookup("ownerid")]
+    [DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+    [DataverseLookupTarget("team", "teams", "ownerid")]
+    public virtual DataverseReference? OwnerId { get; set; }
 
     // ───────────────────────── Navigation properties ─────────────────────────
 

@@ -166,9 +166,11 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual System.Collections.Generic.List<Dataverse.Fluent.Sales.Entities.Opportunity>? Opportunities { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("telephone2")]
         public virtual string? OtherPhone { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_ownerid_value")]
-        public virtual System.Guid? OwnerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
         [Dataverse.Fluent.DataverseLookup("parentaccountid", "accounts")]
         public virtual System.Guid? ParentAccountId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("telephone1")]
@@ -225,6 +227,7 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual string? Fax { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("firstname")]
         public virtual string FirstName { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("fullname")]
         public virtual string? FullName { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("telephone2")]
@@ -238,12 +241,15 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
         public virtual System.DateTime ModifiedOn { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_ownerid_value")]
-        public virtual System.Guid? OwnerId { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_parentcustomerid_value")]
-        public virtual System.Guid? ParentCustomerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("parentcustomerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("account", "accounts", "parentcustomerid_account")]
+        [Dataverse.Fluent.DataverseLookupTarget("contact", "contacts", "parentcustomerid_contact")]
+        public virtual Dataverse.Fluent.DataverseReference? ParentCustomerId { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statecode")]
         public virtual int StateCode { get; set; }
@@ -265,13 +271,15 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("createdon")]
         public virtual System.DateTime CreatedOn { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_customerid_value")]
-        public virtual System.Guid? CustomerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("customerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("account", "accounts", "customerid_account")]
+        [Dataverse.Fluent.DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+        public virtual Dataverse.Fluent.DataverseReference? CustomerId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public virtual string? Description { get; set; }
         [Dataverse.Fluent.DataverseLookup("entitlementid", "entitlements")]
         public virtual System.Guid? EntitlementId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("escalatedon")]
         public virtual System.DateTime? EscalatedOn { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("followupby")]
@@ -284,9 +292,11 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
         public virtual System.DateTime ModifiedOn { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_ownerid_value")]
-        public virtual System.Guid? OwnerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
         [Dataverse.Fluent.DataverseLookup("parentcaseid", "incidents")]
         public virtual System.Guid? ParentCaseId { get; set; }
         [Dataverse.Fluent.DataverseLookup("primarycontactid", "contacts")]
@@ -297,7 +307,7 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual System.Guid? ProductId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("resolveby")]
         public virtual System.DateTime? ResolveBy { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("satisfactioncode")]
+        [System.Text.Json.Serialization.JsonPropertyName("customersatisfactioncode")]
         public virtual int? SatisfactionCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("severitycode")]
         public virtual int? SeverityCode { get; set; }
@@ -309,6 +319,7 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual int StatusCode { get; set; }
         [Dataverse.Fluent.DataverseLookup("subjectid", "subjects")]
         public virtual System.Guid? SubjectId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
         [System.Text.Json.Serialization.JsonPropertyName("ticketnumber")]
         public virtual string? TicketNumber { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("title")]
@@ -331,6 +342,8 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual string? Address1PostalCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("address1_stateorprovince")]
         public virtual string? Address1StateOrProvince { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("revenue")]
+        public virtual decimal? AnnualRevenue { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("budgetamount")]
         public virtual decimal? BudgetAmount { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("telephone1")]
@@ -352,10 +365,11 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual bool? DoNotPhone { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("emailaddress1")]
         public virtual string? EmailAddress { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("revenue")]
-        public virtual decimal? EstimatedRevenue { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("estimatedamount")]
+        public virtual decimal? EstimatedAmount { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("firstname")]
         public virtual string? FirstName { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("fullname")]
         public virtual string? FullName { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("industrycode")]
@@ -374,9 +388,11 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
         public virtual System.DateTime ModifiedOn { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_ownerid_value")]
-        public virtual System.Guid? OwnerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
         [Dataverse.Fluent.DataverseLookup("parentaccountid", "accounts")]
         public virtual System.Guid? ParentAccountId { get; set; }
         [Dataverse.Fluent.DataverseLookup("parentcontactid", "contacts")]
@@ -402,7 +418,7 @@ namespace Dataverse.Fluent.Sales.Entities
     {
         public Opportunity() { }
         [System.Text.Json.Serialization.JsonPropertyName("actualclosedate")]
-        public virtual System.DateTime? ActualCloseDate { get; set; }
+        public virtual System.DateOnly? ActualCloseDate { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("actualvalue")]
         public virtual decimal? ActualValue { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("closeprobability")]
@@ -412,9 +428,10 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual System.DateTime CreatedOn { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("currentsituation")]
         public virtual string? CurrentSituation { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_customerid_value")]
-        public virtual System.Guid? CustomerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("customerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("account", "accounts", "customerid_account")]
+        [Dataverse.Fluent.DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+        public virtual Dataverse.Fluent.DataverseReference? CustomerId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("customerneed")]
         public virtual string? CustomerNeed { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("description")]
@@ -424,7 +441,7 @@ namespace Dataverse.Fluent.Sales.Entities
         [System.Text.Json.Serialization.JsonPropertyName("discountpercentage")]
         public virtual decimal? DiscountPercentage { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("estimatedclosedate")]
-        public virtual System.DateTime? EstimatedCloseDate { get; set; }
+        public virtual System.DateOnly? EstimatedCloseDate { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("estimatedvalue")]
         public virtual decimal? EstimatedValue { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("freightamount")]
@@ -439,9 +456,11 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual System.Guid OpportunityId { get; set; }
         [Dataverse.Fluent.DataverseLookup("originatingleadid", "leads")]
         public virtual System.Guid? OriginatingLeadId { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_ownerid_value")]
-        public virtual System.Guid? OwnerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
         [Dataverse.Fluent.DataverseLookup("parentaccountid", "accounts")]
         public virtual System.Guid? ParentAccountId { get; set; }
         [Dataverse.Fluent.DataverseLookup("parentcontactid", "contacts")]
@@ -489,6 +508,7 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual decimal? ExtendedAmount { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("ispriceoverridden")]
         public virtual bool? IsPriceOverridden { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
         [System.Text.Json.Serialization.JsonPropertyName("isproductoverridden")]
         public virtual bool? IsProductOverridden { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("manualdiscountamount")]
@@ -521,14 +541,15 @@ namespace Dataverse.Fluent.Sales.Entities
     public class Quote
     {
         public Quote() { }
-        [System.Text.Json.Serialization.JsonPropertyName("closedatedon")]
-        public virtual System.DateTime? CloseDatedon { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("closedon")]
+        public virtual System.DateOnly? ClosedOn { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("createdon")]
         public virtual System.DateTime CreatedOn { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_customerid_value")]
-        public virtual System.Guid? CustomerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("customerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("account", "accounts", "customerid_account")]
+        [Dataverse.Fluent.DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+        public virtual Dataverse.Fluent.DataverseReference? CustomerId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public virtual string? Description { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("quote_details")]
@@ -542,7 +563,7 @@ namespace Dataverse.Fluent.Sales.Entities
         [System.Text.Json.Serialization.JsonPropertyName("effectiveto")]
         public virtual System.DateTime? EffectiveTo { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("expireson")]
-        public virtual System.DateTime? ExpiresOn { get; set; }
+        public virtual System.DateOnly? ExpiresOn { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("freightamount")]
         public virtual decimal? FreightAmount { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
@@ -552,16 +573,20 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual string Name { get; set; }
         [Dataverse.Fluent.DataverseLookup("opportunityid", "opportunities")]
         public virtual System.Guid? OpportunityId { get; set; }
-        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
-        [System.Text.Json.Serialization.JsonPropertyName("_ownerid_value")]
-        public virtual System.Guid? OwnerId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
         [Dataverse.Fluent.DataverseLookup("pricelevelid", "pricelevels")]
         public virtual System.Guid? PriceLevelId { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("quoteid")]
         public virtual System.Guid QuoteId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
         [System.Text.Json.Serialization.JsonPropertyName("quotenumber")]
         public virtual string? QuoteNumber { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("revisionnumber")]
         public virtual int? RevisionNumber { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
@@ -597,6 +622,7 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual decimal? ExtendedAmount { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("ispriceoverridden")]
         public virtual bool? IsPriceOverridden { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
         [System.Text.Json.Serialization.JsonPropertyName("isproductoverridden")]
         public virtual bool? IsProductOverridden { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("manualdiscountamount")]

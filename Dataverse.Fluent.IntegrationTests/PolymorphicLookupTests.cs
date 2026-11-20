@@ -98,6 +98,13 @@ public class PolymorphicLookupTests : IClassFixture<DataverseTestFixture>
         Assert.All(byQuery, c => Assert.Equal(new DataverseReference("account", accountId), c.ParentCustomerId));
         Assert.Equal(2, byFetch.Count);
         Assert.All(byFetch, c => Assert.Equal(new DataverseReference("account", accountId), c.ParentCustomerId));
+
+        // With the ID on the left, FetchXML sent the ID as the attribute name until 1.1.1.
+        var idOnTheLeft = await _fixture.Client.FetchBuilder<CustomerContact>()
+            .AddFilter(c => accountId == c.ParentCustomerId!.Id)
+            .AddAttributes(c => new { c.LastName })
+            .ExecuteAsync(ct);
+        Assert.Equal(2, idOnTheLeft.Count);
     }
 
     [Fact]

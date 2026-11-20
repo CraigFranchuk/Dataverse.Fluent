@@ -372,6 +372,16 @@ public class PolymorphicLookupTests
         Assert.Contains($"<condition attribute=\"parentcustomerid\" operator=\"eq\" value=\"{AccountId}\" />", fetchXml);
     }
 
+    [Fact]
+    public void FetchXmlFilter_WithTheIdOnTheRight_NamesTheLookupAttribute()
+    {
+        var fetchXml = new DataverseClient(new FakeTransport()).FetchBuilder<PolyContact>()
+            .AddFilter(c => AccountId == c.ParentCustomerId!.Id)
+            .BuildFetchXml();
+
+        Assert.Contains($"<condition attribute=\"parentcustomerid\" operator=\"eq\" value=\"{AccountId}\" />", fetchXml);
+    }
+
     // ────────── Mapping errors ──────────
 
     [Theory]

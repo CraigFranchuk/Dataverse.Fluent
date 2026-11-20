@@ -151,6 +151,17 @@ public class FetchXmlValueTests : IClassFixture<DataverseTestFixture>, IAsyncLif
     }
 
     [Fact]
+    public async Task Bool_UsedAsTheCondition_FiltersTheRecords()
+    {
+        // Until 1.1.1 both translators sent the bare column ($filter=creditonhold, or the attribute name as text in a
+        // FetchXML filter), which Dataverse accepts and ignores: every record matched, with the flag set or not.
+        await AssertBothAsync([_a], x => x.CreditOnHold!.Value);
+        await AssertBothAsync([_b], x => !x.CreditOnHold!.Value);
+        await AssertBothAsync([_a], x => x.Employees > 1 && x.CreditOnHold!.Value);
+        await AssertBothAsync([_b], x => x.Employees == 0 || x.CreditOnHold!.Value && x.Employees == 0);
+    }
+
+    [Fact]
     public async Task Enum_AndNull()
     {
         await AssertBothAsync([_a], x => x.Industry == Industry.Accounting);

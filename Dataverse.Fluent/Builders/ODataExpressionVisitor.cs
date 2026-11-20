@@ -19,8 +19,8 @@ internal class ODataExpressionVisitor : ExpressionVisitor
         ArgumentNullException.ThrowIfNull(expression);
         
         // Evaluate everything that does not depend on the lambda parameter first, so only columns,
-        // literals and operators remain to be translated.
-        Visit(PartialEvaluator.Evaluate(expression));
+        // literals and operators remain to be translated; then make a bare boolean column a comparison.
+        Visit(BooleanPredicateNormalizer.Normalize(PartialEvaluator.Evaluate(expression)));
         return _filter.ToString();
     }
 

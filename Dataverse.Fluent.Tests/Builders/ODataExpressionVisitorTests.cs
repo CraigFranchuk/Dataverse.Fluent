@@ -255,7 +255,44 @@ public class ODataExpressionVisitorTests
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => !x.IsActive);
 
-        Assert.Equal("not (isactive)", result);
+        Assert.Equal("not (isactive eq true)", result);
+    }
+
+    // Dataverse accepts a bare boolean column in $filter but ignores it, returning every row (checked 2026-11-20), so a
+    // boolean used as a condition is always compared with true.
+    [Fact]
+    public void ToODataFilter_BareBoolean_IsComparedWithTrue()
+    {
+        Assert.Equal("isactive eq true", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.IsActive));
+        Assert.Equal("isactive eq true or age gt 1", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.IsActive || x.Age > 1));
+        Assert.Equal("not (isactive eq true) and name eq 'a'", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => !x.IsActive && x.Name == "a"));
+        Assert.Equal("flag eq true", new ODataExpressionVisitor().ToODataFilter((FlagEntity x) => x.Flag!.Value));
+        Assert.Equal("related/flag eq true", new ODataExpressionVisitor().ToODataFilter((FlagEntity x) => x.Related.Enabled));
+    }
+
+    [Fact]
+    public void ToODataFilter_BooleanComparisonsAndCapturedFlags_AreUnchanged()
+    {
+        var onlyActive = true;
+
+        Assert.Equal("isactive eq false", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.IsActive == false));
+        Assert.Equal("flag ne null", new ODataExpressionVisitor().ToODataFilter((FlagEntity x) => x.Flag.HasValue));
+        Assert.Equal("isactive eq true", new ODataExpressionVisitor().ToODataFilter((TestEntity x) => x.IsActive == onlyActive));
+    }
+
+    private class FlagEntity
+    {
+        [JsonPropertyName("flag")]
+        public bool? Flag { get; set; }
+
+        [JsonPropertyName("related")]
+        public FlagRelated Related { get; set; } = new();
+    }
+
+    private class FlagRelated
+    {
+        [JsonPropertyName("flag")]
+        public bool Enabled { get; set; }
     }
 
     [Fact]
@@ -775,7 +812,7 @@ public class ODataExpressionVisitorTests
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => x.Age == 0 && x.IsActive || x.Name == "y");
 
-        Assert.Equal("age eq 0 and isactive or name eq 'y'", result);
+        Assert.Equal("age eq 0 and isactive eq true or name eq 'y'", result);
     }
 
     [Fact]
@@ -784,7 +821,7 @@ public class ODataExpressionVisitorTests
         var visitor = new ODataExpressionVisitor();
         var result = visitor.ToODataFilter((TestEntity x) => x.Age > 1 && x.Age < 10 && x.IsActive);
 
-        Assert.Equal("age gt 1 and age lt 10 and isactive", result);
+        Assert.Equal("age gt 1 and age lt 10 and isactive eq true", result);
     }
 
     [Fact]

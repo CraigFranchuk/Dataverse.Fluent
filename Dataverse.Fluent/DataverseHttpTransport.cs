@@ -115,12 +115,7 @@ public sealed class DataverseHttpTransport : IDataverseTransport, IDisposable
     {
         HttpMessageHandler handler = new DataverseAuthenticationHandler(tokens)
         {
-            InnerHandler = primaryHandler ?? new SocketsHttpHandler
-            {
-                // Recycle pooled connections so DNS changes are picked up by long-lived clients.
-                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-                AutomaticDecompression = DecompressionMethods.All
-            }
+            InnerHandler = primaryHandler ?? CreatePrimaryHandler()
         };
 
         if (resilience.Enabled)
@@ -138,6 +133,38 @@ public sealed class DataverseHttpTransport : IDataverseTransport, IDisposable
         }
 
         return client;
+    }
+
+    // The handler that sends the requests of an owned pipeline.
+    internal static SocketsHttpHandler CreatePrimaryHandler()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            // Recycle pooled connections so DNS changes are picked up by long-lived clients.
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            AutomaticDecompression = DecompressionMethods.All
+        };
+        DisableAffinityCookie(handler);
+        return handler;
+    }
+
+    /// <summary>
+    /// Stops <paramref name="handler"/> storing cookies. Dataverse sets an <c>ARRAffinity</c> cookie on every response
+    /// (checked 2026-11-20), which sends every later request from the client to the same web server; Microsoft's
+    /// guidance for parallel requests, such as bulk operations, is to drop it. The client uses no other cookie.
+    /// A handler that is neither a <see cref="SocketsHttpHandler"/> nor an <see cref="HttpClientHandler"/> is left as it is.
+    /// </summary>
+    internal static void DisableAffinityCookie(HttpMessageHandler handler)
+    {
+        switch (handler)
+        {
+            case SocketsHttpHandler sockets:
+                sockets.UseCookies = false;
+                break;
+            case HttpClientHandler client:
+                client.UseCookies = false;
+                break;
+        }
     }
 
     /// <inheritdoc />

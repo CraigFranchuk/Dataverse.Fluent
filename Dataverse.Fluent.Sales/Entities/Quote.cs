@@ -17,6 +17,8 @@ public class Quote
     [JsonPropertyName("name")]
     public virtual string Name { get; set; } = string.Empty;
 
+    /// <summary>The quote number. Dataverse generates it when none is given, and it cannot be changed afterwards.</summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
     [JsonPropertyName("quotenumber")]
     public virtual string? QuoteNumber { get; set; }
 
@@ -50,12 +52,16 @@ public class Quote
     [JsonPropertyName("effectiveto")]
     public virtual DateTime? EffectiveTo { get; set; }
 
+    /// <summary>The date the quote expires, a date-only column.</summary>
     [JsonPropertyName("expireson")]
-    public virtual DateTime? ExpiresOn { get; set; }
+    public virtual DateOnly? ExpiresOn { get; set; }
 
-    [JsonPropertyName("closedatedon")]
-    public virtual DateTime? CloseDatedon { get; set; }
+    /// <summary>The date the quote was closed, a date-only column.</summary>
+    [JsonPropertyName("closedon")]
+    public virtual DateOnly? ClosedOn { get; set; }
 
+    /// <summary>The revision number, set by Dataverse when a quote is revised.</summary>
+    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("revisionnumber")]
     public virtual int? RevisionNumber { get; set; }
 
@@ -83,13 +89,11 @@ public class Quote
 
     // ───────────────────────── Lookups ─────────────────────────
 
-    /// <summary>
-    /// The customer (account or contact). Read-only here because the lookup is polymorphic: set it with
-    /// <c>SetLookup("customerid_account", "accounts", id)</c> or <c>SetLookup("customerid_contact", "contacts", id)</c>.
-    /// </summary>
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_customerid_value")]
-    public virtual Guid? CustomerId { get; set; }
+    /// <summary>The customer, an account or a contact.</summary>
+    [DataverseLookup("customerid")]
+    [DataverseLookupTarget("account", "accounts", "customerid_account")]
+    [DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+    public virtual DataverseReference? CustomerId { get; set; }
 
     [DataverseLookup("opportunityid", "opportunities")]
     public virtual Guid? OpportunityId { get; set; }
@@ -100,9 +104,15 @@ public class Quote
     [DataverseLookup("transactioncurrencyid", "transactioncurrencies")]
     public virtual Guid? TransactionCurrencyId { get; set; }
 
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_ownerid_value")]
-    public virtual Guid? OwnerId { get; set; }
+    /// <summary>
+    /// The owner, a user or a team. <c>SetFrom</c> sends it on create only, so writing back a retrieved record never
+    /// reassigns the record; assign an existing record with <c>Set(x =&gt; x.OwnerId, reference)</c>.
+    /// </summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
+    [DataverseLookup("ownerid")]
+    [DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+    [DataverseLookupTarget("team", "teams", "ownerid")]
+    public virtual DataverseReference? OwnerId { get; set; }
 
     // ───────────────────────── Navigation properties ─────────────────────────
 

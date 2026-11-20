@@ -27,8 +27,23 @@ Anything the helpers do not cover is available through `SalesClient.Dataverse`, 
 
 Single-table lookups (`Account.PrimaryContactId`, `Opportunity.ParentAccountId`, ...) are mapped with
 `[DataverseLookup]`, so `SetFrom` writes them as `@odata.bind`. The polymorphic customer and owner lookups
-(`CustomerId`, `Contact.ParentCustomerId`, `OwnerId`) are read-only on the models; set them with
-`SetLookup("customerid_account", "accounts", id)` and the like.
+(`CustomerId`, `Contact.ParentCustomerId`, `OwnerId`) are `DataverseReference` properties: a read returns the table
+and the ID, and a write binds to whichever table the reference points at. Filter them by ID with
+`x.CustomerId!.Id == id`.
+
+```csharp
+await sales.Dataverse.Entity<Incident>()
+    .SetFrom(new Incident { Title = "Printer jam", CustomerId = DataverseReference.To<Account>(accountId) })
+    .CreateAsync();
+```
+
+`SetFrom` sends `OwnerId` when it creates a record but not when it updates one, so writing back a retrieved record never
+reassigns it. Reassign a record explicitly with `Set(x => x.OwnerId, new DataverseReference("team", teamId))`.
+
+Date-only columns (`Opportunity.EstimatedCloseDate` and `ActualCloseDate`, `Quote.ExpiresOn` and `ClosedOn`) are
+`DateOnly?`, the only form Dataverse accepts for them. Columns Dataverse sets itself, such as `FullName`, the quote's
+revision number and the case and quote numbers after creation, are marked `[DataverseReadOnly]`, so `SetFrom` on a
+retrieved record does not send values Dataverse would silently ignore.
 
 Other environments are registered with `AddKeyedDynamicsSalesClient(name, options => ...)` and resolved with
 `[FromKeyedServices(name)] SalesClient`.
