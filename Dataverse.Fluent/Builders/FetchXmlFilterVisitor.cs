@@ -22,8 +22,8 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
         ArgumentNullException.ThrowIfNull(expression);
 
         // Evaluate everything that does not depend on the lambda parameter first, so only attributes,
-        // values and operators remain to be translated.
-        Visit(PartialEvaluator.Evaluate(expression));
+        // values and operators remain to be translated; then make a bare boolean column a comparison.
+        Visit(BooleanPredicateNormalizer.Normalize(PartialEvaluator.Evaluate(expression)));
 
         return _operandStack.Count > 0 ? _operandStack.Pop().Text : string.Empty;
     }
@@ -134,7 +134,7 @@ internal class FetchXmlFilterVisitor : ExpressionVisitor
         if (node.Member.DeclaringType == typeof(DataverseReference) && node.Member.Name == nameof(DataverseReference.Id)
             && node.Expression is MemberExpression { Expression.NodeType: ExpressionType.Parameter } reference)
         {
-            _operandStack.Push(new Operand(EntityTypeMetadata.GetLogicalName(reference.Member)));
+            _operandStack.Push(new Operand(EntityTypeMetadata.GetLogicalName(reference.Member), IsAttribute: true));
             return node;
         }
 

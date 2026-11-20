@@ -3,6 +3,55 @@
 All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales` and `Dataverse.Fluent.Testing` packages are
 recorded here. The packages follow [semantic versioning](https://semver.org/).
 
+## 1.1.1 (2026-11-20)
+
+Each fix follows from a check against a live environment.
+
+### Dataverse.Fluent
+
+- Fixed: a boolean column used on its own as a condition, as in `Where(x => x.IsActive)`, `!x.IsActive` or
+  `x.Age > 1 && x.IsActive`, did not filter. OData sent the bare column (`$filter=isactive`) and FetchXML the
+  attribute name as text inside the `<filter>`; Dataverse accepts both and ignores them, so every record matched,
+  with the flag set or not. Such a condition is now sent as `isactive eq true` (`<condition operator="eq" value="1">`
+  in FetchXML), in `Query`, `Expand`, `Aggregate` and `FetchBuilder` filters. Comparisons such as
+  `x.IsActive == true` were not affected. **Queries that used the bare form return fewer rows.**
+- Fixed: `Set(x => x.Property, value)` ignored a `[JsonConverter]` on the property, so it could send a different value
+  from `SetFrom`, batches and bulk operations, which use the converter.
+- Fixed: in a FetchXML filter, a polymorphic lookup's ID compared from the left (`id == x.Customer.Id`) was sent with
+  the ID as the attribute name. The comparison is now turned around, as it is for other columns.
+- Changed: the HTTP pipelines the library builds no longer store cookies. Dataverse sets an `ARRAffinity` cookie on
+  every response, which sent every later request from a client to the same web server; Microsoft recommends dropping
+  it for parallel requests, such as bulk operations with `MaxDegreeOfParallelism`. An `HttpClient` you pass to the
+  client, or a primary handler you set with `ConfigurePrimaryHttpMessageHandler`, is not changed.
+- Docs: map a date-only column (Date Only behaviour, `Edm.Date`) as `DateOnly?`. Dataverse rejects a date and time
+  for it with HTTP 400. Polymorphic lookups and bulk operations are now covered in Best Practices.
+
+### Dataverse.Fluent.Sales
+
+This release makes breaking changes to the Sales models, marked below. The package is days old, so the models are
+corrected now rather than carried in their wrong form until 2.0.
+
+- **Breaking**, fixed: `Opportunity.EstimatedCloseDate`, `Opportunity.ActualCloseDate` and `Quote.ExpiresOn` are now
+  `DateOnly?` (were `DateTime?`). They are date-only columns, and Dataverse rejects a date and time for them
+  (HTTP 400), so a create or update with a value failed, including `SetFrom` on a retrieved record.
+- **Breaking**, fixed: `Quote.CloseDatedon` is removed. It mapped `closedatedon`, which does not exist, so it was never
+  read and a request that selected, filtered or wrote it failed. The close date is the new `Quote.ClosedOn`
+  (`closedon`, a `DateOnly?`).
+- **Breaking:** the polymorphic lookups are now `DataverseReference?` (were read-only `Guid?`): `CustomerId` on
+  `Incident`, `Opportunity` and `Quote`, `Contact.ParentCustomerId`, and `OwnerId` on every model. A read returns the
+  table as well as the ID, and `Set`, `SetFrom`, batches and bulk operations write the bind for the table the
+  reference points at, so `SetLookup("customerid_account", ...)` is no longer needed. Filter by ID with
+  `x.CustomerId!.Id == id` (was `x.CustomerId == id`). `SetFrom` sends `OwnerId` on create only, so writing back a
+  retrieved record never reassigns it; reassign with `Set(x => x.OwnerId, reference)`.
+- **Breaking:** `Lead.EstimatedRevenue` is renamed `AnnualRevenue`. It maps `revenue`, the company's annual revenue,
+  not the lead's estimated value; that is the new `Lead.EstimatedAmount` (`estimatedamount`).
+- Fixed: `Incident.SatisfactionCode` mapped `satisfactioncode`, which does not exist; it now maps
+  `customersatisfactioncode`. Before, it was never read, and a request that selected, filtered or wrote it failed.
+- Fixed: columns Dataverse sets itself are marked `[DataverseReadOnly]`, so `SetFrom` no longer sends values that
+  Dataverse silently ignores: `Contact.FullName`, `Lead.FullName`, `Incident.EscalatedOn` and `Quote.RevisionNumber`
+  are never sent, and `Incident.TicketNumber`, `Quote.QuoteNumber` and `IsProductOverridden` on opportunity and quote
+  lines are sent on create only.
+
 ## 1.1.0 (2026-11-19)
 
 ### Dataverse.Fluent

@@ -23,6 +23,8 @@ public class Lead
     [JsonPropertyName("lastname")]
     public virtual string LastName { get; set; } = string.Empty;
 
+    /// <summary>The full name, composed by Dataverse from the first and last names.</summary>
+    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("fullname")]
     public virtual string? FullName { get; set; }
 
@@ -47,8 +49,13 @@ public class Lead
     [JsonPropertyName("description")]
     public virtual string? Description { get; set; }
 
+    /// <summary>The lead company's annual revenue (<c>revenue</c>).</summary>
     [JsonPropertyName("revenue")]
-    public virtual decimal? EstimatedRevenue { get; set; }
+    public virtual decimal? AnnualRevenue { get; set; }
+
+    /// <summary>The estimated value of the lead (<c>estimatedamount</c>, labelled "Est. Value").</summary>
+    [JsonPropertyName("estimatedamount")]
+    public virtual decimal? EstimatedAmount { get; set; }
 
     [JsonPropertyName("budgetamount")]
     public virtual decimal? BudgetAmount { get; set; }
@@ -121,7 +128,13 @@ public class Lead
     [DataverseLookup("parentaccountid", "accounts")]
     public virtual Guid? ParentAccountId { get; set; }
 
-    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
-    [JsonPropertyName("_ownerid_value")]
-    public virtual Guid? OwnerId { get; set; }
+    /// <summary>
+    /// The owner, a user or a team. <c>SetFrom</c> sends it on create only, so writing back a retrieved record never
+    /// reassigns the record; assign an existing record with <c>Set(x =&gt; x.OwnerId, reference)</c>.
+    /// </summary>
+    [DataverseReadOnly(DataverseOperation.Update)]
+    [DataverseLookup("ownerid")]
+    [DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+    [DataverseLookupTarget("team", "teams", "ownerid")]
+    public virtual DataverseReference? OwnerId { get; set; }
 }

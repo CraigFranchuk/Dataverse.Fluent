@@ -92,6 +92,11 @@ public class Account
 Model only the columns you use. Properties that are `null` are left out of create and update payloads, and
 properties marked `[DataverseReadOnly]` are left out of the operations named.
 
+Map a date-only column (a Date Only column with the Date Only behaviour, `Edm.Date` in the Web API) as `DateOnly?`.
+Dataverse rejects a date and time for such a column with HTTP 400, so a `DateTime` property cannot be written to it
+unless it has a `[JsonConverter]` that writes the date alone. `Set`, `SetFrom`, batches and bulk operations all use a
+property's own converter.
+
 ### Query
 
 ```csharp
@@ -181,6 +186,7 @@ var raw = await client.Query<Account>().Where("revenue gt 1000000").GetListAsync
 | `string.IsNullOrEmpty(a.Column)` | `column eq null or column eq ''` |
 | `list.Contains(a.Column)` | `Microsoft.Dynamics.CRM.In(...)` |
 | `a.Nullable.HasValue` | `column ne null` |
+| `a.Flag`, `!a.Flag` (a boolean column as the condition) | `flag eq true`, `not (flag eq true)` |
 | `a.Related.Column` | `related/column` |
 | `DataverseFunctions.Under(a.ParentAccountId, id)`, `EqualUserId`, `LastXDays`, ... | `Microsoft.Dynamics.CRM.*` query functions |
 

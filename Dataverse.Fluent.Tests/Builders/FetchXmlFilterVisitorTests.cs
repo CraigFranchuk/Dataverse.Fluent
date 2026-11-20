@@ -150,14 +150,35 @@ namespace Dataverse.Fluent.Tests.Builders
         [Fact]
         public void ToFetchXmlFilter_WithBooleanComparison_GeneratesCorrectValue()
         {
-            var visitor = new FetchXmlFilterVisitor();
-            
-            // Note: Since TestAccount doesn't have a bool property, we'll test with StateCode == 1 which would be true
-            // In a real scenario with bool: a.IsActive == true would generate value="1"
-            var filter = visitor.ToFetchXmlFilter((TestAccount a) => a.StateCode == 1);
+            Assert.Equal("<condition attribute=\"donotemail\" operator=\"eq\" value=\"1\" />",
+                new FetchXmlFilterVisitor().ToFetchXmlFilter((FlagAccount a) => a.DoNotEmail == true));
+            Assert.Equal("<condition attribute=\"donotemail\" operator=\"eq\" value=\"0\" />",
+                new FetchXmlFilterVisitor().ToFetchXmlFilter((FlagAccount a) => a.DoNotEmail == false));
+        }
 
-            Assert.Contains("attribute=\"statecode\"", filter);
-            Assert.Contains("value=\"1\"", filter);
+        // Dataverse ignores a filter holding only an attribute name (it returned every row, checked 2026-11-20), so a
+        // boolean used as a condition is always compared with true.
+        [Fact]
+        public void ToFetchXmlFilter_BareBoolean_IsAnEqualsTrueCondition()
+        {
+            Assert.Equal("<condition attribute=\"donotemail\" operator=\"eq\" value=\"1\" />",
+                new FetchXmlFilterVisitor().ToFetchXmlFilter((FlagAccount a) => a.DoNotEmail));
+            Assert.Equal("<condition attribute=\"donotemail\" operator=\"ne\" value=\"1\" />",
+                new FetchXmlFilterVisitor().ToFetchXmlFilter((FlagAccount a) => !a.DoNotEmail));
+            Assert.Equal("<filter type=\"and\"><condition attribute=\"numberofemployees\" operator=\"gt\" value=\"1\" /><condition attribute=\"creditonhold\" operator=\"eq\" value=\"1\" /></filter>",
+                new FetchXmlFilterVisitor().ToFetchXmlFilter((FlagAccount a) => a.Employees > 1 && a.CreditOnHold!.Value));
+        }
+
+        private sealed class FlagAccount
+        {
+            [System.Text.Json.Serialization.JsonPropertyName("donotemail")]
+            public bool DoNotEmail { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("creditonhold")]
+            public bool? CreditOnHold { get; set; }
+
+            [System.Text.Json.Serialization.JsonPropertyName("numberofemployees")]
+            public int Employees { get; set; }
         }
 
         [Fact]

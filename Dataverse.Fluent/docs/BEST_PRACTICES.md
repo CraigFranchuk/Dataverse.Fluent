@@ -47,6 +47,10 @@ alternate key instead of a create. Otherwise a retry after a timeout can create 
 Service-protection limits apply per user, so heavy parallel work from one application user will be throttled.
 Prefer batches and fewer, larger requests to many parallel small ones.
 
+The client does not keep the `ARRAffinity` cookie Dataverse sets, so parallel requests are spread across the
+environment's web servers, as Microsoft recommends. An `HttpClient` you supply, or a primary handler you set with
+`ConfigurePrimaryHttpMessageHandler`, is used as it is.
+
 ## Queries
 
 - **Select only the columns you need.** Without `Select`, Dataverse returns every column of the table.
@@ -67,6 +71,9 @@ Prefer batches and fewer, larger requests to many parallel small ones.
 - **Use `UpdateAsync` to update and `UpsertAsync` to create-or-update.** `UpdateAsync` never creates a record.
 - **Batch related writes.** A changeset applies its operations atomically, and a batch saves round trips. Keep
   batches to a few hundred operations; Dataverse limits a batch to 1,000.
+- **Use bulk operations for volume.** To write many records of one table, `client.Bulk<T>()` sends `CreateMultiple`,
+  `UpdateMultiple` or `UpsertMultiple`, which are much faster than a batch of single writes. See
+  [Bulk Operations](BULK_OPERATIONS.md).
 
 ## Models
 
@@ -97,8 +104,12 @@ Prefer batches and fewer, larger requests to many parallel small ones.
   writing a default (`0`, `0001-01-01`) over real data.
 - Choice (option set) columns are integers in the Web API. Map them as `int?`, or as an enum with integer values; do
   not use `JsonStringEnumConverter`.
-- Map lookups with `[DataverseLookup]`. A lookup that points at more than one table (customer, owner, regarding) is
-  set with `SetLookup` instead.
+- Map a date-only column (Date Only behaviour, `Edm.Date` in the Web API) as `DateOnly?`. Dataverse rejects a date and
+  time for it with HTTP 400. A Date Only column with the User Local behaviour is a date and time in the Web API and
+  maps as `DateTime?`.
+- Map lookups with `[DataverseLookup]`. A lookup that points at more than one table (customer, owner, regarding) maps
+  as a `DataverseReference` with one `[DataverseLookupTarget]` per table; see
+  [Polymorphic Lookups](LOOKUP_REFERENCES.md#polymorphic-lookups).
 - Purpose-built POCOs that model a few columns for one use case are normal and encouraged.
 
 ## Errors and diagnostics

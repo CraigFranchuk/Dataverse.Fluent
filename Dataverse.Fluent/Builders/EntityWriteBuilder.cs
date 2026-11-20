@@ -154,7 +154,17 @@ public sealed class EntityWriteBuilder<T>
                     nameof(propertyExpression));
 
             default:
-                return Set(EntityRequest.GetJsonPropertyName(propertyExpression), value);
+                var column = EntityRequest.GetJsonPropertyName(propertyExpression);
+
+                // A property with its own [JsonConverter] is written as SetFrom writes it.
+                if (EntityPayload.TrySerializeWithPropertyConverter(typeof(T), property, value, out var converted))
+                {
+                    _setFromProperties.Remove(column);
+                    _payload[column] = converted;
+                    return this;
+                }
+
+                return Set(column, value);
         }
     }
 
