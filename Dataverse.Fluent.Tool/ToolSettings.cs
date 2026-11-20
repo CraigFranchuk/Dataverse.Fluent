@@ -36,6 +36,9 @@ internal sealed record ToolSettings
     /// <summary>For <c>fix</c>: print the changes as a diff and write nothing.</summary>
     public bool DryRun { get; init; }
 
+    /// <summary>Print the stack trace of an unexpected error.</summary>
+    public bool Verbose { get; init; }
+
     /// <summary>The Web API URL: <see cref="Url"/> with <c>/api/data/{version}</c> added unless it already has it.</summary>
     public string WebApiUrl
     {

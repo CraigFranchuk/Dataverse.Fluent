@@ -55,6 +55,9 @@ public class SchemaValidatorTests(DataverseTestFixture fixture)
         [JsonPropertyName("_subjectid_value")]
         public Guid? SubjectId { get; set; }
 
+        [JsonPropertyName("_createdby_value")]
+        public Guid? CreatedBy { get; set; }
+
         [DataverseLookup("customerid")]
         [DataverseLookupTarget("account", "accounts", "customerid_account")]
         public DataverseReference? CustomerId { get; set; }
@@ -130,6 +133,15 @@ public class SchemaValidatorTests(DataverseTestFixture fixture)
         var subject = Single(report, nameof(BrokenIncident.SubjectId), SchemaCodes.LookupValueWritten).Fix!;
         Assert.Equal((SchemaFixKind.MapAsLookup, "subjectid", "subjects", "subjectid"),
             (subject.Kind, subject.LookupLogicalName, subject.EntitySet, subject.NavigationProperty));
+
+        Assert.Equal(DataverseOperation.None, subject.ReadOnlyFor);
+
+        // A lookup mapped as a column is reported as that, and not again by the live $select check.
+        Assert.Equal(SchemaCodes.LookupMappedAsColumn, Assert.Single(report.Findings, f => f.Property?.Name == nameof(BrokenIncident.ParentCaseId)).Code);
+
+        // createdby is valid for neither create nor update, so the fix stops the write instead of binding it.
+        var createdBy = Single(report, nameof(BrokenIncident.CreatedBy), SchemaCodes.LookupValueWritten).Fix!;
+        Assert.Equal((SchemaFixKind.SetReadOnly, DataverseOperation.CreateAndUpdate), (createdBy.Kind, createdBy.ReadOnlyFor));
 
         var contact = Single(report, nameof(BrokenIncident.CustomerId), SchemaCodes.MissingLookupTarget).Fix!;
         Assert.Equal((SchemaFixKind.AddLookupTarget, "contact", "contacts", "customerid_contact"),

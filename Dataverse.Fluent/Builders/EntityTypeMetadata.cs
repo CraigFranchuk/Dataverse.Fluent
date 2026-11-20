@@ -99,16 +99,23 @@ internal sealed class EntityTypeMetadata
     private EntityTypeMetadata(Type type)
     {
         Type = type;
-        var members = new List<EntityMember>();
+        var properties = new List<PropertyInfo>();
 
         foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (property.GetIndexParameters().Length > 0 || property.GetMethod is null)
                 continue;
 
-            members.Add(Classify(type, property));
+            // A property hidden with 'new' is returned along with the one that hides it. The most derived one is the
+            // type's property, as it is for System.Text.Json.
+            var hidden = properties.FindIndex(p => p.Name == property.Name);
+            if (hidden < 0)
+                properties.Add(property);
+            else if (properties[hidden].DeclaringType!.IsAssignableFrom(property.DeclaringType))
+                properties[hidden] = property;
         }
 
+        var members = properties.ConvertAll(p => Classify(type, p));
         Members = members;
         _byPropertyName = members.ToDictionary(m => m.Property.Name, StringComparer.Ordinal);
     }

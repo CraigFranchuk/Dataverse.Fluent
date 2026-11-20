@@ -215,6 +215,7 @@ namespace Dataverse.Fluent
     public static class DataverseTypeMapping
     {
         public static void ClearResolvers() { }
+        public static bool IsMapped(System.Type type) { }
         public static void RegisterResolver(Dataverse.Fluent.IDataverseNameResolver resolver) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=true)]

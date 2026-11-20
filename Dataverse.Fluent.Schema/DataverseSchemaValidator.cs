@@ -101,12 +101,35 @@ public static class DataverseSchemaValidator
     {
         try
         {
-            return DataverseEntityMapping.For(type).IsMapped;
+            // Mapped to a table, by an attribute or a resolver: a model, even when its properties are mapped wrongly.
+            if (DataverseTypeMapping.IsMapped(type))
+                return true;
+
+            try
+            {
+                DataverseEntityMapping.For(type);
+                return false;
+            }
+            catch (InvalidOperationException)
+            {
+                // Not mapped to a table, and its properties are mapped wrongly. That is a model to report only when it
+                // uses the library's attributes: a plain class with a DataverseReference property (a request, say)
+                // throws as well.
+                return UsesMappingAttributes(type);
+            }
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is TypeLoadException or IOException or BadImageFormatException or ArgumentException or NotSupportedException)
         {
-            // Only invalid mapping attributes throw, so the type uses the library's attributes.
-            return true;
+            // A class whose members cannot be read (a missing dependency, for example) is not one of the models.
+            return false;
         }
+    }
+
+    private static bool UsesMappingAttributes(Type type)
+    {
+        var library = typeof(DataverseEntityAttribute).Assembly;
+        return type.GetCustomAttributes(inherit: true)
+            .Concat(type.GetProperties(BindingFlags.Public | BindingFlags.Instance).SelectMany(p => p.GetCustomAttributes(inherit: true)))
+            .Any(a => a.GetType().Assembly == library);
     }
 }

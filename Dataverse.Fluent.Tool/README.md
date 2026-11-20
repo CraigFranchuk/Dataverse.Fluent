@@ -46,10 +46,11 @@ dataverse-fluent fix src/MyApp/MyApp.csproj --url https://yourorg.crm.dynamics.c
 - the target entity set and `NavigationProperty` of `[DataverseLookup]`;
 - missing `[DataverseLookupTarget]`s, and targets with the wrong entity set or navigation property;
 - `[DataverseReadOnly]` on columns Dataverse sets itself;
-- a lookup mapped by its `_x_value` name, which becomes `[DataverseLookup]`.
+- a lookup mapped by its `_x_value` name, which becomes `[DataverseLookup]`, or `[DataverseReadOnly]` when Dataverse
+  sets the lookup itself (`createdby`).
 
 It changes only string-literal attribute arguments, and puts each new attribute on its own line with the indentation of
-the code around it. It keeps each file's encoding and line endings. `--dry-run` prints the changes as a diff and writes
+the code around it (or next to them, when a property's attributes are written on the property's own line). It keeps each file's encoding and line endings. `--dry-run` prints the changes as a diff and writes
 nothing. A finding that needs a decision, such as a column that does not exist or a property whose type must change, is
 listed for you to change by hand.
 
@@ -74,13 +75,14 @@ metadata and the tables the models map. The tool only reads; it never writes to 
 | `--api-version` | The Web API version. Default: `v9.2` |
 | `--type`, `-t` | Check only this model (full or simple name); repeat for several |
 | `--resolver` | The full name of an `IDataverseNameResolver` in the project to register first, for models mapped by a resolver |
-| `--ignore` | Leave out findings with this code, e.g. `DVS015`; repeat for several |
+| `--ignore` | Leave out findings with this code, e.g. `DVS015`; repeat for several. A code that does not exist is an error |
 | `--warnings-as-errors` | Exit with 1 on warnings too |
 | `--no-select-check` | Skip the live `$select` check |
 | `--configuration`, `-c` | The build configuration. Default: `Debug` |
 | `--framework`, `-f` | The target framework of a multi-targeted project. Default: its first |
 | `--no-build` | Use the existing build output |
 | `--dry-run` | `fix` only: print a diff and write nothing |
+| `--verbose` | Print the stack trace of an unexpected error |
 
 The same checks run in a test with the
 [Dataverse.Fluent.Schema](https://www.nuget.org/packages/Dataverse.Fluent.Schema) package. See

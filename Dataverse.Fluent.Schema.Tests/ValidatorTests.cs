@@ -37,6 +37,8 @@ public class ValidatorTests
             .Owner()
             .Lookup("createdby", "Lookup", ("systemuser", "createdby"))
             .NotWritable("createdby")
+            .Lookup("originid", "Lookup", ("incident", "originid"))
+            .CreateOnly("originid")
             .OneToMany("Incident_Tasks", "task")
             .ManyToMany("knowledgearticle_incidents", "knowledgearticle");
 
@@ -321,6 +323,24 @@ public class ValidatorTests
         Assert.Contains("is not mapped to a table", report.Findings.Single(f => f.Model == typeof(NotAModel)).Message);
     }
 
+    [DataverseEntity("incident", "incidents")]
+    public class RejectedAttributeArgument
+    {
+        [DataverseLookup(" ", "contacts")]
+        public Guid? PrimaryContactId { get; set; }
+    }
+
+    [Fact]
+    public async Task AModelThatCannotBeRead_IsReported_AndTheOthersAreStillChecked()
+    {
+        var report = await Environment().ValidateAsync(new SchemaValidationOptions { CheckSelect = false }, typeof(RejectedAttributeArgument), typeof(ColumnMistakes));
+
+        var finding = Single(report, SchemaCodes.InvalidMapping);
+        Assert.Equal(typeof(RejectedAttributeArgument), finding.Model);
+        Assert.StartsWith("RejectedAttributeArgument cannot be read (ArgumentException):", finding.Message);
+        Assert.Contains(report.Findings, f => f.Model == typeof(ColumnMistakes));
+    }
+
     // ───────── Columns ─────────
 
     [DataverseEntity("incident", "incidents")]
@@ -396,6 +416,59 @@ public class ValidatorTests
 
         // A property with its own converter is not type-checked.
         Assert.DoesNotContain(report.Findings, f => f.Property?.Name == nameof(TypeMistakes.ConvertedTitle));
+    }
+
+    [JsonConverter(typeof(CaseIdConverter))]
+    public readonly record struct CaseId(Guid Value);
+
+    public sealed class CaseIdConverter : JsonConverter<CaseId>
+    {
+        public override CaseId Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+            => new(reader.GetGuid());
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, CaseId value, System.Text.Json.JsonSerializerOptions options)
+            => writer.WriteStringValue(value.Value);
+    }
+
+    [DataverseEntity("incident", "incidents")]
+    public class ConvertedTypes
+    {
+        [DataverseReadOnly(DataverseOperation.Update)]
+        [JsonPropertyName("incidentid")]
+        public CaseId? Id { get; set; }
+
+        [JsonPropertyName("title")]
+        public System.Text.Json.JsonElement? Title { get; set; }
+
+        [JsonPropertyName("quantity")]
+        public object? Quantity { get; set; }
+    }
+
+    [Fact]
+    public async Task ATypeWithItsOwnConverter_OrThatHoldsAnyJson_IsNotTypeChecked()
+        => None(await Environment().ValidateAsync(typeof(ConvertedTypes)));
+
+    [DataverseEntity("incident", "incidents")]
+    public class LookupAsColumnSelected
+    {
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+
+        [JsonPropertyName("new_regionid")]
+        public Guid? RegionId { get; set; }
+    }
+
+    [Fact]
+    public async Task ALookupMappedAsAColumn_IsReportedOnce_AndLeftOutOfTheSelectCheck()
+    {
+        var environment = Environment();
+        environment["incident"].RejectedInSelect.Add("new_regionid");
+
+        var report = await environment.ValidateAsync(typeof(LookupAsColumnSelected));
+
+        Assert.Equal(SchemaCodes.LookupMappedAsColumn, Assert.Single(report.Findings).Code);
+        var retrieve = Assert.Single(environment.Transport.Requests, r => r.Path.StartsWith("incidents(", StringComparison.Ordinal));
+        Assert.Equal("title", retrieve.GetQueryOption("$select"));
     }
 
     [DataverseEntity("incident", "incidents")]
@@ -565,6 +638,12 @@ public class ValidatorTests
         [JsonPropertyName("primarycontactid@OData.Community.Display.V1.FormattedValue")]
         [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
         public string? PrimaryContactName { get; set; }
+
+        [JsonPropertyName("_createdby_value")]
+        public Guid? CreatedByValue { get; set; }
+
+        [JsonPropertyName("_originid_value")]
+        public Guid? OriginValue { get; set; }
     }
 
     [Fact]
@@ -582,6 +661,16 @@ public class ValidatorTests
             (contact.Kind, contact.LookupLogicalName, contact.EntitySet, contact.NavigationProperty));
         Assert.Equal("map it with [DataverseLookup(\"new_regionid\", \"new_regions\", NavigationProperty = \"new_RegionId\")]",
             Single(report, SchemaCodes.LookupValueWritten, nameof(LookupsAsColumns.RegionValue)).Fix!.Description);
+
+        // A lookup Dataverse sets itself cannot be bound either, so the fix stops the write instead.
+        var createdBy = Single(report, SchemaCodes.LookupValueWritten, nameof(LookupsAsColumns.CreatedByValue)).Fix!;
+        Assert.Equal((SchemaFixKind.SetReadOnly, DataverseOperation.CreateAndUpdate), (createdBy.Kind, createdBy.ReadOnlyFor));
+
+        // A lookup that can only be set on create is mapped and kept out of updates by the one fix.
+        var origin = Single(report, SchemaCodes.LookupValueWritten, nameof(LookupsAsColumns.OriginValue)).Fix!;
+        Assert.Equal((SchemaFixKind.MapAsLookup, DataverseOperation.Update), (origin.Kind, origin.ReadOnlyFor));
+        Assert.Equal("map it with [DataverseLookup(\"originid\", \"incidents\")] and [DataverseReadOnly(DataverseOperation.Update)]", origin.Description);
+        Assert.Equal(DataverseOperation.None, contact.ReadOnlyFor);
 
         // A polymorphic lookup has no single bind to switch to.
         Assert.Null(Single(report, SchemaCodes.LookupValueWritten, nameof(LookupsAsColumns.CustomerValue)).Fix);

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Dataverse.Fluent.Schema.Metadata;
 
 namespace Dataverse.Fluent.Schema.Validation;
@@ -22,6 +24,11 @@ internal static class ClrTypeRules
     public static TypeProblem? Check(ColumnSchema column, Type propertyType)
     {
         var type = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
+
+        // These hold any JSON value.
+        if (type == typeof(object) || type == typeof(JsonElement) || type == typeof(JsonDocument) || typeof(JsonNode).IsAssignableFrom(type))
+            return null;
+
         var typeName = Describe(propertyType);
 
         if (column.IsMultiSelectChoice)
@@ -136,8 +143,15 @@ internal static class ClrTypeRules
             return Describe(underlying) + "?";
         if (type.IsArray)
             return Describe(type.GetElementType()!) + "[]";
+        // An enum's type code is its underlying type's, and a type nested in a generic class is generic with no arity
+        // of its own in its name.
+        if (type.IsEnum)
+            return type.Name;
         if (type.IsGenericType)
-            return $"{type.Name[..type.Name.IndexOf('`', StringComparison.Ordinal)]}<{string.Join(", ", type.GetGenericArguments().Select(Describe))}>";
+        {
+            var arity = type.Name.IndexOf('`', StringComparison.Ordinal);
+            return arity < 0 ? type.Name : $"{type.Name[..arity]}<{string.Join(", ", type.GetGenericArguments().Select(Describe))}>";
+        }
 
         return Type.GetTypeCode(type) switch
         {
@@ -146,10 +160,10 @@ internal static class ClrTypeRules
             TypeCode.SByte => "sbyte",
             TypeCode.Int16 => "short",
             TypeCode.UInt16 => "ushort",
-            TypeCode.Int32 when !type.IsEnum => "int",
-            TypeCode.UInt32 when !type.IsEnum => "uint",
-            TypeCode.Int64 when !type.IsEnum => "long",
-            TypeCode.UInt64 when !type.IsEnum => "ulong",
+            TypeCode.Int32 => "int",
+            TypeCode.UInt32 => "uint",
+            TypeCode.Int64 => "long",
+            TypeCode.UInt64 => "ulong",
             TypeCode.Single => "float",
             TypeCode.Double => "double",
             TypeCode.Decimal => "decimal",

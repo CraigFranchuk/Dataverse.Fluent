@@ -182,6 +182,28 @@ namespace Dataverse.Fluent.Tool.Tests
         }
 
         [Fact]
+        public void AddLookupTarget_StaysOnTheProperty_WhenItsAttributesShareItsLine()
+        {
+            var source = Model.Replace(
+                "[DataverseLookup(\"customerid\")]\n    [DataverseLookupTarget(\"account\", \"account\", \"customerid\")]\n    public",
+                "[DataverseLookup(\"customerid\"), DataverseLookupTarget(\"account\", \"account\", \"customerid\")] public",
+                StringComparison.Ordinal);
+            Assert.NotEqual(Model, source);
+
+            var (text, plan) = Fix(source,
+                Finding<Incident>(nameof(Incident.CustomerId), SchemaFix.AddLookupTarget("contact", "contacts", "customerid_contact")),
+                Finding<Incident>(nameof(Incident.CustomerId), SchemaFix.AddLookupTarget("lead", "leads", "customerid_lead")));
+
+            Assert.All(plan.Outcomes, o => Assert.True(o.Applied));
+            Assert.Contains(
+                "    [DataverseLookup(\"customerid\"), DataverseLookupTarget(\"account\", \"account\", \"customerid\")]"
+                + " [DataverseLookupTarget(\"contact\", \"contacts\", \"customerid_contact\")]"
+                + " [DataverseLookupTarget(\"lead\", \"leads\", \"customerid_lead\")]"
+                + " public DataverseReference? CustomerId { get; set; }\n\n    [DataverseLookup(\"new_regionid\"",
+                text);
+        }
+
+        [Fact]
         public void SetLookupTarget_ReplacesTheTargetsEntitySetAndNavigationProperty()
         {
             var (text, _) = Fix(Model, Finding<Incident>(nameof(Incident.CustomerId), SchemaFix.SetLookupTarget("account", "accounts", "customerid_account")));
@@ -210,6 +232,18 @@ namespace Dataverse.Fluent.Tool.Tests
 
             Assert.Contains("    [DataverseLookup(\"subjectid\", \"subjects\")]\n    public Guid? SubjectId", text);
             Assert.DoesNotContain("_subjectid_value", text);
+        }
+
+        [Fact]
+        public void MapAsLookup_OfALookupThatCannotBeUpdated_AlsoMarksItReadOnly()
+        {
+            var (text, plan) = Fix(Model, Finding<Incident>(nameof(Incident.SubjectId),
+                SchemaFix.MapAsLookup("subjectid", "subjects", "subjectid", DataverseOperation.Update)));
+
+            Assert.True(Assert.Single(plan.Outcomes).Applied);
+            Assert.Contains(
+                "    [DataverseReadOnly(DataverseOperation.Update)]\n    [DataverseLookup(\"subjectid\", \"subjects\")]\n    public Guid? SubjectId",
+                text);
         }
 
         [Fact]

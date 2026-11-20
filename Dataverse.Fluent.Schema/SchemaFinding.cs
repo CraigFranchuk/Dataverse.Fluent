@@ -90,7 +90,9 @@ public enum SchemaFixKind
     /// <summary>
     /// Replace the property's <c>[JsonPropertyName("_{column}_value")]</c> or <see cref="DataverseColumnAttribute"/>
     /// with <see cref="DataverseLookupAttribute"/> for <see cref="SchemaFix.LookupLogicalName"/>,
-    /// <see cref="SchemaFix.EntitySet"/> and <see cref="SchemaFix.NavigationProperty"/>.
+    /// <see cref="SchemaFix.EntitySet"/> and <see cref="SchemaFix.NavigationProperty"/>. When
+    /// <see cref="SchemaFix.ReadOnlyFor"/> is not <see cref="DataverseOperation.None"/>, also add that
+    /// <see cref="DataverseReadOnlyAttribute"/>: the lookup cannot be written by those operations.
     /// </summary>
     MapAsLookup
 }
@@ -129,7 +131,8 @@ public sealed class SchemaFix
     /// <summary>The lookup column, for <see cref="SchemaFixKind.MapAsLookup"/>.</summary>
     public string? LookupLogicalName { get; private init; }
 
-    /// <summary>The operations to mark read-only, for <see cref="SchemaFixKind.SetReadOnly"/>.</summary>
+    /// <summary>The operations to mark read-only, for <see cref="SchemaFixKind.SetReadOnly"/>, and for a
+    /// <see cref="SchemaFixKind.MapAsLookup"/> of a lookup that cannot be updated.</summary>
     public DataverseOperation ReadOnlyFor { get; private init; }
 
     /// <inheritdoc />
@@ -175,13 +178,15 @@ public sealed class SchemaFix
         _ => nameof(DataverseOperation.None)
     };
 
-    internal static SchemaFix MapAsLookup(string logicalName, string entitySet, string navigationProperty)
-        => new(SchemaFixKind.MapAsLookup, logicalName == navigationProperty
+    internal static SchemaFix MapAsLookup(string logicalName, string entitySet, string navigationProperty, DataverseOperation readOnlyFor = DataverseOperation.None)
+        => new(SchemaFixKind.MapAsLookup, (logicalName == navigationProperty
             ? $"map it with [DataverseLookup(\"{logicalName}\", \"{entitySet}\")]"
             : $"map it with [DataverseLookup(\"{logicalName}\", \"{entitySet}\", NavigationProperty = \"{navigationProperty}\")]")
+            + (readOnlyFor == DataverseOperation.None ? "" : $" and [DataverseReadOnly(DataverseOperation.{OperationName(readOnlyFor)})]"))
         {
             LookupLogicalName = logicalName,
             EntitySet = entitySet,
-            NavigationProperty = navigationProperty
+            NavigationProperty = navigationProperty,
+            ReadOnlyFor = readOnlyFor
         };
 }

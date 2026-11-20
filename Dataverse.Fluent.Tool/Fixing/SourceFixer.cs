@@ -260,7 +260,10 @@ internal sealed class SourceFixer
 
         var navigation = fix.NavigationProperty == fix.LookupLogicalName ? "" : $", NavigationProperty = {Literal(fix.NavigationProperty!)}";
         var replacement = $"{QualifierFor(file, property)}DataverseLookup({Literal(fix.LookupLogicalName!)}, {Literal(fix.EntitySet!)}{navigation})";
-        return Change(file, mapped.Span, replacement);
+        if (Change(file, mapped.Span, replacement) is { } conflict)
+            return conflict;
+
+        return fix.ReadOnlyFor == DataverseOperation.None ? null : SetReadOnly(file, property, fix.ReadOnlyFor);
     }
 
     private static string? WithAttribute(SourceFile file, PropertyDeclarationSyntax property, string name, Func<AttributeSyntax, string?> edit)
@@ -302,10 +305,19 @@ internal sealed class SourceFixer
         return null;
     }
 
-    /// <summary>Inserts <paramref name="code"/> on a new line after the line that holds <paramref name="node"/>, indented like it.</summary>
+    /// <summary>
+    /// Inserts <paramref name="code"/> on a new line after the line that holds <paramref name="node"/>, indented like it.
+    /// When more code follows the node on its line (attributes written on the property's own line), the new line would
+    /// land after that code, so <paramref name="code"/> goes right after the node instead.
+    /// </summary>
     private static string? InsertLineAfter(SourceFile file, SyntaxNode node, string code)
     {
         var line = file.Text.Lines.GetLineFromPosition(node.Span.End);
+        var next = node.GetLastToken().GetNextToken();
+        if (!next.IsKind(SyntaxKind.None) && next.SpanStart < line.End)
+            return Change(file, new TextSpan(node.Span.End, 0), " " + code);
+
+
         var newline = NewLine(file, line);
         if (line.EndIncludingLineBreak == line.End)
             return Change(file, new TextSpan(line.End, 0), newline + Indentation(file, node) + code);

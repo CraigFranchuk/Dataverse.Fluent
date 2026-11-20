@@ -21,7 +21,7 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
     }
 
     public Task<int> ValidateAsync(ToolSettings settings, CancellationToken ct)
-        => GuardAsync(async () =>
+        => GuardAsync(settings, async () =>
         {
             var project = await projects.ResolveAsync(settings, build: !settings.NoBuild, ct).ConfigureAwait(false);
             var (report, models) = await ValidateProjectAsync(settings, project, ct).ConfigureAwait(false);
@@ -35,7 +35,7 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
         });
 
     public Task<int> FixAsync(ToolSettings settings, CancellationToken ct)
-        => GuardAsync(async () =>
+        => GuardAsync(settings, async () =>
         {
             if (settings.Target.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                 throw new ToolException("fix edits source, so it needs the project (.csproj), not a built assembly.");
@@ -121,10 +121,30 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
             ? ExitCodes.Findings
             : ExitCodes.Success;
 
-    private async Task<int> GuardAsync(Func<Task<int>> run)
+    // The finding codes, read from SchemaCodes so a new code needs no change here.
+    private static readonly string[] KnownCodes = [.. typeof(SchemaCodes)
+        .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+        .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+        .Select(f => (string)f.GetRawConstantValue()!)
+        .Order(StringComparer.Ordinal)];
+
+    // A mistyped code would be ignored itself, and the findings it was meant to leave out would fail the run.
+    private static void CheckIgnoredCodes(ToolSettings settings)
+    {
+        var unknown = settings.Ignore.Where(c => !KnownCodes.Contains(c, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (unknown.Count > 0)
+        {
+            throw new ToolException(
+                $"--ignore: {string.Join(", ", unknown.Select(c => $"'{c}'"))} {(unknown.Count == 1 ? "is not a finding code" : "are not finding codes")}. " +
+                $"The codes are {string.Join(", ", KnownCodes)}.");
+        }
+    }
+
+    private async Task<int> GuardAsync(ToolSettings settings, Func<Task<int>> run)
     {
         try
         {
+            CheckIgnoredCodes(settings);
             return await run().ConfigureAwait(false);
         }
         catch (ToolException ex)
@@ -143,6 +163,12 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
         catch (HttpRequestException ex)
         {
             output.WriteLine($"error: could not reach the environment: {ex.Message}");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Anything else is the tool failing, not the models: exit code 1 is kept for findings.
+            output.WriteLine($"error: {ex.GetType().Name}: {ex.Message}");
+            output.WriteLine(settings.Verbose ? ex.ToString() : "Run again with --verbose for the stack trace.");
         }
 
         return ExitCodes.Failure;

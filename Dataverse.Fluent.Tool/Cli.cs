@@ -27,17 +27,18 @@ internal static class Cli
         var interactive = new Option<bool>("--interactive") { Description = "Sign in with a browser instead of DefaultAzureCredential (az login, Visual Studio, or AZURE_* variables)." };
         var tenant = new Option<string?>("--tenant-id") { Description = "The Microsoft Entra tenant to sign in to." };
         var apiVersion = new Option<string>("--api-version") { Description = "The Web API version.", DefaultValueFactory = _ => "v9.2" };
-        var types = new Option<string[]>("--type", "-t") { Description = "Check only this model (full or simple name). Repeat for several.", AllowMultipleArgumentsPerToken = true };
+        var types = new Option<string[]>("--type", "-t") { Description = "Check only this model (full or simple name). Repeat for several." };
         var resolver = new Option<string?>("--resolver") { Description = "The full name of an IDataverseNameResolver in the project to register before checking, for models mapped by a resolver." };
-        var ignore = new Option<string[]>("--ignore") { Description = "Leave out findings with this code, e.g. DVS015. Repeat for several.", AllowMultipleArgumentsPerToken = true };
+        var ignore = new Option<string[]>("--ignore") { Description = "Leave out findings with this code, e.g. DVS015. Repeat for several." };
         var warningsAsErrors = new Option<bool>("--warnings-as-errors") { Description = "Exit with code 1 when a warning is found, not only an error." };
         var noSelect = new Option<bool>("--no-select-check") { Description = "Skip the live $select check (one retrieve of a random ID per model)." };
         var configuration = new Option<string>("--configuration", "-c") { Description = "The build configuration.", DefaultValueFactory = _ => "Debug" };
         var framework = new Option<string?>("--framework", "-f") { Description = "The target framework of a multi-targeted project. Default: its first." };
         var noBuild = new Option<bool>("--no-build") { Description = "Use the existing build output." };
         var dryRun = new Option<bool>("--dry-run") { Description = "Print the changes as a diff and write nothing." };
+        var verbose = new Option<bool>("--verbose") { Description = "Print the stack trace of an unexpected error." };
 
-        var command = new Command(name, description) { target, url, interactive, tenant, apiVersion, types, resolver, ignore, warningsAsErrors, noSelect, configuration, framework, noBuild };
+        var command = new Command(name, description) { target, url, interactive, tenant, apiVersion, types, resolver, ignore, warningsAsErrors, noSelect, configuration, framework, noBuild, verbose };
         if (fix)
             command.Add(dryRun);
 
@@ -71,7 +72,8 @@ internal static class Cli
                 Configuration = parse.GetValue(configuration) ?? "Debug",
                 Framework = parse.GetValue(framework),
                 NoBuild = parse.GetValue(noBuild),
-                DryRun = fix && parse.GetValue(dryRun)
+                DryRun = fix && parse.GetValue(dryRun),
+                Verbose = parse.GetValue(verbose)
             };
 
             return await run(settings, fix, ct).ConfigureAwait(false);

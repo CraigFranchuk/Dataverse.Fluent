@@ -27,7 +27,7 @@ public class CliTests
         var (exit, settings, fix, _) = await RunAsync(
             "validate", "src/App/App.csproj", "--url", "https://org.crm.dynamics.com/", "--interactive", "--tenant-id", "t",
             "--type", "Account", "--type", "Contact", "--resolver", "My.Resolver", "--ignore", "DVS015", "--warnings-as-errors",
-            "--no-select-check", "-c", "Release", "-f", "net10.0", "--no-build", "--api-version", "v9.1");
+            "--no-select-check", "-c", "Release", "-f", "net10.0", "--no-build", "--api-version", "v9.1", "--verbose");
 
         Assert.Equal(7, exit);
         Assert.False(fix);
@@ -43,7 +43,19 @@ public class CliTests
         Assert.True(settings.NoSelectCheck);
         Assert.Equal(("Release", "net10.0"), (settings.Configuration, settings.Framework));
         Assert.True(settings.NoBuild);
+        Assert.True(settings.Verbose);
         Assert.False(settings.DryRun);
+    }
+
+    [Fact]
+    public async Task TheProject_CanFollowTheOptions()
+    {
+        var (_, settings, _, _) = await RunAsync(
+            "fix", "--url", "https://org.crm.dynamics.com", "--type", "Account", "--ignore", "DVS015", "src/App/App.csproj");
+
+        Assert.Equal("src/App/App.csproj", settings!.Target);
+        Assert.Equal(["Account"], settings.Types);
+        Assert.Equal(["DVS015"], settings.Ignore);
     }
 
     [Fact]

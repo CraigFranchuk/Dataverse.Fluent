@@ -41,6 +41,10 @@ metadata. See [Schema Validation](Dataverse.Fluent/docs/SCHEMA_VALIDATION.md).
 - `DataverseEntityMapping.For<T>()` describes a type as the builders read and write it: its table and entity set, and
   for each property its kind, names, lookup targets, read-only markers, related type, and whether `SetFrom` sends it on
   create and on update. The schema validator is built on it.
+- `DataverseTypeMapping.IsMapped(type)` tells whether an attribute or a registered resolver maps a type to a table. It
+  reads none of the type's properties, so it does not throw for a type whose property mappings are invalid.
+- Fixed: a model that hides a base class's property with `new` and a different type threw `ArgumentException` when the
+  client first used it. The derived property is now the model's, as it is for System.Text.Json.
 
 ### Dataverse.Fluent.Sales
 

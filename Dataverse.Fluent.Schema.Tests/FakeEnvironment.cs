@@ -198,6 +198,13 @@ internal sealed class FakeTable(string logicalName, string entitySet)
         return this;
     }
 
+    /// <summary>Makes a column one that can be set on create and not changed afterwards.</summary>
+    public FakeTable CreateOnly(string name)
+    {
+        _attributes.Single(a => (string?)a["LogicalName"] == name)["IsValidForUpdate"] = false;
+        return this;
+    }
+
     public FakeTable ManyToOne(string attribute, string referenced, string navigation)
     {
         _manyToOne.Add(new JsonObject { ["ReferencingAttribute"] = attribute, ["ReferencedEntity"] = referenced, ["ReferencingEntityNavigationPropertyName"] = navigation });

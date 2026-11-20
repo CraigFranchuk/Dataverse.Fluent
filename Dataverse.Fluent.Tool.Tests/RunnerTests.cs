@@ -167,6 +167,44 @@ public class RunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnUnexpectedError_IsReported_WithExitCode2_NotAsFindings()
+    {
+        var exit = await Runner(_ => throw new InvalidDataException("The stream is not text.")).ValidateAsync(Settings(), Ct);
+
+        Assert.Equal(ExitCodes.Failure, exit);
+        Assert.Contains("error: InvalidDataException: The stream is not text.", _output.ToString());
+        Assert.Contains("Run again with --verbose for the stack trace.", _output.ToString());
+        Assert.DoesNotContain("   at ", _output.ToString());
+    }
+
+    [Fact]
+    public async Task AnUnexpectedError_PrintsItsStackTrace_WhenVerbose()
+    {
+        await Runner(_ => throw new InvalidDataException("The stream is not text.")).ValidateAsync(Settings() with { Verbose = true }, Ct);
+
+        Assert.Contains("   at ", _output.ToString());
+    }
+
+    [Fact]
+    public async Task AnUnknownIgnoreCode_IsRejected_BeforeAnythingRuns()
+    {
+        var projects = new ThisAssembly(_source);
+        var runner = new ToolRunner(_output, projects, _ => _environment.Transport);
+
+        var exit = await runner.ValidateAsync(Settings(ignore: ["dvs040", "DVS51"]) with { NoBuild = false }, Ct);
+
+        Assert.Equal(ExitCodes.Failure, exit);
+        Assert.Contains("error: --ignore: 'DVS51' is not a finding code. The codes are DVS001, DVS002,", _output.ToString());
+        Assert.Equal(0, projects.Builds);
+        Assert.Empty(_environment.Transport.Requests);
+    }
+
+    [Fact]
+    public async Task Cancellation_IsNotReportedAsAnError()
+        => await Assert.ThrowsAsync<OperationCanceledException>(
+            () => Runner(_ => throw new OperationCanceledException()).ValidateAsync(Settings(), Ct));
+
+    [Fact]
     public async Task AnUnknownModel_IsReported()
     {
         var exit = await Runner().ValidateAsync(Settings() with { Types = ["Nope"] }, Ct);

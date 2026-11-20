@@ -98,7 +98,7 @@ silently ignored; **info** is worth knowing. **Fix** marks the findings that `da
 |------|----------|---------|-----|
 | DVS001 | error | The table does not exist, or no table has the model's entity set. The closest names are suggested. | |
 | DVS002 | error | The model's entity set is not its table's (`[DataverseEntity("account", "account")]`). | Yes |
-| DVS003 | error | The model's mapping attributes are invalid (for example `[DataverseLookup]` on a `string`), or the type is not mapped to a table. | |
+| DVS003 | error | The model's mapping attributes are invalid (for example `[DataverseLookup]` on a `string`), the model cannot be read (an attribute rejects its arguments, or a property's type cannot be loaded), or the type is not mapped to a table. | |
 | DVS005 | info | The live `$select` check could not run, for example because the caller cannot read the table. | |
 
 ### Columns
@@ -125,7 +125,7 @@ silently ignored; **info** is worth knowing. **Fix** marks the findings that `da
 | DVS025 | error | A polymorphic lookup maps a table the column cannot point at. | |
 | DVS026 | error | A polymorphic target's entity set or navigation property is wrong. | Yes |
 | DVS027 | error | A lookup is mapped as a plain column under its logical name (`[JsonPropertyName("primarycontactid")]`). Dataverse returns it as `_primarycontactid_value`, so the property is never filled. | |
-| DVS028 | error | A lookup is mapped by its value name (`[JsonPropertyName("_primarycontactid_value")]`), so `SetFrom` writes it under that name, which Dataverse rejects with HTTP 400. | Yes: becomes `[DataverseLookup]`, for a single-table lookup |
+| DVS028 | error | A lookup is mapped by its value name (`[JsonPropertyName("_primarycontactid_value")]`), so `SetFrom` writes it under that name, which Dataverse rejects with HTTP 400. | Yes: becomes `[DataverseLookup]`, for a single-table lookup (with `[DataverseReadOnly(DataverseOperation.Update)]` when it cannot be updated); `[DataverseReadOnly(DataverseOperation.CreateAndUpdate)]` for a lookup Dataverse sets itself (`createdby`) |
 
 ### Navigation properties
 

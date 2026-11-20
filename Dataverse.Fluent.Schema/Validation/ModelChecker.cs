@@ -36,6 +36,13 @@ internal sealed class ModelChecker
             Add(SchemaCodes.InvalidMapping, SchemaSeverity.Error, null, ex.Message);
             return _findings;
         }
+        catch (Exception ex) when (ex is TypeLoadException or IOException or BadImageFormatException or ArgumentException or NotSupportedException)
+        {
+            // An attribute that rejects its arguments, or a property type that cannot be loaded. The client fails on
+            // the model the same way, and the other models are still checked.
+            Add(SchemaCodes.InvalidMapping, SchemaSeverity.Error, null, $"{_model.Name} cannot be read ({ex.GetType().Name}): {ex.Message}");
+            return _findings;
+        }
 
         if (!mapping.IsMapped)
         {
@@ -149,6 +156,9 @@ internal sealed class ModelChecker
 
         if (column.IsLookup)
         {
+            // The live check would report it again only when no navigation property has the same name (see
+            // SchemaContractTests; checked 2026-11-20).
+            _knownBad.Add(name);
             var single = column.Targets.Count == 1 ? (await _reader.GetEntitySetsAsync(column.Targets, ct).ConfigureAwait(false))[column.Targets[0]] : null;
             Add(SchemaCodes.LookupMappedAsColumn, SchemaSeverity.Error, member.Property,
                 $"'{name}' is a lookup, which Dataverse returns as '_{name}_value', so the property is never filled.",
@@ -189,12 +199,19 @@ internal sealed class ModelChecker
         if (member.IsWrittenOnCreate || member.IsWrittenOnUpdate)
         {
             SchemaFix? fix = null;
+            if (!column.IsValidForCreate && !column.IsValidForUpdate)
+            {
+                // A lookup Dataverse sets itself (createdby, say) cannot be written as a bind either: only read it.
+                fix = SchemaFix.SetReadOnly(DataverseOperation.CreateAndUpdate);
+            }
             // [DataverseLookup] with an entity set maps a Guid; a DataverseReference needs targets instead.
-            if (column.Targets.Count == 1 && Underlying(member.Property.PropertyType) == typeof(Guid)
+            else if (column.Targets.Count == 1 && Underlying(member.Property.PropertyType) == typeof(Guid)
                 && table.NavigationPropertyFor(lookupName, column.Targets[0]) is { } navigation
                 && (await _reader.GetEntitySetsAsync(column.Targets, ct).ConfigureAwait(false))[column.Targets[0]] is { } entitySet)
             {
-                fix = SchemaFix.MapAsLookup(lookupName, entitySet, navigation);
+                // A lookup that can be set on create only is not sent on update either, so the fix is complete in one go.
+                fix = SchemaFix.MapAsLookup(lookupName, entitySet, navigation,
+                    !column.IsValidForUpdate && member.IsWrittenOnUpdate ? DataverseOperation.Update : DataverseOperation.None);
             }
 
             Add(SchemaCodes.LookupValueWritten, SchemaSeverity.Error, member.Property,
@@ -499,7 +516,10 @@ internal sealed class ModelChecker
         return false;
     }
 
-    private static bool HasConverter(PropertyInfo property) => property.GetCustomAttribute<JsonConverterAttribute>() is not null;
+    // A converter on the property or on its type decides what the property can hold, so the type rules do not apply.
+    private static bool HasConverter(PropertyInfo property)
+        => property.IsDefined(typeof(JsonConverterAttribute), inherit: true)
+            || Underlying(property.PropertyType).IsDefined(typeof(JsonConverterAttribute), inherit: false);
 
     private static Type Underlying(Type type) => Nullable.GetUnderlyingType(type) ?? type;
 }
