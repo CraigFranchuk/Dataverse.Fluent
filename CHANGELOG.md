@@ -1,7 +1,51 @@
 # Changelog
 
-All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales` and `Dataverse.Fluent.Testing` packages are
-recorded here. The packages follow [semantic versioning](https://semver.org/).
+All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Dataverse.Fluent.Testing`,
+`Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
+[semantic versioning](https://semver.org/).
+
+## 1.2.0 (unreleased)
+
+Two new packages check models against an environment's metadata at design time. The client itself still never reads
+metadata. See [Schema Validation](Dataverse.Fluent/docs/SCHEMA_VALIDATION.md).
+
+### Dataverse.Fluent.Schema (new)
+
+- `DataverseSchemaValidator.ValidateAsync(transport, assembly or types)` compares each model with `EntityDefinitions`
+  and returns a `SchemaReport` of findings. Each finding has a code (`SchemaCodes`), a severity, a message, a
+  suggestion where one is known, and a `SchemaFix` where the correction is mechanical. `ThrowIfAny(severity)` fails a
+  test with every finding in its message. It checks:
+  - tables and entity sets;
+  - that each column exists, with "did you mean" suggestions;
+  - that no property maps the display value of another column (`createdbyname`);
+  - property types against column types (a date-only column must be `DateOnly`, money `decimal`);
+  - enum members against the options of a choice column;
+  - lookups: target entity sets, navigation properties, polymorphic targets, and lookups mapped as plain columns or by
+    their `_x_value` name;
+  - navigation properties, and the table each one's type maps;
+  - columns that `SetFrom` sends but Dataverse ignores.
+- A live `$select` check retrieves a random ID per model with every mapped column selected. A 404 proves Dataverse
+  accepts them all. Validation sends `GET` requests only.
+- Columns that exist in Dataverse but are not on a model are never reported.
+
+### Dataverse.Fluent.Tool (new)
+
+- The `dataverse-fluent` dotnet tool. `validate <project>` builds a project and prints its models' findings, and exits
+  with 1 when there are errors (or warnings, with `--warnings-as-errors`), so it can run in CI. `fix <project>` applies
+  the mechanical fixes to the source, then rebuilds and checks again; `--dry-run` prints a diff instead. A fix changes
+  only string-literal attribute arguments and keeps each file's encoding and line endings. It signs in with
+  `DefaultAzureCredential`, or with a browser via `--interactive`.
+
+### Dataverse.Fluent
+
+- `DataverseEntityMapping.For<T>()` describes a type as the builders read and write it: its table and entity set, and
+  for each property its kind, names, lookup targets, read-only markers, related type, and whether `SetFrom` sends it on
+  create and on update. The schema validator is built on it.
+
+### Dataverse.Fluent.Sales
+
+- The live tests check every Sales model with the schema validator, in place of the hand-written metadata comparison
+  added in 1.1.1. No model changed.
 
 ## 1.1.1 (2026-11-20)
 

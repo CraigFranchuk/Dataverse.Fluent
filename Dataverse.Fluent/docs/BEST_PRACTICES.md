@@ -111,6 +111,9 @@ environment's web servers, as Microsoft recommends. An `HttpClient` you supply, 
   as a `DataverseReference` with one `[DataverseLookupTarget]` per table; see
   [Polymorphic Lookups](LOOKUP_REFERENCES.md#polymorphic-lookups).
 - Purpose-built POCOs that model a few columns for one use case are normal and encouraged.
+- Check your models against a test environment with `Dataverse.Fluent.Schema` in an integration test, or with
+  `dataverse-fluent validate` in CI. It catches misspelled columns, wrong types and lookup bindings, and columns that
+  `SetFrom` sends but Dataverse ignores; see [Schema Validation](SCHEMA_VALIDATION.md).
 
 ## Errors and diagnostics
 

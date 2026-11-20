@@ -40,6 +40,8 @@ jobs:
           dotnet test Dataverse.Fluent.Tests/Dataverse.Fluent.Tests.csproj -c Release --no-build
           dotnet test Dataverse.Fluent.Sales.Tests/Dataverse.Fluent.Sales.Tests.csproj -c Release --no-build
           dotnet test Dataverse.Fluent.Testing.Tests/Dataverse.Fluent.Testing.Tests.csproj -c Release --no-build
+          dotnet test Dataverse.Fluent.Schema.Tests/Dataverse.Fluent.Schema.Tests.csproj -c Release --no-build
+          dotnet test Dataverse.Fluent.Tool.Tests/Dataverse.Fluent.Tool.Tests.csproj -c Release --no-build
 
       - name: Pack
         run: dotnet pack Dataverse.Fluent.slnx -c Release --no-build -o artifacts

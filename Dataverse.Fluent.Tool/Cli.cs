@@ -20,7 +20,7 @@ internal static class Cli
     {
         var target = new Argument<string>("project")
         {
-            Description = fix ? "The .csproj, or a directory holding one. Default: the current directory." : "The .csproj, a directory holding one, or a built .dll. Default: the current directory.",
+            Description = fix ? "The .csproj, or a directory holding one." : "The .csproj, a directory holding one, or a built .dll.",
             DefaultValueFactory = _ => "."
         };
         var url = new Option<string?>("--url", "-u") { Description = $"The environment URL, e.g. https://yourorg.crm.dynamics.com. Default: the {UrlVariable} environment variable." };

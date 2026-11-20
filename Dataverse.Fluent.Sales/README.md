@@ -43,7 +43,9 @@ reassigns it. Reassign a record explicitly with `Set(x => x.OwnerId, new Dataver
 Date-only columns (`Opportunity.EstimatedCloseDate` and `ActualCloseDate`, `Quote.ExpiresOn` and `ClosedOn`) are
 `DateOnly?`, the only form Dataverse accepts for them. Columns Dataverse sets itself, such as `FullName`, the quote's
 revision number and the case and quote numbers after creation, are marked `[DataverseReadOnly]`, so `SetFrom` on a
-retrieved record does not send values Dataverse would silently ignore.
+retrieved record does not send values Dataverse would silently ignore. The models are checked against a live
+environment with [Dataverse.Fluent.Schema](https://www.nuget.org/packages/Dataverse.Fluent.Schema); run it on a model
+you derive from them to check your custom columns too.
 
 Other environments are registered with `AddKeyedDynamicsSalesClient(name, options => ...)` and resolved with
 `[FromKeyedServices(name)] SalesClient`.

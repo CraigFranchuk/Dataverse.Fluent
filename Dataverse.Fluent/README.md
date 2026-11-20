@@ -512,6 +512,7 @@ be sent through `client.Transport`.
 | [Best Practices](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/BEST_PRACTICES.md) | Production guidance |
 | [Design Philosophy](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DESIGN_PHILOSOPHY.md) | Why there is no metadata dependency |
 | [Custom Type Mapping](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/CUSTOM_TYPE_MAPPING.md) | Using generated types |
+| [Schema Validation](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/SCHEMA_VALIDATION.md) | Checking models against an environment, and fixing them |
 | [Error Handling](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ERROR_HANDLING.md) | `DataverseException` and what is retried |
 | [Actions and Functions](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ACTIONS_AND_FUNCTIONS.md) | Bound and unbound actions and functions |
 | [Annotations](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ANNOTATIONS.md) | Notes and file attachments |
@@ -525,6 +526,8 @@ be sent through `client.Transport`.
 | [Upsert Conflict Resolution](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/UPSERT_CONFLICT_RESOLUTION.md) | Upsert modes and ETags |
 
 For Dynamics 365 Sales, the `Dataverse.Fluent.Sales` package adds mapped Sales tables and typed wrappers for actions
-such as `QualifyLead` and `WinOpportunity`.
+such as `QualifyLead` and `WinOpportunity`. `Dataverse.Fluent.Schema` checks your models against an environment's
+metadata in a test, and the `Dataverse.Fluent.Tool` package's `dataverse-fluent` command does the same from the command
+line and fixes the mechanical mistakes.
 
 Licensed under the [MIT License](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/LICENSE).
