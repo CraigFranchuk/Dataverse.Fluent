@@ -22,6 +22,9 @@ var result = await client.DeepInsert(account)
 Guid accountId = result.Id!.Value;
 ```
 
+When the parent model has a navigation property for the relationship, pass that property instead of the name:
+`.WithRelated(a => a.Contacts, contacts)`. The name sent is the one the property is mapped to.
+
 `WithRelated` takes the navigation property name from the parent's point of view:
 
 - A **collection-valued** navigation property (one-to-many) takes a collection: `contact_customer_accounts` for an

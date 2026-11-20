@@ -195,7 +195,7 @@ public class EntityBuilderExpandTests
         Assert.Throws<ArgumentException>(() =>
             client.Entity<TestAccount>()
                 .WithId(Guid.NewGuid())
-                .Expand<TestContact>(null!));
+                .Expand<TestContact>((string)null!));
     }
 
     [Fact]

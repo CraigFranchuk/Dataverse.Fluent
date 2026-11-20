@@ -100,6 +100,33 @@ public sealed class QueryBuilder<T>
     }
 
     /// <summary>
+    /// Adds an $expand clause for a single-valued navigation property of the model, such as
+    /// <c>x =&gt; x.PrimaryContact</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    /// <typeparam name="TRelated">The related entity type being expanded.</typeparam>
+    /// <param name="navigation">The navigation property to expand.</param>
+    /// <param name="configure">Optional action to configure nested $select, $filter, $orderby, $top on the expansion.</param>
+    /// <exception cref="ArgumentException">The property is not a navigation property of <typeparamref name="T"/>.</exception>
+    public QueryBuilder<T> Expand<TRelated>(Expression<Func<T, TRelated?>> navigation, Action<ExpandBuilder<T, TRelated>>? configure = null)
+        => Expand(NavigationPropertyReader.Read<T>(navigation).Name, configure);
+
+    /// <summary>
+    /// Adds an $expand clause for a collection-valued navigation property of the model, such as
+    /// <c>x =&gt; x.Contacts</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    /// <typeparam name="TRelated">The related entity type being expanded.</typeparam>
+    /// <param name="navigation">The navigation property to expand.</param>
+    /// <param name="configure">Optional action to configure nested $select, $filter, $orderby, $top on the expansion.</param>
+    /// <exception cref="ArgumentException">The property is not a navigation property of <typeparamref name="T"/>.</exception>
+    /// <example>
+    /// <code>
+    /// client.Query&lt;Account&gt;().Expand(a =&gt; a.Contacts, e =&gt; e.Select(c =&gt; c.FullName).Top(5));
+    /// </code>
+    /// </example>
+    public QueryBuilder<T> Expand<TRelated>(Expression<Func<T, IEnumerable<TRelated>?>> navigation, Action<ExpandBuilder<T, TRelated>>? configure = null)
+        => Expand(NavigationPropertyReader.Read<T>(navigation).Name, configure);
+
+    /// <summary>
     /// Adds $filter clause (raw OData filter string).
     /// </summary>
     public QueryBuilder<T> Where(string filter)

@@ -73,7 +73,7 @@ Each returns the `IHttpClientBuilder`, so you can add handlers. The default clie
 | `Where(predicate)`, `Where(string)` | `$filter`; repeated calls are combined with `and` |
 | `Select(selector)`, `Select(params string[])` | `$select` |
 | `OrderBy(keySelector, descending)`, `OrderBy(string)` | `$orderby` |
-| `Expand<TRelated>(navigation, configure?)`, `Expand(string)` | `$expand`, with nested select, filter, order and top through `ExpandBuilder` |
+| `Expand(x => x.Navigation, configure?)`, `Expand<TRelated>(navigation, configure?)`, `Expand(string)` | `$expand`, with nested select, filter, order and top through `ExpandBuilder` |
 | `Top(n)` | `$top`: caps the total number of rows |
 | `PageSize(n)` | `Prefer: odata.maxpagesize` (1 to 5,000) |
 | `Count()` | Request `@odata.count` |
@@ -150,8 +150,8 @@ The first read option continues on `EntityReadBuilder<T>`; the first write optio
 
 | Builder | Methods |
 |---------|---------|
-| `DeepInsertBuilder<T>` | `WithRelated(entities, navigation)`, `WithRelated(entity, navigation)`, `ReturnRepresentation`, `WithPrefer`, `ExecuteAsync()` → `DataverseCreateResult<T>` |
-| `AssociationBuilder` | `From(...)`, `Via(collectionNavigation)` or `ViaSingleValued(navigation)`, `To(...)`, `AssociateAsync()`, `DisassociateAsync()`; source and target by ID, alternate key or composite key |
+| `DeepInsertBuilder<T>` | `WithRelated(entities, navigation)`, `WithRelated(entity, navigation)`, `WithRelated(x => x.Navigation, entities or entity)`, `ReturnRepresentation`, `WithPrefer`, `ExecuteAsync()` → `DataverseCreateResult<T>` |
+| `AssociationBuilder` | `From(...)`, `Via(collectionNavigation)`, `ViaSingleValued(navigation)` or `Via<TSource>(x => x.Navigation)`, `To(...)`, `AssociateAsync()`, `DisassociateAsync()`; source and target by ID, alternate key or composite key |
 
 ## FetchXML
 

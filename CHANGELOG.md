@@ -4,6 +4,21 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 `Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
 [semantic versioning](https://semver.org/).
 
+## 1.3.0 (unreleased)
+
+### Dataverse.Fluent
+
+- `Expand(x => x.Navigation, configure?)` on `Query<T>()` and `Entity<T>()` expands a relationship by the model's
+  navigation property instead of by name. The name sent is the one the property is mapped to, and the related type is
+  inferred for the nested `Select`, `Where` and `OrderBy`. The string overloads remain for relationships that are not
+  on the model.
+- `DeepInsert(...).WithRelated(x => x.Navigation, related)` and `Associate().Via<TSource>(x => x.Navigation)` take a
+  navigation property in the same way. `Via` treats a property that holds one record as single-valued.
+- A property that is not a navigation property (a column, a lookup ID or a `[JsonIgnore]` property) throws
+  `ArgumentException`.
+- Source compatibility: `Expand<TRelated>(null)` with a bare `null` no longer compiles, because it is ambiguous
+  between the overloads. No other call is affected.
+
 ## 1.2.0 (2026-11-20)
 
 Two new packages check models against an environment's metadata at design time. The client itself still never reads

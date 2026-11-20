@@ -103,6 +103,20 @@ public sealed class EntityBuilder<T>
     /// <inheritdoc cref="EntityReadBuilder{T}.IncludeFormattedValues(bool)"/>
     public EntityReadBuilder<T> IncludeFormattedValues(bool include = true) => Read.IncludeFormattedValues(include);
 
+    /// <summary>
+    /// Adds an $expand clause for a single-valued navigation property of the model, such as
+    /// <c>x =&gt; x.PrimaryContact</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    public EntityReadBuilder<T> Expand<TRelated>(Expression<Func<T, TRelated?>> navigation, Action<ExpandBuilder<T, TRelated>>? configure = null)
+        => Read.Expand(navigation, configure);
+
+    /// <summary>
+    /// Adds an $expand clause for a collection-valued navigation property of the model, such as
+    /// <c>x =&gt; x.Contacts</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    public EntityReadBuilder<T> Expand<TRelated>(Expression<Func<T, IEnumerable<TRelated>?>> navigation, Action<ExpandBuilder<T, TRelated>>? configure = null)
+        => Read.Expand(navigation, configure);
+
     /// <inheritdoc cref="EntityReadBuilder{T}.RetrieveAsync(CancellationToken)"/>
     public Task<T?> RetrieveAsync(CancellationToken ct = default) => Read.RetrieveAsync(ct);
 

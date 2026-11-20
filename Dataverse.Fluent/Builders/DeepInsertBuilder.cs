@@ -1,5 +1,7 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Dataverse.Fluent.Builders.Expressions;
 
 namespace Dataverse.Fluent.Builders;
 
@@ -76,6 +78,24 @@ public sealed class DeepInsertBuilder<T>
 
         return this;
     }
+
+    /// <summary>
+    /// Adds related entities for a collection-valued navigation property of the model, such as
+    /// <c>x =&gt; x.Contacts</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    /// <exception cref="ArgumentException">The property is not a navigation property of <typeparamref name="T"/>.</exception>
+    public DeepInsertBuilder<T> WithRelated<TRelated>(Expression<Func<T, IEnumerable<TRelated>?>> navigation, IEnumerable<TRelated> relatedEntities)
+        where TRelated : class
+        => WithRelated(relatedEntities, NavigationPropertyReader.Read<T>(navigation).Name);
+
+    /// <summary>
+    /// Adds a related entity for a single-valued navigation property of the model, such as
+    /// <c>x =&gt; x.PrimaryContact</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    /// <exception cref="ArgumentException">The property is not a navigation property of <typeparamref name="T"/>.</exception>
+    public DeepInsertBuilder<T> WithRelated<TRelated>(Expression<Func<T, TRelated?>> navigation, TRelated relatedEntity)
+        where TRelated : class
+        => WithRelated(relatedEntity, NavigationPropertyReader.Read<T>(navigation).Name);
 
     // Serializes each entity by its runtime type so that read-only filtering applies to the element
     // type. An empty collection is omitted: it creates no related records.

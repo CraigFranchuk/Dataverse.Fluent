@@ -303,7 +303,7 @@ public class QueryBuilderExpandTests
 
         var query = client.Query<TestAccount>();
 
-        Assert.Throws<ArgumentException>(() => query.Expand<TestContact>(null!));
+        Assert.Throws<ArgumentException>(() => query.Expand<TestContact>((string)null!));
     }
 
     [Fact]

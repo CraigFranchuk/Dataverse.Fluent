@@ -361,6 +361,7 @@ namespace Dataverse.Fluent.Builders
         public Dataverse.Fluent.Builders.AssociationBuilder To<TTarget>(string keyName, object keyValue) { }
         public Dataverse.Fluent.Builders.AssociationBuilder To<TTarget, TKey>(System.Linq.Expressions.Expression<System.Func<TTarget, TKey>> keyExpression, TKey keyValue) { }
         public Dataverse.Fluent.Builders.AssociationBuilder Via(string navigationProperty) { }
+        public Dataverse.Fluent.Builders.AssociationBuilder Via<TSource>(System.Linq.Expressions.Expression<System.Func<TSource, object?>> navigation) { }
         public Dataverse.Fluent.Builders.AssociationBuilder ViaSingleValued(string navigationProperty) { }
     }
     public sealed class BatchBuilder
@@ -437,6 +438,10 @@ namespace Dataverse.Fluent.Builders
         public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithPrefer(string preferValue) { }
         public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithRelated<TRelated>(System.Collections.Generic.IEnumerable<TRelated> relatedEntities, string relationshipName)
             where TRelated :  class { }
+        public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithRelated<TRelated>(System.Linq.Expressions.Expression<System.Func<T, System.Collections.Generic.IEnumerable<TRelated>?>> navigation, System.Collections.Generic.IEnumerable<TRelated> relatedEntities)
+            where TRelated :  class { }
+        public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithRelated<TRelated>(System.Linq.Expressions.Expression<System.Func<T, TRelated?>> navigation, TRelated relatedEntity)
+            where TRelated :  class { }
         public Dataverse.Fluent.Builders.DeepInsertBuilder<T> WithRelated<TRelated>(TRelated relatedEntity, string relationshipName)
             where TRelated :  class { }
     }
@@ -453,6 +458,8 @@ namespace Dataverse.Fluent.Builders
     {
         public System.Threading.Tasks.Task DeleteAsync(System.Threading.CancellationToken ct = default) { }
         public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand(string expand) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(System.Linq.Expressions.Expression<System.Func<T, System.Collections.Generic.IEnumerable<TRelated>?>> navigation, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(System.Linq.Expressions.Expression<System.Func<T, TRelated?>> navigation, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
         public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(string navigationProperty, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
         public Dataverse.Fluent.Builders.EntityReadBuilder<T> IncludeFormattedValues(bool include = true) { }
         public System.Threading.Tasks.Task<T?> RetrieveAsync(System.Threading.CancellationToken ct = default) { }
@@ -489,6 +496,8 @@ namespace Dataverse.Fluent.Builders
     public sealed class EntityReadBuilder<T>
     {
         public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand(string expand) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(System.Linq.Expressions.Expression<System.Func<T, System.Collections.Generic.IEnumerable<TRelated>?>> navigation, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
+        public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(System.Linq.Expressions.Expression<System.Func<T, TRelated?>> navigation, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
         public Dataverse.Fluent.Builders.EntityReadBuilder<T> Expand<TRelated>(string navigationProperty, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
         public Dataverse.Fluent.Builders.EntityReadBuilder<T> IncludeFormattedValues(bool include = true) { }
         public System.Threading.Tasks.Task<T?> RetrieveAsync(System.Threading.CancellationToken ct = default) { }
@@ -571,6 +580,8 @@ namespace Dataverse.Fluent.Builders
         public Dataverse.Fluent.Builders.QueryBuilder<T> Count(bool include = true) { }
         public System.Threading.Tasks.Task<long> CountAsync(System.Threading.CancellationToken ct = default) { }
         public Dataverse.Fluent.Builders.QueryBuilder<T> Expand(string expand) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Expand<TRelated>(System.Linq.Expressions.Expression<System.Func<T, System.Collections.Generic.IEnumerable<TRelated>?>> navigation, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
+        public Dataverse.Fluent.Builders.QueryBuilder<T> Expand<TRelated>(System.Linq.Expressions.Expression<System.Func<T, TRelated?>> navigation, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
         public Dataverse.Fluent.Builders.QueryBuilder<T> Expand<TRelated>(string navigationProperty, System.Action<Dataverse.Fluent.Builders.ExpandBuilder<T, TRelated>>? configure = null) { }
         public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetAllAsync(int pageSize = 5000, System.Threading.CancellationToken ct = default) { }
         public System.Threading.Tasks.Task<System.Collections.Generic.List<T>> GetListAsync(System.Threading.CancellationToken ct = default) { }

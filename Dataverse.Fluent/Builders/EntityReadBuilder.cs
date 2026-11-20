@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Dataverse.Fluent.Builders.Expressions;
 
 namespace Dataverse.Fluent.Builders;
 
@@ -192,6 +193,28 @@ public sealed class EntityReadBuilder<T>
         _expandClauses.Add(builder.Build());
         return this;
     }
+
+    /// <summary>
+    /// Adds an $expand clause for a single-valued navigation property of the model, such as
+    /// <c>x =&gt; x.PrimaryContact</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    /// <typeparam name="TRelated">The related entity type being expanded.</typeparam>
+    /// <param name="navigation">The navigation property to expand.</param>
+    /// <param name="configure">Optional action to configure nested $select, $filter, $orderby, $top on the expansion.</param>
+    /// <exception cref="ArgumentException">The property is not a navigation property of <typeparamref name="T"/>.</exception>
+    public EntityReadBuilder<T> Expand<TRelated>(Expression<Func<T, TRelated?>> navigation, Action<ExpandBuilder<T, TRelated>>? configure = null)
+        => Expand(NavigationPropertyReader.Read<T>(navigation).Name, configure);
+
+    /// <summary>
+    /// Adds an $expand clause for a collection-valued navigation property of the model, such as
+    /// <c>x =&gt; x.Contacts</c>. The name of the relationship is the one the property is mapped to.
+    /// </summary>
+    /// <typeparam name="TRelated">The related entity type being expanded.</typeparam>
+    /// <param name="navigation">The navigation property to expand.</param>
+    /// <param name="configure">Optional action to configure nested $select, $filter, $orderby, $top on the expansion.</param>
+    /// <exception cref="ArgumentException">The property is not a navigation property of <typeparamref name="T"/>.</exception>
+    public EntityReadBuilder<T> Expand<TRelated>(Expression<Func<T, IEnumerable<TRelated>?>> navigation, Action<ExpandBuilder<T, TRelated>>? configure = null)
+        => Expand(NavigationPropertyReader.Read<T>(navigation).Name, configure);
 
     /// <summary>
     /// Requests formatted (display) values for the retrieved entity, surfaced via
