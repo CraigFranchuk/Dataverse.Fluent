@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Dataverse.Fluent\Dataverse.Fluent.csproj" />
+    <ProjectReference Include="..\Dataverse.Fluent.Schema\Dataverse.Fluent.Schema.csproj" />
   </ItemGroup>
 
   <ItemGroup>
