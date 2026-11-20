@@ -39,6 +39,12 @@ internal static class JsonDefaults
     /// <summary>Writes individual values and finished JSON payloads.</summary>
     internal static JsonSerializerOptions PayloadSerialization => _current.PayloadSerialization;
 
+    /// <summary>
+    /// Writes a record as Dataverse returns it, so <see cref="CaseInsensitive"/> reads it back (see
+    /// <see cref="DataverseColumnResolver.Response"/>). Nulls are written, as Dataverse does.
+    /// </summary>
+    internal static JsonSerializerOptions Response => _current.Response;
+
     private sealed class Snapshot
     {
         public readonly JsonSerializerOptions CaseInsensitive = new()
@@ -68,6 +74,13 @@ internal static class JsonDefaults
             WriteIndented = false,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             TypeInfoResolver = DataverseColumnResolver.Read,
+            PropertyNamingPolicy = DataverseColumnResolver.ProvisionalNames
+        };
+
+        public readonly JsonSerializerOptions Response = new()
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            TypeInfoResolver = DataverseColumnResolver.Response,
             PropertyNamingPolicy = DataverseColumnResolver.ProvisionalNames
         };
     }

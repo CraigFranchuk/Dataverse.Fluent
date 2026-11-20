@@ -129,15 +129,9 @@ internal class FetchXmlExecutor<T>
 
     private static Dictionary<string, string> BuildHeaders(FetchXmlOptions options)
     {
-        var annotations = new List<string>(3);
-        if (options.IncludeFormattedValues)
-            annotations.Add("OData.Community.Display.V1.FormattedValue");
-        annotations.Add(PagingCookieAnnotation);
-        annotations.Add(MoreRecordsAnnotation);
-
         return new Dictionary<string, string>
         {
-            ["Prefer"] = $"odata.include-annotations=\"{string.Join(",", annotations)}\""
+            ["Prefer"] = ODataPaging.IncludeAnnotationsPreference(typeof(T), options.IncludeFormattedValues, PagingCookieAnnotation, MoreRecordsAnnotation)!
         };
     }
 

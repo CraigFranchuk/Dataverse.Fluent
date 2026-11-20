@@ -6,6 +6,7 @@ A fluent, strongly typed C# client for the Microsoft Dataverse Web API, with no 
 |---------|-------------|
 | `Dataverse.Fluent` | The client. See the [package README](Dataverse.Fluent/README.md) and the [guides](Dataverse.Fluent/docs/README.md). |
 | `Dataverse.Fluent.Sales` | Mapped Dynamics 365 Sales tables and typed Sales actions. See its [README](Dataverse.Fluent.Sales/README.md). |
+| `Dataverse.Fluent.Testing` | A fake transport for unit testing code that uses the client. See its [README](Dataverse.Fluent.Testing/README.md). |
 
 ```csharp
 var client = new DataverseClient("https://yourorg.api.crm.dynamics.com/api/data/v9.2", new DefaultAzureCredential());
@@ -24,6 +25,7 @@ var accounts = await client.Query<Account>()
 | `Dataverse.Fluent.Tests` | Unit tests |
 | `Dataverse.Fluent.IntegrationTests` | Tests against a live Dataverse environment ([README](Dataverse.Fluent.IntegrationTests/README.md)) |
 | `Dataverse.Fluent.Sales` and its test projects | The Dynamics 365 Sales package |
+| `Dataverse.Fluent.Testing` and `Dataverse.Fluent.Testing.Tests` | The fake transport package |
 | `Dataverse.Fluent.Benchmarks` | BenchmarkDotNet benchmarks |
 | `Examples` | Usage examples, compiled with the solution |
 

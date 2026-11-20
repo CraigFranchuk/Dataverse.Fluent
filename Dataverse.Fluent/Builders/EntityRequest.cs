@@ -14,12 +14,16 @@ internal sealed class EntityRequest
     private Dictionary<string, object>? _alternateKey;
     private SingleUseGuard _guard;
 
-    public EntityRequest(IDataverseTransport client, string entitySet, Guid? id)
+    public EntityRequest(IDataverseTransport client, Type entityType, string entitySet, Guid? id)
     {
         Client = client;
+        EntityType = entityType;
         EntitySet = entitySet;
         EntityId = id;
     }
+
+    /// <summary>The POCO type the record is read into.</summary>
+    public Type EntityType { get; }
 
     public IDataverseTransport Client { get; }
 
@@ -75,15 +79,22 @@ internal sealed class EntityRequest
         return options.Count == 0 ? path : path + "?" + string.Join("&", options);
     }
 
-    public Dictionary<string, string>? BuildHeaders(bool includeFormattedValues = false, string? ifMatch = null, string? ifNoneMatch = null)
+    /// <param name="includeFormattedValues">Whether to request formatted values.</param>
+    /// <param name="ifMatch">The If-Match header, if any.</param>
+    /// <param name="ifNoneMatch">The If-None-Match header, if any.</param>
+    /// <param name="readsRecord">Whether the response is a record read into <see cref="EntityType"/>: a retrieve, or a
+    /// write with <c>return=representation</c>. Annotations a polymorphic lookup needs are then requested.</param>
+    public Dictionary<string, string>? BuildHeaders(bool includeFormattedValues = false, string? ifMatch = null, string? ifNoneMatch = null, bool readsRecord = false)
     {
         var headers = new Dictionary<string, string>();
 
-        // Combine explicit Prefer options with formatted-value annotation requests
+        // Combine explicit Prefer options with annotation requests
         var preferValues = new List<string>(Prefer);
-        if (includeFormattedValues)
+        readsRecord |= Prefer.Contains("return=representation");
+        if ((includeFormattedValues || readsRecord)
+            && ODataPaging.IncludeAnnotationsPreference(readsRecord ? EntityType : null, includeFormattedValues) is { } annotations)
         {
-            preferValues.Add("odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"");
+            preferValues.Add(annotations);
         }
 
         if (preferValues.Count > 0)

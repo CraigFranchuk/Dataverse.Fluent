@@ -177,9 +177,9 @@ public sealed class DeltaBuilder<T>
     {
         var preferValues = new List<string>();
 
-        if (_includeFormattedValues)
+        if (ODataPaging.IncludeAnnotationsPreference(typeof(T), _includeFormattedValues) is { } annotations)
         {
-            preferValues.Add("odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"");
+            preferValues.Add(annotations);
         }
 
         // Add odata.track-changes preference for delta queries

@@ -197,9 +197,14 @@ public sealed class DeepInsertBuilder<T>
         if (_prefer.Count == 0)
             return null;
 
+        // A returned representation is read into T, whose polymorphic lookups need the table annotation.
+        var prefer = new List<string>(_prefer);
+        if (_prefer.Contains("return=representation") && ODataPaging.IncludeAnnotationsPreference(typeof(T), formattedValues: false) is { } annotations)
+            prefer.Add(annotations);
+
         return new Dictionary<string, string>
         {
-            ["Prefer"] = string.Join(",", _prefer)
+            ["Prefer"] = string.Join(",", prefer)
         };
     }
 

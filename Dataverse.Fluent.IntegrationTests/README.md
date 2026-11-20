@@ -181,6 +181,14 @@ depends on, such as how paging and `$top` work, with raw requests. They are skip
 DATAVERSE_RUN_CONTRACT_TESTS=true dotnet test --filter "Category=Contract"
 ```
 
+`BulkOperationTests.Performance_CreateMultiple_ComparedWithBatch` creates 1,500 accounts to compare `$batch` with
+`CreateMultiple`, so it is skipped unless the environment variable `DATAVERSE_RUN_PERFORMANCE_TESTS` is `true`. It
+writes the timings to the test output:
+
+```bash
+DATAVERSE_RUN_PERFORMANCE_TESTS=true dotnet test --filter "Category=Performance" --logger "console;verbosity=detailed"
+```
+
 Keep values that identify your environment, such as custom column names, in user secrets or CI secrets rather than
 in the tests.
 
@@ -198,6 +206,11 @@ relationship schema name in the Power Apps maker portal or `$metadata` and updat
 **ETags must come from Dataverse.** Dataverse rejects a fabricated ETag (for example one built from
 `ModifiedOn.Ticks`) with HTTP 500 instead of 412, so the `IfUnmodifiedSince` tests read a real one with
 `RetrieveWithMetadataAsync()`. See [UPSERT_CONFLICT_RESOLUTION.md](../Dataverse.Fluent/docs/UPSERT_CONFLICT_RESOLUTION.md).
+
+**Request options need privileges.** The `RequestOptionsTests` that bypass business logic need
+`prvBypassCustomBusinessLogic`, and the impersonation tests need `prvActOnBehalfOfAnotherUser` assigned directly to the
+calling user, not through a team. An application user with the System Administrator role has both. Without them,
+Dataverse rejects the requests and the tests fail.
 
 **`If-Match: *` requires the record to exist.** This is Dataverse behaviour: a PATCH with `If-Match: *` returns 404 for a
 missing record and never creates it. Use the library's upsert modes rather than setting the header by hand.

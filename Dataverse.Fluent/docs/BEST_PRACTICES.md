@@ -122,9 +122,10 @@ action) so abandoned requests stop.
 
 ## Testing
 
-- **Unit tests:** fake `IDataverseTransport`, which has one method, and wrap it in `new DataverseClient(transport)`.
-  Your code then runs the real builders, and the fake can assert on the exact URL, headers and payload of each
-  request. A mock of `IDataverseClient` cannot do this, because the builders are concrete classes. See
+- **Unit tests:** use `FakeDataverseTransport` from the `Dataverse.Fluent.Testing` package, or your own fake of the
+  one-method `IDataverseTransport`, and pass `fake.CreateClient()` to your code. Your code then runs the real
+  builders, and the test can assert on the exact URL, headers and payload of each request. A mock of
+  `IDataverseClient` cannot do this, because the builders are concrete classes. See
   [Testing your code](../README.md#testing-your-code).
 - **Integration tests:** run them against a dedicated environment, never production, with an application user that
   has only the privileges the tests need. Delete the records each test creates.

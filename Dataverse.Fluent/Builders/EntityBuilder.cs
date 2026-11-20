@@ -31,7 +31,7 @@ public sealed class EntityBuilder<T>
 
     internal EntityBuilder(IDataverseTransport client, Guid? id = null, string? entitySet = null)
     {
-        _request = new EntityRequest(client, entitySet ?? ODataPropertyNameCache.GetEntitySetName<T>(), id);
+        _request = new EntityRequest(client, typeof(T), entitySet ?? ODataPropertyNameCache.GetEntitySetName<T>(), id);
     }
 
     private EntityReadBuilder<T> Read => _read ??= new EntityReadBuilder<T>(_request);

@@ -6,6 +6,7 @@
 dotnet build Dataverse.Fluent.slnx
 dotnet test Dataverse.Fluent.Tests
 dotnet test Dataverse.Fluent.Sales.Tests
+dotnet test Dataverse.Fluent.Testing.Tests
 ```
 
 The unit tests need no Dataverse environment and run on .NET 10 and .NET 11; install both SDKs, or pass
@@ -35,23 +36,24 @@ and update the documentation and changelog for anything user-visible.
 
 ## Releasing
 
-Both packages share one version, `VersionPrefix` in [Directory.Build.props](Directory.Build.props). CI packages are
+The packages share one version, `VersionPrefix` in [Directory.Build.props](Directory.Build.props). CI packages are
 versioned `<VersionPrefix>-ci.<run>`; only the release workflow publishes.
 
 1. On a branch, set `VersionPrefix` to the new version and change the top of [CHANGELOG.md](CHANGELOG.md) to
-   `## <version> (<date>)`. Run the integration tests, then merge to master.
+   `## <version> (<date>)`. Run the integration tests, then merge to main.
 2. Tag the merged commit and push the tag:
 
    ```bash
-   git checkout master && git pull
+   git checkout main && git pull
    git tag -a v1.1.0 -m "1.1.0"
    git push origin v1.1.0
    ```
 
-[release.yml](.github/workflows/release.yml) then checks that the tag is on master and matches `VersionPrefix` and
-the changelog, builds and tests, pushes both packages and their symbols to nuget.org, and creates the GitHub release
-from the changelog section. A tag with a suffix (`v1.1.0-beta.1`) publishes a prerelease; its changelog heading is
-`## 1.1.0-beta.1 (<date>)`.
+[release.yml](.github/workflows/release.yml) then checks that the tag matches `VersionPrefix`, builds and runs the
+unit tests, and pushes every package and its symbols to nuget.org. It does not check the changelog or that the tag is on
+`main`, and it does not create a GitHub release: create that from the changelog section afterwards
+(`gh release create v1.1.0 --notes-file <section>`). A version with a suffix (`1.1.0-beta.1`, tagged `v1.1.0-beta.1`)
+publishes a prerelease; its changelog heading is `## 1.1.0-beta.1 (<date>)`.
 
 nuget.org trusts the workflow through Trusted Publishing, so no API key is stored. The one-time setup is a Trusted
 Publishing policy on nuget.org for this repository and `release.yml`, and a `NUGET_USER` repository secret holding the

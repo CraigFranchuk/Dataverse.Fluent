@@ -30,15 +30,24 @@ namespace Dataverse.Fluent.Builders;
 /// </remarks>
 internal sealed class DataverseColumnResolver : DefaultJsonTypeInfoResolver
 {
-    internal static readonly DataverseColumnResolver Read = new(write: false);
+    internal static readonly DataverseColumnResolver Read = new(Mode.Read);
 
-    internal static readonly DataverseColumnResolver EntityWrite = new(write: true);
+    internal static readonly DataverseColumnResolver EntityWrite = new(Mode.EntityWrite);
 
-    private readonly bool _write;
+    /// <summary>
+    /// Writes a record in the shape Dataverse returns it, the inverse of <see cref="Read"/>: the names a read expects,
+    /// and a polymorphic lookup as its <c>_x_value</c> ID and <c>lookuplogicalname</c> annotation. Used by
+    /// <see cref="DataverseResponse.FromEntity{T}"/> for test fakes.
+    /// </summary>
+    internal static readonly DataverseColumnResolver Response = new(Mode.Response);
 
-    private DataverseColumnResolver(bool write)
+    private enum Mode { Read, EntityWrite, Response }
+
+    private readonly Mode _mode;
+
+    private DataverseColumnResolver(Mode mode)
     {
-        _write = write;
+        _mode = mode;
     }
 
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
@@ -47,23 +56,31 @@ internal sealed class DataverseColumnResolver : DefaultJsonTypeInfoResolver
         if (typeInfo.Kind != JsonTypeInfoKind.Object)
             return typeInfo;
 
-        if (_write)
+        if (_mode == Mode.EntityWrite)
             ConfigureForWrite(typeInfo);
         else
-            ConfigureForRead(typeInfo, type);
+            ConfigureForRead(typeInfo, type, writeReferences: _mode == Mode.Response);
 
         return typeInfo;
     }
 
-    private static void ConfigureForRead(JsonTypeInfo typeInfo, Type type)
+    private static void ConfigureForRead(JsonTypeInfo typeInfo, Type type, bool writeReferences)
     {
         var isEntityType = DataverseTypeMapping.ResolveEntitySetName(type) != null;
 
-        foreach (var property in typeInfo.Properties)
+        // A snapshot: a polymorphic lookup replaces its property.
+        foreach (var property in typeInfo.Properties.ToList())
         {
             if (property.AttributeProvider is not MemberInfo member)
             {
                 property.Name = ProvisionalNamingPolicy.Strip(property.Name);
+                continue;
+            }
+
+            if (property.PropertyType == typeof(DataverseReference) && member is PropertyInfo
+                && EntityTypeMetadata.For(type).Find(member) is { Kind: EntityMemberKind.PolymorphicLookup } polymorphic)
+            {
+                ReplaceWithReferenceReaders(typeInfo, property, polymorphic, writeReferences);
                 continue;
             }
 
@@ -81,7 +98,8 @@ internal sealed class DataverseColumnResolver : DefaultJsonTypeInfoResolver
     {
         var metadata = EntityTypeMetadata.For(typeInfo.Type);
 
-        foreach (var property in typeInfo.Properties)
+        // A snapshot: a polymorphic lookup replaces its property.
+        foreach (var property in typeInfo.Properties.ToList())
         {
             if (property.AttributeProvider is not MemberInfo member)
             {
@@ -98,11 +116,15 @@ internal sealed class DataverseColumnResolver : DefaultJsonTypeInfoResolver
                     property.ShouldSerialize = static (_, _) => false;
                     break;
 
+                case EntityMemberKind.PolymorphicLookup:
+                    ReplaceWithBinds(typeInfo, property, mapped);
+                    break;
+
                 case EntityMemberKind.Lookup:
                     property.Name = mapped.WriteName;
                     property.CustomConverter = property.PropertyType == typeof(Guid)
-                        ? new LookupBindConverter(mapped.Lookup!.TargetEntitySet)
-                        : new NullableLookupBindConverter(mapped.Lookup!.TargetEntitySet);
+                        ? new LookupBindConverter(mapped.Lookup!.TargetEntitySet!)
+                        : new NullableLookupBindConverter(mapped.Lookup!.TargetEntitySet!);
                     // An unset lookup is not written; clearing one is an explicit Set(x => x.Lookup, null).
                     property.ShouldSerialize = static (_, value) => value is Guid id && id != Guid.Empty;
                     break;
@@ -117,6 +139,61 @@ internal sealed class DataverseColumnResolver : DefaultJsonTypeInfoResolver
     }
 
     internal static string FormatBind(string entitySet, Guid id) => $"/{entitySet}({id})";
+
+    // A polymorphic lookup is written under the navigation property of the target it points at, so its name
+    // depends on its value. The property is replaced by one computed property per distinct navigation property;
+    // only the one matching the reference's table writes a value. An unset reference writes nothing, as SetFrom
+    // does for a single-table lookup.
+    private static void ReplaceWithBinds(JsonTypeInfo typeInfo, JsonPropertyInfo property, EntityMember member)
+    {
+        var get = property.Get;
+        typeInfo.Properties.Remove(property);
+        if (get is null)
+            return;
+
+        foreach (var navigation in member.Targets.Select(t => t.NavigationProperty).Distinct(StringComparer.Ordinal))
+        {
+            var bind = typeInfo.CreateJsonPropertyInfo(typeof(string), $"{navigation}@odata.bind");
+            bind.Get = obj =>
+            {
+                if (get(obj) is not DataverseReference reference || reference.Id == Guid.Empty)
+                    return null;
+
+                var (target, value) = member.ResolveBind(reference);
+                return string.Equals(target.NavigationProperty, navigation, StringComparison.Ordinal) ? value : null;
+            };
+            bind.ShouldSerialize = static (_, value) => value is not null;
+            typeInfo.Properties.Add(bind);
+        }
+    }
+
+    // A response carries a polymorphic lookup as its ID (_x_value) and, when requested, the table in the
+    // _x_value@Microsoft.Dynamics.CRM.lookuplogicalname annotation, in either order. Each fills its part of the
+    // reference; a null ID clears it. With writeReferences (the Response resolver) both are also written, the
+    // annotation only when the table is known, as Dataverse sends it.
+    private static void ReplaceWithReferenceReaders(JsonTypeInfo typeInfo, JsonPropertyInfo property, EntityMember member, bool writeReferences)
+    {
+        var get = property.Get;
+        var set = property.Set;
+        typeInfo.Properties.Remove(property);
+        if (get is null || set is null)
+            return;
+
+        var id = typeInfo.CreateJsonPropertyInfo(typeof(Guid?), member.Name);
+        id.Set = (obj, value) => set(obj, value is Guid g ? DataverseReference.WithId((DataverseReference?)get(obj), g) : null);
+        if (writeReferences)
+            id.Get = obj => get(obj) is DataverseReference { Id: var g } && g != Guid.Empty ? g : null;
+        typeInfo.Properties.Add(id);
+
+        var table = typeInfo.CreateJsonPropertyInfo(typeof(string), $"{member.Name}@{ODataPaging.LookupLogicalNameAnnotation}");
+        table.Set = (obj, value) => set(obj, DataverseReference.WithLogicalName((DataverseReference?)get(obj), (string?)value));
+        if (writeReferences)
+        {
+            table.Get = obj => (get(obj) as DataverseReference)?.LogicalName;
+            table.ShouldSerialize = static (_, value) => value is not null;
+        }
+        typeInfo.Properties.Add(table);
+    }
 
     /// <summary>
     /// The naming policy every option set uses. System.Text.Json rejects duplicate names (case-insensitively,

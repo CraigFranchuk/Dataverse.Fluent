@@ -1,0 +1,53 @@
+namespace Dataverse.Fluent.Testing
+{
+    public sealed class FakeDataverseTransport : Dataverse.Fluent.IDataverseTransport
+    {
+        public const string DefaultBaseUrl = "https://fake.crm.dynamics.com/api/data/v9.2";
+        public FakeDataverseTransport(string baseUrl = "https://fake.crm.dynamics.com/api/data/v9.2") { }
+        public string BaseUrl { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Testing.FakeRequest> Operations { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Testing.FakeRequest> Requests { get; }
+        public Dataverse.Fluent.DataverseClient CreateClient() { }
+        public Dataverse.Fluent.Testing.FakeRoute On(System.Func<Dataverse.Fluent.Testing.FakeRequest, bool> predicate) { }
+        public Dataverse.Fluent.Testing.FakeRoute On(System.Net.Http.HttpMethod method, string pathPattern) { }
+        public Dataverse.Fluent.Testing.FakeRoute OnDelete(string pathPattern) { }
+        public Dataverse.Fluent.Testing.FakeRoute OnGet(string pathPattern) { }
+        public Dataverse.Fluent.Testing.FakeRoute OnPatch(string pathPattern) { }
+        public Dataverse.Fluent.Testing.FakeRoute OnPost(string pathPattern) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.DataverseResponse> SendAsync(Dataverse.Fluent.DataverseRequest request, System.Threading.CancellationToken ct = default) { }
+    }
+    public sealed class FakeRequest
+    {
+        public Dataverse.Fluent.Testing.FakeRequest? Batch { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Testing.FakeRequest> BatchOperations { get; }
+        public string? Body { get; }
+        public int? ContentId { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, string> Headers { get; }
+        public bool IsBatch { get; }
+        public System.Net.Http.HttpMethod Method { get; }
+        public string Path { get; }
+        public System.Text.Json.Nodes.JsonObject? Payload { get; }
+        public System.Collections.Generic.IReadOnlyDictionary<string, string> Query { get; }
+        public string Url { get; }
+        public string? GetHeader(string name) { }
+        public string? GetQueryOption(string name) { }
+        public override string ToString() { }
+    }
+    public sealed class FakeRoute
+    {
+        public System.Net.Http.HttpMethod? Method { get; }
+        public string? PathPattern { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Testing.FakeRequest> Requests { get; }
+        public Dataverse.Fluent.Testing.FakeRoute Respond(System.Func<Dataverse.Fluent.Testing.FakeRequest, Dataverse.Fluent.DataverseResponse> responder) { }
+        public Dataverse.Fluent.Testing.FakeRoute RespondWithBulkCreated() { }
+        public Dataverse.Fluent.Testing.FakeRoute RespondWithCreated(System.Guid? id = default) { }
+        public Dataverse.Fluent.Testing.FakeRoute RespondWithEntities<T>(System.Collections.Generic.IEnumerable<T> entities, string? nextLink = null, long? totalCount = default) { }
+        public Dataverse.Fluent.Testing.FakeRoute RespondWithEntity<T>(T entity, System.Net.HttpStatusCode statusCode = 200, string? etag = null) { }
+        public Dataverse.Fluent.Testing.FakeRoute RespondWithError(System.Net.HttpStatusCode statusCode, string? errorCode = null, string? message = null) { }
+        public Dataverse.Fluent.Testing.FakeRoute RespondWithJson(System.Text.Json.Nodes.JsonNode? body, System.Net.HttpStatusCode statusCode = 200) { }
+        public Dataverse.Fluent.Testing.FakeRoute RespondWithNoContent() { }
+        public Dataverse.Fluent.Testing.FakeRoute Throw(System.Exception exception) { }
+        public override string ToString() { }
+        public Dataverse.Fluent.Testing.FakeRoute When(System.Func<Dataverse.Fluent.Testing.FakeRequest, bool> condition) { }
+    }
+}

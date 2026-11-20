@@ -8,6 +8,13 @@ namespace Dataverse.Fluent
         public string? ResolveEntitySetName(System.Type type) { }
         public string? ResolvePropertyName(System.Reflection.MemberInfo member) { }
     }
+    [System.Flags]
+    public enum BusinessLogicBypass
+    {
+        None = 0,
+        CustomSync = 1,
+        CustomAsync = 2,
+    }
     public class DataverseClient : Dataverse.Fluent.IDataverseClient, System.IDisposable
     {
         public DataverseClient(Dataverse.Fluent.IDataverseTransport transport) { }
@@ -30,6 +37,13 @@ namespace Dataverse.Fluent
         public Dataverse.Fluent.Builders.EntityFluentBuilder<T> ForEntity<T>(System.Guid entityId, string? entitySet = null) { }
         public Dataverse.Fluent.Builders.FunctionBuilder<TResponse> Function<TResponse>(string functionName) { }
         public Dataverse.Fluent.Builders.QueryBuilder<T> Query<T>(string? entitySet = null) { }
+    }
+    public static class DataverseClientExtensions
+    {
+        public static Dataverse.Fluent.Builders.BulkBuilder<T> Bulk<T>(this Dataverse.Fluent.IDataverseClient client, string? entitySet = null, string? entityLogicalName = null)
+            where T :  class { }
+        public static Dataverse.Fluent.IDataverseClient WithOptions(this Dataverse.Fluent.IDataverseClient client, Dataverse.Fluent.DataverseRequestOptions options) { }
+        public static Dataverse.Fluent.IDataverseClient WithOptions(this Dataverse.Fluent.IDataverseClient client, System.Action<Dataverse.Fluent.DataverseRequestOptions> configure) { }
     }
     public sealed class DataverseClientOptions
     {
@@ -64,10 +78,19 @@ namespace Dataverse.Fluent
     [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=false, Inherited=true)]
     public sealed class DataverseLookupAttribute : System.Attribute
     {
+        public DataverseLookupAttribute(string logicalName) { }
         public DataverseLookupAttribute(string logicalName, string targetEntitySet) { }
         public string LogicalName { get; }
         public string NavigationProperty { get; set; }
-        public string TargetEntitySet { get; }
+        public string? TargetEntitySet { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Property, AllowMultiple=true, Inherited=true)]
+    public sealed class DataverseLookupTargetAttribute : System.Attribute
+    {
+        public DataverseLookupTargetAttribute(string logicalName, string entitySet, string navigationProperty) { }
+        public string EntitySet { get; }
+        public string LogicalName { get; }
+        public string NavigationProperty { get; }
     }
     [System.Flags]
     public enum DataverseOperation
@@ -85,6 +108,14 @@ namespace Dataverse.Fluent
         public DataverseReadOnlyAttribute(Dataverse.Fluent.DataverseOperation excludeFrom) { }
         public Dataverse.Fluent.DataverseOperation ExcludeFrom { get; set; }
     }
+    public sealed class DataverseReference : System.IEquatable<Dataverse.Fluent.DataverseReference>
+    {
+        public DataverseReference(string logicalName, System.Guid id) { }
+        public System.Guid Id { get; }
+        public string? LogicalName { get; }
+        public override string ToString() { }
+        public static Dataverse.Fluent.DataverseReference To<T>(System.Guid id) { }
+    }
     public sealed class DataverseRequest
     {
         public DataverseRequest(System.Net.Http.HttpMethod method, string url) { }
@@ -94,6 +125,18 @@ namespace Dataverse.Fluent
         public System.Text.Json.Nodes.JsonObject? Payload { get; set; }
         public string Url { get; }
         public override string ToString() { }
+    }
+    public sealed class DataverseRequestOptions
+    {
+        public DataverseRequestOptions() { }
+        public Dataverse.Fluent.BusinessLogicBypass BypassBusinessLogic { get; set; }
+        public System.Collections.Generic.IList<System.Guid> BypassPluginStepIds { get; }
+        public bool BypassPowerAutomateFlows { get; set; }
+        public System.Guid? CallerObjectId { get; set; }
+        public System.Guid? CallerSystemUserId { get; set; }
+        public bool DetectDuplicates { get; set; }
+        public System.Collections.Generic.IDictionary<string, string> Headers { get; }
+        public string? SolutionUniqueName { get; set; }
     }
     public static class DataverseResilienceExtensions
     {
@@ -122,6 +165,8 @@ namespace Dataverse.Fluent
         public System.Threading.Tasks.Task<System.Text.Json.Nodes.JsonObject> ReadJsonObjectAsync(System.Threading.CancellationToken ct = default) { }
         public System.Threading.Tasks.Task<string> ReadStringAsync(System.Threading.CancellationToken ct = default) { }
         public static Dataverse.Fluent.DataverseResponse Empty(System.Net.HttpStatusCode statusCode = 204, string? entityUrl = null) { }
+        public static Dataverse.Fluent.DataverseResponse FromEntities<T>(System.Collections.Generic.IEnumerable<T> entities, string? nextLink = null, long? totalCount = default) { }
+        public static Dataverse.Fluent.DataverseResponse FromEntity<T>(T entity, System.Net.HttpStatusCode statusCode = 200) { }
         public static Dataverse.Fluent.DataverseResponse FromJson(System.Text.Json.Nodes.JsonNode? body, System.Net.HttpStatusCode statusCode = 200) { }
     }
     public static class DataverseTelemetry
@@ -311,6 +356,17 @@ namespace Dataverse.Fluent.Builders
         public Dataverse.Fluent.Builders.BatchBuilder ContinueOnError(bool value = true) { }
         public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BatchResult> ExecuteAsync(System.Threading.CancellationToken ct = default) { }
         public Dataverse.Fluent.Builders.BatchBuilder NewChangeset() { }
+    }
+    public sealed class BulkBuilder<T>
+        where T :  class
+    {
+        public Dataverse.Fluent.Builders.BulkBuilder<T> ChunkSize(int size) { }
+        public Dataverse.Fluent.Builders.BulkBuilder<T> ContinueOnError(bool value = true) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> CreateAsync(System.Collections.Generic.IEnumerable<T> entities, System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.Builders.BulkBuilder<T> MaxDegreeOfParallelism(int maxDegreeOfParallelism) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> UpdateAsync(System.Collections.Generic.IEnumerable<T> entities, System.Linq.Expressions.Expression<System.Func<T, System.Guid?>> primaryKey, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> UpsertAsync(System.Collections.Generic.IEnumerable<T> entities, System.Linq.Expressions.Expression<System.Func<T, System.Guid?>> primaryKey, System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<Dataverse.Fluent.Models.BulkResult> UpsertByAlternateKeyAsync<TKey>(System.Collections.Generic.IEnumerable<T> entities, System.Linq.Expressions.Expression<System.Func<T, TKey>> alternateKey, System.Threading.CancellationToken ct = default) { }
     }
     public static class DataverseFunctions
     {
@@ -571,6 +627,34 @@ namespace Dataverse.Fluent.Models
         public System.Collections.Generic.IEnumerable<Dataverse.Fluent.Models.BatchOperationResult> Errors { get; }
         public bool HasErrors { get; }
         public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Models.BatchOperationResult> Results { get; }
+        public void ThrowIfAnyFailed() { }
+    }
+    public sealed class BulkChunkResult
+    {
+        public int Count { get; }
+        public System.Exception? Error { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Guid> Ids { get; }
+        public bool IsSuccess { get; }
+        public int StartIndex { get; }
+        public Dataverse.Fluent.Models.BulkChunkStatus Status { get; }
+    }
+    public enum BulkChunkStatus
+    {
+        NotSent = 0,
+        Succeeded = 1,
+        Failed = 2,
+    }
+    public sealed class BulkOperationException : System.AggregateException
+    {
+        public Dataverse.Fluent.Models.BulkResult Result { get; }
+    }
+    public sealed class BulkResult
+    {
+        public bool AllSucceeded { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Models.BulkChunkResult> Chunks { get; }
+        public System.Collections.Generic.IEnumerable<Dataverse.Fluent.Models.BulkChunkResult> Failures { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Guid> Ids { get; }
+        public int SucceededCount { get; }
         public void ThrowIfAnyFailed() { }
     }
     public sealed class DataverseCreateResult<T>

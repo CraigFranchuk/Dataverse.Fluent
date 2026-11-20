@@ -1,7 +1,45 @@
 # Changelog
 
-All notable changes to the `Dataverse.Fluent` and `Dataverse.Fluent.Sales` packages are recorded here. The
-packages follow [semantic versioning](https://semver.org/).
+All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales` and `Dataverse.Fluent.Testing` packages are
+recorded here. The packages follow [semantic versioning](https://semver.org/).
+
+## 1.1.0 (2026-11-19)
+
+### Dataverse.Fluent
+
+- `WithOptions` returns a client that sends Dataverse's optional request headers with every request:
+  `BypassBusinessLogic` (`CustomSync`/`CustomAsync`), `BypassPluginStepIds`, `BypassPowerAutomateFlows`,
+  `DetectDuplicates`, `SolutionUniqueName`, impersonation with `CallerObjectId` or `CallerSystemUserId`, and any other
+  header through `Headers`. Batches built from that client carry the headers in every operation, because Dataverse
+  does not apply the headers of a `$batch` request to the operations inside it.
+  See [Request Options](Dataverse.Fluent/docs/REQUEST_OPTIONS.md).
+- `Bulk<T>()` writes many records with `CreateMultiple`, `UpdateMultiple` and `UpsertMultiple` (by primary key or
+  alternate key, including composite keys). Records are sent in chunks (`ChunkSize`, default 100), optionally in
+  parallel (`MaxDegreeOfParallelism`). The `BulkResult` reports each chunk as succeeded, failed or not sent, with the
+  created IDs in input order, and `ThrowIfAnyFailed()` throws `BulkOperationException`. Missing and duplicate keys are
+  rejected before anything is sent. See [Bulk Operations](Dataverse.Fluent/docs/BULK_OPERATIONS.md).
+- Polymorphic lookups (customer, owner, regarding) map as a `DataverseReference` (table logical name and ID) with
+  `[DataverseLookup("column")]` and one `[DataverseLookupTarget(logicalName, entitySet, navigationProperty)]` per
+  table. `SetFrom`, `Set`, batches and bulk operations write the bind for the table the reference points at.
+  Queries, retrieves, FetchXML, delta queries and batch retrieves request the `lookuplogicalname` annotation
+  automatically when a type needs it, so reads fill in the table. Filters use `x.Lookup.Id`. See
+  [Lookup References](Dataverse.Fluent/docs/LOOKUP_REFERENCES.md#polymorphic-lookups).
+- `DataverseLookupAttribute.TargetEntitySet` is now `string?`: it is `null` for a polymorphic lookup.
+- `DataverseResponse.FromEntity(record)` and `DataverseResponse.FromEntities(records, nextLink, totalCount)` build
+  responses for a test fake with records in the shape Dataverse returns them: mapped column names, lookups as
+  `_x_value`, and a `DataverseReference` with its `lookuplogicalname` annotation. The builders read them back unchanged.
+
+### Dataverse.Fluent.Testing (new package)
+
+- `FakeDataverseTransport`, a fake transport for unit testing code that uses the client. Routes match a method and a
+  path (`fake.OnGet("accounts(*)")`), optionally narrowed with `When`; the route added last wins, and a request no
+  route matches throws, naming the request and the routes. Responses are queued per route: records
+  (`RespondWithEntities`, `RespondWithEntity` with an ETag), creates (`RespondWithCreated`, `RespondWithBulkCreated`),
+  `RespondWithNoContent`, raw JSON, Dataverse errors (`RespondWithError`, thrown as `DataverseException`) and other
+  exceptions. Every request is recorded with its decoded path, query options, headers and payload.
+- `$batch` requests are answered operation by operation through the same routes, with changeset rollback and
+  continue-on-error behaviour as Dataverse reports it. `Operations` lists every operation, batched or not.
+  See the [README](Dataverse.Fluent.Testing/README.md).
 
 ## 1.0.2 (2026-11-18)
 

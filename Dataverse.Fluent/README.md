@@ -11,9 +11,11 @@ POCOs and the calls you write are the model, so a client is ready as soon as it 
 - Queries with C# lambdas translated to OData (`$filter`, `$select`, `$orderby`, `$expand`), paging and streaming
 - Create, retrieve, update, upsert and delete, by ID or alternate key, with ETag concurrency control
 - Batches with transactional changesets, and deep insert of related records
+- Bulk create, update and upsert (`CreateMultiple`, `UpdateMultiple`, `UpsertMultiple`) in chunks, in parallel
 - FetchXML, through a fluent builder or as raw XML, with automatic paging
 - Aggregations (`$apply`), delta queries (change tracking), actions and functions, notes and file attachments
-- Lookups and related records mapped on the POCO, so a retrieved record can be written back unchanged
+- Lookups, including polymorphic customer, owner and regarding lookups, and related records mapped on the POCO, so a retrieved record can be written back unchanged
+- Request options: bypass custom business logic and flows, impersonate a user, detect duplicates
 - Write-safe retries, throttling (HTTP 429) handling, token caching, dependency injection and multiple environments
 - `DataverseException` with the Dataverse error code and activity ID
 
@@ -301,13 +303,16 @@ await client.Entity<Account>(id).Set(a => a.PrimaryContactId, contactId).UpdateA
 await client.Entity<Account>(id).Set(a => a.PrimaryContactId, null).UpdateAsync(); // clears it
 ```
 
-A polymorphic lookup such as a contact's parent customer names its target:
+A polymorphic lookup, such as a customer, owner or regarding lookup, is a `DataverseReference` (table and ID), with one
+target per table it can point at. Reads fill in the table, and writes send the bind for that table:
 
 ```csharp
-await client.Entity<Contact>()
-    .Set(c => c.LastName, "Doe")
-    .SetLookup("parentcustomerid_account", "accounts", accountId)
-    .CreateAsync();
+[DataverseLookup("parentcustomerid")]
+[DataverseLookupTarget("account", "accounts", "parentcustomerid_account")]
+[DataverseLookupTarget("contact", "contacts", "parentcustomerid_contact")]
+public DataverseReference? ParentCustomerId { get; set; }
+
+await client.Entity<Contact>(id).Set(c => c.ParentCustomerId, DataverseReference.To<Account>(accountId)).UpdateAsync();
 ```
 
 `SetFrom` never writes navigation properties (related records loaded with `$expand`), so a retrieved record can be
@@ -345,6 +350,43 @@ await client.Batch()
     .Add(client.Entity<Contact>(oldContactId).ToDeleteRequest())
     .ExecuteAsync();
 ```
+
+## Bulk operations
+
+For many records of one table, `Bulk<T>()` uses `CreateMultiple`, `UpdateMultiple` and `UpsertMultiple`, which are
+faster than a batch. Records are sent in chunks, optionally in parallel, and the result reports each chunk.
+
+```csharp
+var result = await client.Bulk<Account>()
+    .ChunkSize(500)
+    .MaxDegreeOfParallelism(4)
+    .CreateAsync(accounts);
+result.ThrowIfAnyFailed();
+
+await client.Bulk<Account>().UpdateAsync(changes, a => a.AccountId);
+await client.Bulk<Account>().UpsertByAlternateKeyAsync(accounts, a => a.AccountNumber);
+```
+
+On a standard table each chunk is one transaction: when a record fails, its chunk is rolled back. See
+[Bulk Operations](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/BULK_OPERATIONS.md).
+
+## Request options
+
+`WithOptions` returns a client that sends Dataverse's optional headers with every request, including each operation
+of a batch. It covers bypassing custom plug-ins, workflows and Power Automate flows, impersonating another user,
+duplicate detection and solution association. The original client is not changed.
+
+```csharp
+var loader = client.WithOptions(o =>
+{
+    o.BypassBusinessLogic = BusinessLogicBypass.CustomSync | BusinessLogicBypass.CustomAsync;
+    o.BypassPowerAutomateFlows = true;
+});
+
+var asUser = client.WithOptions(o => o.CallerObjectId = userObjectId); // impersonation
+```
+
+See [Request Options](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/REQUEST_OPTIONS.md).
 
 ## Deep insert and associations
 
@@ -414,8 +456,24 @@ var note = await client.Annotation()
 
 ## Testing your code
 
-Fake the one-method `IDataverseTransport` interface and wrap it in a `DataverseClient`. Your code then runs the real
-builders, and the fake sees the exact requests they produce.
+The `Dataverse.Fluent.Testing` package has a fake transport. Your code runs the real builders, the fake answers from
+routes the test sets up, and the test asserts on the exact requests that were sent, including each operation of a
+batch.
+
+```csharp
+var fake = new FakeDataverseTransport();
+fake.OnGet("accounts").RespondWithEntities([new Account { Name = "Contoso" }]);
+fake.OnPatch("accounts(*)").RespondWithError(HttpStatusCode.PreconditionFailed);
+
+await new MyService(fake.CreateClient()).RunAsync();
+
+Assert.Equal("revenue gt 0", fake.Requests[0].Query["$filter"]);
+```
+
+See the [Dataverse.Fluent.Testing README](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent.Testing/README.md).
+
+Without the package, fake the one-method `IDataverseTransport` interface yourself and wrap it in a `DataverseClient`.
+`DataverseResponse.FromEntity` and `FromEntities` build responses with records in the shape Dataverse returns them.
 
 ```csharp
 sealed class FakeTransport : IDataverseTransport
@@ -453,6 +511,8 @@ be sent through `client.Transport`.
 | [Annotations](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/ANNOTATIONS.md) | Notes and file attachments |
 | [Deep Insert](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DEEP_INSERT_GUIDE.md) | Creating related records in one request |
 | [Delta Queries](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/DELTA_QUERIES.md) | Change tracking |
+| [Bulk Operations](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/BULK_OPERATIONS.md) | `CreateMultiple`, `UpdateMultiple`, `UpsertMultiple` |
+| [Request Options](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/REQUEST_OPTIONS.md) | Bypassing business logic, impersonation, duplicate detection |
 | [FetchXML Examples](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/FETCHXML_EXAMPLES.md) | Fluent and raw FetchXML |
 | [Lookup References](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/LOOKUP_REFERENCES.md) | Mapping and setting lookups |
 | [SetFrom](https://github.com/CraigFranchuk/Dataverse.Fluent/blob/main/Dataverse.Fluent/docs/SETFROM.md) | Writing POCOs and leaving out read-only columns |

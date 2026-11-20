@@ -33,6 +33,10 @@ public sealed partial class BatchBuilder
     private bool _continueOnError;
     private SingleUseGuard _guard;
 
+    // Headers from DataverseClientExtensions.WithOptions. Dataverse does not apply the headers of the $batch
+    // request to the operations inside it, so they are written into every part as well.
+    private readonly IReadOnlyDictionary<string, string>? _scopedHeaders;
+
     // Content-IDs are assigned at add-time (1-based, monotonically increasing across the whole
     // batch) so that references to records created earlier in the same changeset ($contentId) are
     // deterministic and known to the caller as soon as an operation is queued.
@@ -42,6 +46,7 @@ public sealed partial class BatchBuilder
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _batchId = batchId ?? Guid.NewGuid();
+        _scopedHeaders = (client as RequestOptionsTransport)?.Headers;
     }
 
     /// <summary>
@@ -322,7 +327,12 @@ public sealed partial class BatchBuilder
         {
             url += "?$select=" + Uri.EscapeDataString(string.Join(",", select));
         }
-        AddStandalone(CreateRequest(HttpMethod.Get, url, null));
+
+        // A polymorphic lookup on T needs the table annotation, which each batch part must request itself.
+        var headers = ODataPaging.IncludeAnnotationsPreference(typeof(T), formattedValues: false) is { } annotations
+            ? new Dictionary<string, string> { ["Prefer"] = annotations }
+            : null;
+        AddStandalone(CreateRequest(HttpMethod.Get, url, null, headers));
         return this;
     }
 
@@ -473,11 +483,8 @@ public sealed partial class BatchBuilder
         // HTTP request line
         sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"{request.Method} {_client.BaseUrl}/{request.RelativeUrl.TrimStart('/')} HTTP/1.1").Append(Crlf);
 
-        if (request.Headers != null)
-        {
-            foreach (var (name, value) in request.Headers)
-                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"{name}: {value}").Append(Crlf);
-        }
+        foreach (var (name, value) in PartHeaders(request))
+            sb.Append(System.Globalization.CultureInfo.InvariantCulture, $"{name}: {value}").Append(Crlf);
 
         // GET requests (e.g., standalone retrieves) have no request body and must not declare a
         // JSON content type. Write operations within a changeset send a JSON payload.
@@ -506,22 +513,23 @@ public sealed partial class BatchBuilder
         return partContent;
     }
 
-    // Operations that can update a record pass both Create and Update: a property marked read-only for
-    // Create only (e.g. statecode) must not send its default value over an existing record.
-    private static JsonNode SerializeEntity<T>(T entity, params DataverseOperation[] operations) where T : class
+    // The headers of one part: the scoped headers from WithOptions, then the operation's own, which take precedence.
+    private IEnumerable<KeyValuePair<string, string>> PartHeaders(BatchRequest request)
     {
-        var serialized = JsonSerializer.SerializeToNode(entity, JsonDefaults.EntityPayload);
-        if (serialized is not JsonObject jsonObject)
+        if (_scopedHeaders == null)
+            return request.Headers ?? Enumerable.Empty<KeyValuePair<string, string>>();
+
+        var headers = new Dictionary<string, string>(_scopedHeaders, StringComparer.OrdinalIgnoreCase);
+        if (request.Headers != null)
         {
-            return serialized ?? new JsonObject();
+            foreach (var (name, value) in request.Headers)
+                headers[name] = value;
         }
-
-        // Remove read-only properties from the JSON
-        foreach (var operation in operations)
-            PropertyFilter.RemoveReadOnlyProperties<T>(jsonObject, operation);
-
-        return jsonObject;
+        return headers;
     }
+
+    private static JsonNode SerializeEntity<T>(T entity, params DataverseOperation[] operations) where T : class
+        => EntityPayload.Serialize(entity, operations);
 
     private static string InferEntitySet<T>()
     {
