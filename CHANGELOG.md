@@ -1,9 +1,9 @@
 # Changelog
 
-All notable changes to the `Dataverse.Fluent` and `Dataverse.Fluent.Sales` packages are recorded here. The
-packages follow [semantic versioning](https://semver.org/).
+All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales` and `Dataverse.Fluent.Testing` packages are
+recorded here. The packages follow [semantic versioning](https://semver.org/).
 
-## 1.1.0 (unreleased)
+## 1.1.0 (2026-11-19)
 
 ### Dataverse.Fluent
 
@@ -25,6 +25,21 @@ packages follow [semantic versioning](https://semver.org/).
   automatically when a type needs it, so reads fill in the table. Filters use `x.Lookup.Id`. See
   [Lookup References](Dataverse.Fluent/docs/LOOKUP_REFERENCES.md#polymorphic-lookups).
 - `DataverseLookupAttribute.TargetEntitySet` is now `string?`: it is `null` for a polymorphic lookup.
+- `DataverseResponse.FromEntity(record)` and `DataverseResponse.FromEntities(records, nextLink, totalCount)` build
+  responses for a test fake with records in the shape Dataverse returns them: mapped column names, lookups as
+  `_x_value`, and a `DataverseReference` with its `lookuplogicalname` annotation. The builders read them back unchanged.
+
+### Dataverse.Fluent.Testing (new package)
+
+- `FakeDataverseTransport`, a fake transport for unit testing code that uses the client. Routes match a method and a
+  path (`fake.OnGet("accounts(*)")`), optionally narrowed with `When`; the route added last wins, and a request no
+  route matches throws, naming the request and the routes. Responses are queued per route: records
+  (`RespondWithEntities`, `RespondWithEntity` with an ETag), creates (`RespondWithCreated`, `RespondWithBulkCreated`),
+  `RespondWithNoContent`, raw JSON, Dataverse errors (`RespondWithError`, thrown as `DataverseException`) and other
+  exceptions. Every request is recorded with its decoded path, query options, headers and payload.
+- `$batch` requests are answered operation by operation through the same routes, with changeset rollback and
+  continue-on-error behaviour as Dataverse reports it. `Operations` lists every operation, batched or not.
+  See the [README](Dataverse.Fluent.Testing/README.md).
 
 ## 1.0.2 (2026-11-18)
 
