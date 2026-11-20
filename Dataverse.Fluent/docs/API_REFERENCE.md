@@ -78,7 +78,7 @@ Each returns the `IHttpClientBuilder`, so you can add handlers. The default clie
 | `PageSize(n)` | `Prefer: odata.maxpagesize` (1 to 5,000) |
 | `Count()` | Request `@odata.count` |
 | `IncludeFormattedValues()` | Request display values |
-| `GetListAsync()` | One page as a `List<T>` |
+| `GetListAsync()` | One page as a `List<T>`: at most 5,000 rows. A warning is logged when more rows match and no `Top` or `PageSize` was set |
 | `GetListWithCountAsync()` | One page and `@odata.count` |
 | `GetPagedAsync()`, `GetNextPageAsync(page)` | Page by page, as `PagedResult<T>` (`Items`, `TotalCount`, `HasMorePages`) |
 | `GetAllAsync(pageSize)` | Every page as one list |

@@ -4,6 +4,16 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 `Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
 [semantic versioning](https://semver.org/).
 
+## 1.3.0 (unreleased)
+
+### Dataverse.Fluent
+
+- `GetListAsync()` and `GetListWithCountAsync()` log a warning when they return a page and Dataverse has more rows,
+  and the query set neither `Top()` nor `PageSize()`. They return one page of at most 5,000 rows, so such a list is
+  incomplete without the call having asked for a limit; the warning names `GetAllAsync()` and `StreamAsync()`. The
+  behaviour of both methods is unchanged. The warning goes to the client's logger, so a client over a custom
+  `IDataverseTransport` (a fake or a decorator) logs nothing.
+
 ## 1.2.0 (2026-11-20)
 
 Two new packages check models against an environment's metadata at design time. The client itself still never reads

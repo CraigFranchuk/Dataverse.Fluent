@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Dataverse.Fluent.Builders.Expressions;
 using Dataverse.Fluent.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Dataverse.Fluent.Builders;
 
@@ -222,9 +223,14 @@ public sealed class QueryBuilder<T>
     }
 
     /// <summary>
-    /// Executes the query and returns a single page of results. With <see cref="Top"/> above 5,000 it returns up to
-    /// that many rows, following the next links.
+    /// Executes the query and returns a single page of results: at most 5,000 rows, even when more match. To read
+    /// every matching row use <see cref="GetAllAsync"/> or <see cref="StreamAsync"/>. With <see cref="Top"/> above
+    /// 5,000 it returns up to that many rows, following the next links.
     /// </summary>
+    /// <remarks>
+    /// When neither <see cref="Top"/> nor <see cref="PageSize"/> is set and Dataverse reports more rows than the page
+    /// holds, a warning is logged to the client's logger, because the list is then silently incomplete.
+    /// </remarks>
     public async Task<List<T>> GetListAsync(CancellationToken ct = default)
     {
         _guard.Use();
@@ -240,6 +246,7 @@ public sealed class QueryBuilder<T>
     private async Task<List<T>> CollectUpToTopAsync(ODataCollectionResponse<T> page, CancellationToken ct)
     {
         var items = page.GetItems();
+        WarnIfTruncated(items.Count, page.NextLink);
         if (_top is not { } top || top <= ODataPaging.MaxPageSize)
             return items;
 
@@ -408,7 +415,8 @@ public sealed class QueryBuilder<T>
 
     /// <summary>
     /// Executes the query and returns results together with the total record count.
-    /// Equivalent to <see cref="GetListAsync"/> but also surfaces <c>@odata.count</c>.
+    /// Equivalent to <see cref="GetListAsync"/> but also surfaces <c>@odata.count</c>. Like it, this returns a single
+    /// page of at most 5,000 rows, and logs a warning when rows are left behind without a limit having been set.
     /// </summary>
     public async Task<(List<T> Items, long? TotalCount)> GetListWithCountAsync(CancellationToken ct = default)
     {
@@ -452,6 +460,20 @@ public sealed class QueryBuilder<T>
             if (!string.IsNullOrEmpty(nextLink))
                 ODataPaging.TrackNextLink(followed, nextLink);
         }
+    }
+
+    // With neither Top() nor PageSize(), the caller did not ask for a limit, so a next link means rows were left
+    // behind without the caller having said so: the "why do I only have 5,000 records" bug.
+    private void WarnIfTruncated(int returned, string? nextLink)
+    {
+        if (_top.HasValue || _pageSize.HasValue || string.IsNullOrEmpty(nextLink))
+            return;
+
+        TransportLogger.For(_client).LogWarning(
+            "The query on {EntitySet} returned {RowCount} rows and Dataverse has more: GetListAsync and GetListWithCountAsync " +
+            "return one page, at most 5,000 rows. Use GetAllAsync() or StreamAsync() to read every row, or Top() or " +
+            "PageSize() to state the limit.",
+            _entitySet, returned);
     }
 
     private static void ThrowIfPageSizeOutOfRange(int pageSize)
