@@ -15,8 +15,16 @@ internal sealed record ScaffoldChange(string File, string Location, string Descr
 /// <summary>A model or property that scaffolding could not match to the environment.</summary>
 internal sealed record ScaffoldMiss(string Location, string Message, string? Suggestion);
 
+/// <summary>A model or property that scaffolding left as it is for <c>validate</c> to check, and why.</summary>
+internal sealed record ScaffoldSkip(string Location, string Reason);
+
 /// <summary>What a scaffold run did to a project's models.</summary>
-internal sealed record ScaffoldResult(IReadOnlyList<SourceFile> Files, IReadOnlyList<ScaffoldChange> Changes, IReadOnlyList<ScaffoldMiss> Misses, int Models)
+internal sealed record ScaffoldResult(
+    IReadOnlyList<SourceFile> Files,
+    IReadOnlyList<ScaffoldChange> Changes,
+    IReadOnlyList<ScaffoldMiss> Misses,
+    IReadOnlyList<ScaffoldSkip> Skipped,
+    int Models)
 {
     public IEnumerable<SourceFile> Changed => Files.Where(f => f.Changes.Count > 0);
 }
@@ -27,13 +35,34 @@ internal sealed record ScaffoldResult(IReadOnlyList<SourceFile> Files, IReadOnly
 /// is matched to a column by name and gets its mapping attribute, its read-only marker and, when its type cannot hold
 /// the column, the type that can. A property that is already mapped only has its type and read-only marker checked.
 /// </summary>
-internal sealed class ModelScaffolder(IDataverseTransport transport, bool nullableEnabled, bool enums)
+/// <param name="transport">The environment to read metadata from.</param>
+/// <param name="nullableEnabled">Whether the project has nullable reference types on.</param>
+/// <param name="enums">Whether to write an enum for each choice column.</param>
+/// <param name="globalUsings">The project's global usings that are not in its source, such as its implicit usings.</param>
+/// <param name="skip">Properties to leave alone, as <c>Model.Property</c> (the model's simple or full name).</param>
+internal sealed class ModelScaffolder(
+    IDataverseTransport transport,
+    bool nullableEnabled,
+    bool enums,
+    IReadOnlyList<string>? globalUsings = null,
+    IReadOnlyCollection<string>? skip = null)
 {
     private readonly List<ScaffoldChange> _changes = [];
     private readonly List<ScaffoldMiss> _misses = [];
+    private readonly List<ScaffoldSkip> _skipped = [];
+    private readonly HashSet<string> _skipUsed = new(StringComparer.Ordinal);
+
+    // The full names of the enums this run writes: a second one must not take the same name.
+    private readonly HashSet<string> _newEnums = new(StringComparer.Ordinal);
+
+    private ModelSemantics _semantics = null!;
+    private PropertyClassifier _classifier = null!;
 
     public async Task<ScaffoldResult> ScaffoldAsync(IReadOnlyList<SourceFile> files, IReadOnlyList<string> typeNames, CancellationToken ct)
     {
+        _semantics = ModelSemantics.Create(files, globalUsings ?? [], nullableEnabled);
+        _classifier = new PropertyClassifier(_semantics);
+
         var models = files
             .SelectMany(f => f.Tree.GetRoot(ct).DescendantNodes().OfType<TypeDeclarationSyntax>().Select(t => (File: f, Type: t)))
             .Where(m => Table(m.Type) is not null)
@@ -48,46 +77,61 @@ internal sealed class ModelScaffolder(IDataverseTransport transport, bool nullab
         if (typeNames.Count > 0)
             models = [.. models.Where(m => typeNames.Any(n => Matches(m.Type, n)))];
 
-        var declared = files
-            .SelectMany(f => f.Tree.GetRoot(ct).DescendantNodes().OfType<BaseTypeDeclarationSyntax>())
-            .Select(t => t.Identifier.ValueText)
-            .ToHashSet(StringComparer.Ordinal);
-
         foreach (var (file, type) in models)
-            await ScaffoldModelAsync(file, type, declared, ct).ConfigureAwait(false);
+            await ScaffoldModelAsync(file, type, ct).ConfigureAwait(false);
 
-        return new ScaffoldResult(files, _changes, _misses, models.Count);
+        // A mistyped name would skip nothing, and the property it was meant for would fail the run.
+        var unknown = (skip ?? []).Where(s => !_skipUsed.Contains(s)).ToList();
+        if (unknown.Count > 0)
+        {
+            throw new ToolException(
+                $"--skip: {string.Join(", ", unknown.Select(s => $"'{s}'"))} {(unknown.Count == 1 ? "is not a property" : "are not properties")} " +
+                "of a model that was read. Name a property as Model.Property.");
+        }
+
+        return new ScaffoldResult(files, _changes, _misses, _skipped, models.Count);
     }
 
     private static bool Matches(TypeDeclarationSyntax type, string name)
         => type.Identifier.ValueText == name || SourceFixer.FullName(type) == name;
 
     // The attribute that maps the type to a table, with the table's logical name or entity set.
-    private static (AttributeSyntax Attribute, string? LogicalName, string? EntitySet)? Table(TypeDeclarationSyntax type)
+    private (AttributeSyntax Attribute, string? LogicalName, string? EntitySet)? Table(TypeDeclarationSyntax type)
     {
-        if (SourceFixer.FindAttribute(type.AttributeLists, "DataverseEntity") is { } entity && SourceFixer.StringArgument(entity, 0) is { Length: > 0 } logicalName)
-            return (entity, logicalName, SourceFixer.StringArgument(entity, 1));
-        if (SourceFixer.FindAttribute(type.AttributeLists, "EntitySet") is { } set && SourceFixer.StringArgument(set, 0) is { Length: > 0 } entitySet)
+        if (_semantics.FindAttribute(type.AttributeLists, "DataverseEntity") is { } entity && _semantics.StringArgument(entity, 0) is { Length: > 0 } logicalName)
+            return (entity, logicalName, _semantics.StringArgument(entity, 1));
+        if (_semantics.FindAttribute(type.AttributeLists, "EntitySet") is { } set && _semantics.StringArgument(set, 0) is { Length: > 0 } entitySet)
             return (set, null, entitySet);
         return null;
     }
 
-    private sealed record Candidate(PropertyDeclarationSyntax Property, string Name, bool Mapped, Type? Type);
-
-    private async Task ScaffoldModelAsync(SourceFile file, TypeDeclarationSyntax type, HashSet<string> declared, CancellationToken ct)
+    private async Task ScaffoldModelAsync(SourceFile file, TypeDeclarationSyntax type, CancellationToken ct)
     {
         var (attribute, logicalName, entitySet) = Table(type)!.Value;
-        var candidates = type.Members.OfType<PropertyDeclarationSyntax>().Select(Classify).OfType<Candidate>().ToList();
+        var className = type.Identifier.ValueText;
+
+        var candidates = new List<ClassifiedProperty>();
+        var left = new List<ScaffoldSkip>();
+        foreach (var property in type.Members.OfType<PropertyDeclarationSyntax>())
+        {
+            if (IsSkipped(type, property))
+                continue;
+
+            var classified = _classifier.Classify(property);
+            if (classified.Role is PropertyRole.Unmapped or PropertyRole.Mapped)
+                candidates.Add(classified);
+            else if (classified.Reason is { } reason)
+                left.Add(new ScaffoldSkip($"{className}.{property.Identifier.ValueText}", reason));
+        }
 
         var model = await DataverseModelScaffolder.ScaffoldAsync(transport, new ScaffoldRequest
         {
             LogicalName = logicalName,
             EntitySet = logicalName is null ? entitySet : null,
-            Properties = [.. candidates.Select(c => new ScaffoldProperty(c.Name, c.Type))],
+            Properties = [.. candidates.Select(c => new ScaffoldProperty(c.Name!, c.Type))],
             IncludeChoiceOptions = enums
         }, ct).ConfigureAwait(false);
 
-        var className = type.Identifier.ValueText;
         if (!model.TableFound)
         {
             _misses.Add(new ScaffoldMiss(className, model.Message!, model.Suggestion));
@@ -95,50 +139,55 @@ internal sealed class ModelScaffolder(IDataverseTransport transport, bool nullab
         }
 
         if (logicalName is not null && !string.Equals(entitySet, model.EntitySet, StringComparison.Ordinal))
-            SetEntitySet(file, attribute, className, model.EntitySet!);
+            SetEntitySet(file, attribute, className, entitySet, model.EntitySet!);
+
+        _skipped.AddRange(left);
 
         var qualifier = SourceFixer.Qualifier(attribute);
         var newEnums = new StringBuilder();
         for (var i = 0; i < candidates.Count; i++)
-            ScaffoldProperty(file, type, candidates[i], model.Properties[i], qualifier, declared, newEnums);
+            ScaffoldProperty(file, type, candidates[i], model.Properties[i], qualifier, newEnums);
 
         if (newEnums.Length > 0)
             SourceFixer.Change(file, new TextSpan(type.Span.End, 0), newEnums.ToString());
     }
 
-    // The properties scaffolding looks at: public instance auto-properties that are not ignored and not already a
-    // lookup (the fix command corrects those).
-    private static Candidate? Classify(PropertyDeclarationSyntax property)
+    // Whether --skip names the property, by the model's simple or full name.
+    private bool IsSkipped(TypeDeclarationSyntax type, PropertyDeclarationSyntax property)
     {
-        if (!property.Modifiers.Any(SyntaxKind.PublicKeyword) || property.Modifiers.Any(SyntaxKind.StaticKeyword) || property.AccessorList is null)
-            return null;
+        if (skip is null || skip.Count == 0)
+            return false;
 
-        var attributes = property.AttributeLists.SelectMany(l => l.Attributes).ToList();
-        if (attributes.Any(a => SourceFixer.IsNamed(a, "JsonIgnore") || SourceFixer.IsNamed(a, "DataverseLookup") || SourceFixer.IsNamed(a, "DataverseLookupTarget")))
-            return null;
-
-        var type = KnownType(property.Type);
-        var mapping = attributes.FirstOrDefault(a => SourceFixer.IsNamed(a, "JsonPropertyName") || SourceFixer.IsNamed(a, "DataverseColumn"));
-        if (mapping is null)
-            return new Candidate(property, property.Identifier.ValueText, Mapped: false, type);
-
-        // Mapped already: only a plain column name can be checked. Annotations, lookups by their value name and
-        // navigation properties are left to validate.
-        return SourceFixer.StringArgument(mapping, 0) is { Length: > 0 } name && !name.Contains('@', StringComparison.Ordinal) && !name.StartsWith('_')
-            ? new Candidate(property, name, Mapped: true, type)
-            : null;
+        var name = property.Identifier.ValueText;
+        var matched = skip.Where(s => s == $"{type.Identifier.ValueText}.{name}" || s == $"{SourceFixer.FullName(type)}.{name}").ToList();
+        _skipUsed.UnionWith(matched);
+        return matched.Count > 0;
     }
 
-    private void SetEntitySet(SourceFile file, AttributeSyntax attribute, string className, string entitySet)
+    // Writes the table's entity set where it is missing or a string that differs. One given as a constant is not
+    // rewritten: a wrong value is reported, and one that cannot be read is left to validate.
+    private void SetEntitySet(SourceFile file, AttributeSyntax attribute, string className, string? written, string entitySet)
     {
         var arguments = attribute.ArgumentList!.Arguments;
         string? problem;
         if (arguments.Count == 1)
+        {
             problem = SourceFixer.Change(file, new TextSpan(arguments[0].Span.End, 0), $", {SourceFixer.Literal(entitySet)}");
-        else if (arguments[1].Expression is LiteralExpressionSyntax literal && literal.IsKind(SyntaxKind.StringLiteralExpression))
-            problem = SourceFixer.Change(file, literal.Span, SourceFixer.Literal(entitySet));
+        }
+        else if (arguments[1].Expression.IsKind(SyntaxKind.StringLiteralExpression))
+        {
+            problem = SourceFixer.Change(file, arguments[1].Expression.Span, SourceFixer.Literal(entitySet));
+        }
+        else if (written is null)
+        {
+            _skipped.Add(new ScaffoldSkip(className, $"its entity set, {arguments[1].Expression}, is not a constant the tool can read"));
+            return;
+        }
         else
-            problem = "the entity set is not a string literal";
+        {
+            _misses.Add(new ScaffoldMiss(className, $"The entity set is \"{entitySet}\", but {arguments[1].Expression} is \"{written}\".", "Change the constant, or write the entity set as a string."));
+            return;
+        }
 
         if (problem is null)
             _changes.Add(new ScaffoldChange(file.Path, className, $"entity set \"{entitySet}\"", TypeChanged: false));
@@ -146,30 +195,39 @@ internal sealed class ModelScaffolder(IDataverseTransport transport, bool nullab
             _misses.Add(new ScaffoldMiss(className, $"The entity set is \"{entitySet}\", but it could not be written: {problem}.", null));
     }
 
-    private void ScaffoldProperty(SourceFile file, TypeDeclarationSyntax type, Candidate candidate, ScaffoldedProperty scaffolded,
-        string qualifier, HashSet<string> declared, StringBuilder newEnums)
+    private void ScaffoldProperty(SourceFile file, TypeDeclarationSyntax type, ClassifiedProperty candidate, ScaffoldedProperty scaffolded,
+        string qualifier, StringBuilder newEnums)
     {
         var property = candidate.Property;
+        var mapped = candidate.Role == PropertyRole.Mapped;
         var location = $"{type.Identifier.ValueText}.{property.Identifier.ValueText}";
         if (scaffolded.Kind == ScaffoldedPropertyKind.NotFound)
         {
             // A mapped property that is not a column is a navigation property, or a mistake validate reports.
-            if (!candidate.Mapped)
+            if (!mapped)
                 _misses.Add(new ScaffoldMiss(location, scaffolded.Message!, scaffolded.Suggestion));
+            return;
+        }
+
+        // A name mapped as a plain column that is a lookup here is a navigation property named like its lookup, or a
+        // mistake: neither is scaffolding's to rewrite, and validate reports the mistake.
+        if (mapped && scaffolded.Kind != ScaffoldedPropertyKind.Column)
+        {
+            _skipped.Add(new ScaffoldSkip(location, $"it is mapped to '{candidate.Name}' as a column, and that is a lookup on the table"));
             return;
         }
 
         var lines = new List<string>();
         var notes = new List<string>();
 
-        if (scaffolded.ReadOnlyFor != DataverseOperation.None && SourceFixer.FindAttribute(property.AttributeLists, "DataverseReadOnly") is null)
+        if (scaffolded.ReadOnlyFor != DataverseOperation.None && _semantics.FindAttribute(property.AttributeLists, "DataverseReadOnly") is null)
         {
             var operation = scaffolded.ReadOnlyFor == DataverseOperation.Update ? nameof(DataverseOperation.Update) : nameof(DataverseOperation.CreateAndUpdate);
             lines.Add($"[{qualifier}DataverseReadOnly({qualifier}DataverseOperation.{operation})]");
             notes.Add(scaffolded.ReadOnlyFor == DataverseOperation.Update ? "read-only on update" : "read-only");
         }
 
-        if (!candidate.Mapped)
+        if (!mapped)
         {
             lines.AddRange(ModelText.MappingAttributes(scaffolded, qualifier));
             notes.Insert(0, scaffolded.Kind == ScaffoldedPropertyKind.Column
@@ -177,21 +235,15 @@ internal sealed class ModelScaffolder(IDataverseTransport transport, bool nullab
                 : $"mapped to the lookup '{scaffolded.LogicalName}' ({string.Join(", ", scaffolded.Targets.Select(t => t.LogicalName))})");
         }
 
-        var newType = NewType(file, type, candidate, scaffolded, qualifier, declared, newEnums);
+        var newType = NewType(file, type, candidate, scaffolded, qualifier, newEnums);
         if (lines.Count == 0 && newType is null)
             return;
 
         // The edits of one property apply together or not at all.
-        var before = file.Changes.Count;
+        var before = (Changes: file.Changes.Count, Expected: file.Expected.Count);
         string? problem = null;
         if (lines.Count > 0)
-        {
-            var first = property.GetFirstToken();
-            var line = file.Text.Lines.GetLineFromPosition(first.SpanStart);
-            var indentation = SourceFixer.Indentation(file, first.Parent!);
-            var newline = SourceFixer.NewLine(file, line);
-            problem = SourceFixer.Change(file, new TextSpan(line.Start, 0), string.Concat(lines.Select(l => indentation + l + newline)));
-        }
+            problem = SourceFixer.InsertLinesBefore(file, property, lines);
 
         if (problem is null && newType is not null)
         {
@@ -201,34 +253,59 @@ internal sealed class ModelScaffolder(IDataverseTransport transport, bool nullab
 
         if (problem is not null)
         {
-            file.Changes.RemoveRange(before, file.Changes.Count - before);
+            file.Changes.RemoveRange(before.Changes, file.Changes.Count - before.Changes);
+            file.Expected.RemoveRange(before.Expected, file.Expected.Count - before.Expected);
             _misses.Add(new ScaffoldMiss(location, $"It could not be written: {problem}", null));
             return;
         }
+
+        if (newType is not null)
+            file.Expect(property, type: newType);
 
         _changes.Add(new ScaffoldChange(file.Path, location, string.Join("; ", notes), newType is not null));
     }
 
     // The type to write in place of the property's, or null to keep it.
-    private string? NewType(SourceFile file, TypeDeclarationSyntax type, Candidate candidate, ScaffoldedProperty scaffolded, string qualifier,
-        HashSet<string> declared, StringBuilder newEnums)
+    private string? NewType(SourceFile file, TypeDeclarationSyntax type, ClassifiedProperty candidate, ScaffoldedProperty scaffolded, string qualifier,
+        StringBuilder newEnums)
     {
         // A type the tool does not know (an enum, a strongly typed ID) is the model's choice.
         if (candidate.Type is null || scaffolded.ClrType is null)
             return null;
 
+        var property = candidate.Property;
         if (enums && scaffolded.IsChoice && scaffolded.Options.Count > 0)
         {
-            var name = type.Identifier.ValueText + candidate.Property.Identifier.ValueText;
-            if (declared.Add(name))
+            // The enum is written next to the model, so its name must be free there: in the source, and in what the
+            // source imports.
+            var name = type.Identifier.ValueText + property.Identifier.ValueText;
+            var modelName = SourceFixer.FullName(type);
+            var fullName = modelName[..^type.Identifier.ValueText.Length] + name;
+            var state = _newEnums.Contains(fullName) ? TypeNameState.Taken : _semantics.TypeNameState(property.Type, name);
+            if (state == TypeNameState.Free)
+            {
+                _newEnums.Add(fullName);
                 newEnums.Append(ModelText.Enum(name, scaffolded.Options, SourceFixer.Indentation(file, type), SourceFixer.NewLine(file, file.Text.Lines[0]), leadingBlankLine: true));
-            return name + "?";
+                return name + "?";
+            }
+
+            // An enum of that name is there already (an earlier run wrote it): the property takes it. Something else
+            // has the name, so the property keeps a plain type.
+            if (state == TypeNameState.Enum)
+                return name + "?";
         }
 
-        return scaffolded.TypeFits == false ? ModelText.TypeName(scaffolded, qualifier, nullableEnabled) : null;
+        if (scaffolded.TypeFits != false)
+            return null;
+
+        var system = scaffolded.ClrType is nameof(Guid) or nameof(DateTime) or nameof(DateOnly) ? _semantics.SystemQualifier(property.Type, scaffolded.ClrType) : "";
+        return ModelText.TypeName(scaffolded, qualifier, nullableEnabled, system);
     }
 
-    /// <summary>The CLR type a type name stands for, when it is one the type rules know; otherwise <see langword="null"/>.</summary>
+    /// <summary>
+    /// The CLR type a type name stands for as it is written, when it is one the type rules know; otherwise
+    /// <see langword="null"/>. <see cref="ModelSemantics.KnownType"/> asks the compiler first.
+    /// </summary>
     internal static Type? KnownType(TypeSyntax syntax)
     {
         if (syntax is NullableTypeSyntax nullable)
@@ -294,9 +371,14 @@ internal static class ModelText
     }
 
     /// <summary>The property type as a model declares it: nullable, since any column can be empty.</summary>
-    public static string TypeName(ScaffoldedProperty property, string qualifier, bool nullableEnabled)
+    public static string TypeName(ScaffoldedProperty property, string qualifier, bool nullableEnabled, string systemQualifier = "")
     {
-        var name = property.ClrType == nameof(DataverseReference) ? qualifier + property.ClrType : property.ClrType!;
+        var name = property.ClrType switch
+        {
+            nameof(DataverseReference) => qualifier + property.ClrType,
+            nameof(Guid) or nameof(DateTime) or nameof(DateOnly) => systemQualifier + property.ClrType,
+            _ => property.ClrType!
+        };
         return property.ClrTypeIsValueType || nullableEnabled ? name + "?" : name;
     }
 

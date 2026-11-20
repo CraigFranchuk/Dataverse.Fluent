@@ -29,6 +29,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Compiled, and embedded as text: ParityTests classifies the type and its source and compares the two. -->
+    <EmbeddedResource Include="Fixtures\ParityModel.cs" LogicalName="Fixtures.ParityModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Dataverse.Fluent.Tool\Dataverse.Fluent.Tool.csproj" />
     <ProjectReference Include="..\Dataverse.Fluent.Testing\Dataverse.Fluent.Testing.csproj" />
   </ItemGroup>

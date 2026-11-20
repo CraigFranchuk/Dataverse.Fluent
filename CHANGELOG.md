@@ -46,6 +46,13 @@ metadata. See [Schema Validation](Dataverse.Fluent/docs/SCHEMA_VALIDATION.md).
   source and not built, so a model does not have to compile first; a second run changes nothing. `--enums` writes an
   enum per choice column. `scaffold --table incident --columns title,customerid --output Models/Incident.cs` writes a
   new model instead. (#4)
+- `scaffold` reads the source the way the compiler does, without a restore or a build: constants, aliases and your own
+  types are understood, and a name that does not resolve is taken as it is written. A property it deliberately leaves
+  for `validate` (a computed property, a column mapping to a lookup's name) is listed, and `--skip Model.Property`
+  leaves out a property that is not a column.
+- `scaffold` and `fix` parse each edited file again before writing it. A file whose edit would break it, or leave an
+  attribute on the wrong declaration, is held back with its diff printed, and the others are written; the exit code is
+  2. `--force` writes it anyway.
 
 ### Dataverse.Fluent
 

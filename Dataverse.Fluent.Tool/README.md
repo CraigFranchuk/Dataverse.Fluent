@@ -100,7 +100,8 @@ public partial class Incident
 For every class with `[DataverseEntity]` or `[EntitySet]` in the project's source:
 
 - **Matching:** a property without a mapping is matched to a column by name, ignoring case. One that matches no column
-  is left alone and listed with the closest names, and the command exits with 1.
+  is left alone and listed with the closest names, and the command exits with 1. For a property that is not a column,
+  mark it `[JsonIgnore]`, or pass `--skip Incident.Summary` to have scaffold leave it alone.
 - **Mapping:** a column gets `[DataverseColumn]`; a lookup to one table gets `[DataverseLookup]` with its entity set
   and navigation property; a lookup to several tables gets `[DataverseLookup]` and a `[DataverseLookupTarget]` per
   table.
@@ -109,14 +110,31 @@ For every class with `[DataverseEntity]` or `[EntitySet]` in the project's sourc
   as you wrote it, and so is a type of your own, such as an enum. Each change is listed, because it can break code
   that uses the property.
 - **Read-only markers:** `[DataverseReadOnly]` is added for columns Dataverse sets itself or that cannot be updated.
-- **Entity set:** filled in or corrected on `[DataverseEntity]`.
+- **Entity set:** filled in or corrected on `[DataverseEntity]`. One given as a constant is read but not rewritten: a
+  wrong value is reported.
 - **Mapped properties:** a property that already has `[DataverseColumn]` or `[JsonPropertyName]` keeps its mapping;
   only its type and read-only marker are checked. Lookups that are already mapped are left to `fix`.
+- **Left as they are:** some properties are part of the model but not scaffold's to change, and are listed so that
+  nothing is passed over in silence: a computed property (the client sends it as a column unless it has
+  `[JsonIgnore]`), a property mapped as a column to a name that is a lookup, and a name or condition that cannot be
+  read. They do not change the exit code; `validate` checks them. Related records (a property whose type is another
+  model) and annotations are left too, without being listed.
 
 Running it again changes nothing, so you can add properties to a model later and scaffold again. It reads the project's
-source without building it, and only reads metadata from the environment. `--type` limits the run to the models you
-name, and `--enums` writes an enum for each choice column that is an `int`, named after the class and property, with a
-member per option.
+source without building or restoring it, and only reads metadata from the environment. `--type` limits the run to the
+models you name, and `--enums` writes an enum for each choice column that is an `int`, named after the class and
+property, with a member per option.
+
+Scaffold reads the source the way the compiler does, so a name given as a constant, an attribute or type used through
+an alias, and a type of your own that shares a name with a framework type are all understood. The source is compiled
+against the framework the tool runs on, without the project's packages; where a name does not resolve, because it comes
+from a package or the code does not compile yet, scaffold goes by the name as it is written. For a project with several
+target frameworks it reads the first, and says so.
+
+Before `scaffold` or `fix` writes anything, each edited file is parsed again and held to what the edits were planned
+to do. If an edit would break a file, or leave an attribute on another declaration, that file is held back: its diff is
+printed so you can report it or make the change by hand, the other files are written as usual, and the exit code is 2.
+This is a fault in the tool, not in your model. `--force` writes such a file anyway, with a warning.
 
 To start without a class, name the table and its columns:
 
@@ -156,14 +174,16 @@ metadata and the tables the models map. The tool only reads; it never writes to 
 | `--framework`, `-f` | The target framework of a multi-targeted project. Default: its first |
 | `--no-build` | Use the existing build output |
 | `--dry-run` | `fix` only: print a diff and write nothing |
+| `--force` | `fix` only: write a file even when the check of its planned edit fails |
 | `--verbose` | Print the stack trace of an unexpected error |
 
 `scaffold` takes `--url`, `--interactive`, `--tenant-id`, `--api-version`, `--type`, `--configuration`, `--framework`,
-`--dry-run` and `--verbose` as above, and:
+`--dry-run`, `--force` and `--verbose` as above, and:
 
 | Option | Meaning |
 |---|---|
 | `--enums` | Write an enum for each choice column, in place of `int` |
+| `--skip` | Leave this property alone, e.g. `Incident.Summary` (the model's simple or full name); repeat for several. A name that matches no property is an error |
 | `--table` | Write a new model for this table (its logical name) instead of filling in the project's models |
 | `--columns` | With `--table`: the logical names of the columns the model gets, separated by commas |
 | `--output`, `-o` | With `--table`: the file to write |

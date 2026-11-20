@@ -313,6 +313,51 @@ namespace Dataverse.Fluent.Tool.Tests
         }
 
         [Fact]
+        public void SetReadOnly_GoesRightBeforeTheProperty_WhenItSharesItsLine()
+        {
+            const string source = "namespace Elsewhere;\npublic class Plain { public string? Name { get; set; } }\n";
+
+            var (text, _) = Fix(source, Finding<Elsewhere.Plain>(nameof(Elsewhere.Plain.Name), SchemaFix.SetReadOnly(DataverseOperation.Create)));
+
+            Assert.Contains("public class Plain { [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)] public string? Name { get; set; } }", text);
+        }
+
+        [Fact]
+        public void AnEditThatBreaksTheSource_OrMissesItsProperty_IsCaughtBeforeItIsWritten()
+        {
+            const string source = "public class Plain\n{\n    public string? Name { get; set; }\n}\n";
+            SourceFile File() => SourceFile.Parse("Plain.cs", source);
+            static Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax Name(SourceFile file)
+                => file.Tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax>().Single();
+
+            // The edit the fixer plans holds.
+            var good = File();
+            Assert.Null(SourceFixer.InsertLinesBefore(good, Name(good), ["[Dataverse.Fluent.DataverseReadOnly]"]));
+            Assert.Null(good.Verify());
+
+            // The attribute lands on the class instead of the property.
+            var misplaced = File();
+            misplaced.Changes.Add(new Microsoft.CodeAnalysis.Text.TextChange(new Microsoft.CodeAnalysis.Text.TextSpan(0, 0), "[DataverseReadOnly]\n"));
+            misplaced.Expect(Name(misplaced), attribute: "DataverseReadOnly");
+            Assert.Equal("[DataverseReadOnly] would not be on Plain.Name", misplaced.Verify());
+
+            // The type is not the one planned.
+            var retyped = File();
+            retyped.Expect(Name(retyped), type: "int?");
+            Assert.Equal("Plain.Name would not be a int?", retyped.Verify());
+
+            // The edit leaves a file that does not parse.
+            var broken = File();
+            broken.Changes.Add(new Microsoft.CodeAnalysis.Text.TextChange(Name(broken).Type.Span, "string? ["));
+            Assert.StartsWith("it would not parse (line 3: ", broken.Verify());
+
+            // A file that did not parse before is not held to more than it was.
+            var unfinished = SourceFile.Parse("Plain.cs", source + "public class");
+            Assert.Null(SourceFixer.InsertLinesBefore(unfinished, Name(unfinished), ["[DataverseReadOnly]"]));
+            Assert.Null(unfinished.Verify());
+        }
+
+        [Fact]
         public void APartialClass_IsEditedWhereThePropertyIsDeclared()
         {
             var fixer = SourceFixer.FromSource(

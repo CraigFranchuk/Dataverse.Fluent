@@ -470,7 +470,7 @@ internal sealed class ModelChecker
         {
             mapping = DataverseEntityMapping.For(relatedType);
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or TypeLoadException or IOException or BadImageFormatException or ArgumentException or NotSupportedException)
         {
             return null; // Reported when the related model itself is validated.
         }

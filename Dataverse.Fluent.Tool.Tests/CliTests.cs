@@ -137,4 +137,27 @@ public class CliTests
         Assert.DoesNotContain(root.Subcommands.Single(c => c.Name == "validate").Options, o => o.Name == "--dry-run");
         Assert.Contains(root.Subcommands.Single(c => c.Name == "fix").Options, o => o.Name == "--dry-run");
     }
+
+    [Fact]
+    public async Task Force_IsAnOptionOfTheCommandsThatWrite()
+    {
+        ToolSettings? scaffold = null;
+        var root = Cli.Build((_, _, _) => Task.FromResult(0), (s, _) =>
+        {
+            scaffold = s;
+            return Task.FromResult(0);
+        });
+
+        Assert.DoesNotContain(root.Subcommands.Single(c => c.Name == "validate").Options, o => o.Name == "--force");
+
+        var (_, fix, _, _) = await RunAsync("fix", "--url", "https://org.crm.dynamics.com", "--force");
+        Assert.True(fix!.Force);
+        (_, fix, _, _) = await RunAsync("fix", "--url", "https://org.crm.dynamics.com");
+        Assert.False(fix!.Force);
+
+        await root.Parse(["scaffold", "--url", "https://org.crm.dynamics.com", "--force", "--skip", "Incident.Summary", "--skip", "Incident.Scratch"])
+            .InvokeAsync(new InvocationConfiguration { Error = new StringWriter(), Output = new StringWriter() }, TestContext.Current.CancellationToken);
+        Assert.True(scaffold!.Force);
+        Assert.Equal(["Incident.Summary", "Incident.Scratch"], scaffold.Skip);
+    }
 }

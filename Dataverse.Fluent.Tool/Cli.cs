@@ -7,6 +7,8 @@ internal static class Cli
 {
     public const string UrlVariable = "DATAVERSE_URL";
 
+    private const string ForceDescription = "Write a file even when the check of its planned edit fails. Without it, that file is held back and its diff is printed.";
+
     /// <summary>
     /// Builds the commands. <paramref name="run"/> receives the settings and whether to fix; <paramref name="scaffold"/>
     /// receives the settings of a <c>scaffold</c> run.
@@ -39,14 +41,16 @@ internal static class Cli
         var ns = new Option<string?>("--namespace") { Description = "With --table: the namespace of the new model. Default: none." };
         var className = new Option<string?>("--class") { Description = "With --table: the class name. Default: from the table's schema name." };
         var enums = new Option<bool>("--enums") { Description = "Write an enum for each choice column, in place of int." };
+        var skip = new Option<string[]>("--skip") { Description = "Leave this property alone, e.g. Incident.Summary: for one that is not a column. Repeat for several." };
         var configuration = new Option<string>("--configuration", "-c") { Description = "The build configuration the project is read with.", DefaultValueFactory = _ => "Debug" };
         var framework = new Option<string?>("--framework", "-f") { Description = "The target framework of a multi-targeted project. Default: its first." };
         var dryRun = new Option<bool>("--dry-run") { Description = "Print the changes and write nothing." };
+        var force = new Option<bool>("--force") { Description = ForceDescription };
         var verbose = new Option<bool>("--verbose") { Description = "Print the stack trace of an unexpected error." };
 
         var command = new Command("scaffold", "Fills in a project's models from the environment: mapping attributes, read-only markers and property types.")
         {
-            target, url, interactive, tenant, apiVersion, types, table, columns, outputFile, ns, className, enums, configuration, framework, dryRun, verbose
+            target, url, interactive, tenant, apiVersion, types, table, columns, outputFile, ns, className, enums, skip, configuration, framework, dryRun, force, verbose
         };
 
         command.SetAction(async (parse, ct) =>
@@ -69,9 +73,11 @@ internal static class Cli
                 Namespace = parse.GetValue(ns),
                 ClassName = parse.GetValue(className),
                 Enums = parse.GetValue(enums),
+                Skip = parse.GetValue(skip) ?? [],
                 Configuration = parse.GetValue(configuration) ?? "Debug",
                 Framework = parse.GetValue(framework),
                 DryRun = parse.GetValue(dryRun),
+                Force = parse.GetValue(force),
                 Verbose = parse.GetValue(verbose)
             }, ct).ConfigureAwait(false);
         });
@@ -118,11 +124,15 @@ internal static class Cli
         var framework = new Option<string?>("--framework", "-f") { Description = "The target framework of a multi-targeted project. Default: its first." };
         var noBuild = new Option<bool>("--no-build") { Description = "Use the existing build output." };
         var dryRun = new Option<bool>("--dry-run") { Description = "Print the changes as a diff and write nothing." };
+        var force = new Option<bool>("--force") { Description = ForceDescription };
         var verbose = new Option<bool>("--verbose") { Description = "Print the stack trace of an unexpected error." };
 
         var command = new Command(name, description) { target, url, interactive, tenant, apiVersion, types, resolver, ignore, warningsAsErrors, noSelect, configuration, framework, noBuild, verbose };
         if (fix)
+        {
             command.Add(dryRun);
+            command.Add(force);
+        }
 
         command.SetAction(async (parse, ct) =>
         {
@@ -146,6 +156,7 @@ internal static class Cli
                 Framework = parse.GetValue(framework),
                 NoBuild = parse.GetValue(noBuild),
                 DryRun = fix && parse.GetValue(dryRun),
+                Force = fix && parse.GetValue(force),
                 Verbose = parse.GetValue(verbose)
             };
 

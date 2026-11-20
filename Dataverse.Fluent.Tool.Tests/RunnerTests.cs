@@ -69,7 +69,7 @@ public class RunnerTests : IDisposable
         }
 
         public Task<ProjectSources> ReadSourcesAsync(ToolSettings settings, CancellationToken ct)
-            => Task.FromResult(new ProjectSources([source], NullableEnabled: true));
+            => Task.FromResult(new ProjectSources([source], NullableEnabled: true, GlobalUsings: []));
     }
 
     private ToolSettings Settings(bool dryRun = false, params string[] ignore) => new()
@@ -133,6 +133,30 @@ public class RunnerTests : IDisposable
         Assert.Contains("--- RunnerCase.cs", output);
         Assert.Contains("+    [DataverseReadOnly(DataverseOperation.Update)]", output);
         Assert.Contains("1 finding can be fixed in 1 file. Nothing was written (--dry-run).", output);
+    }
+
+    [Fact]
+    public async Task Fix_HoldsBackAFileWhoseEditIsWrong_UnlessForced()
+    {
+        ToolRunner Rejecting() => new(_output, new ThisAssembly(_source), _ => _environment.Transport, _ => "[DataverseReadOnly] would not be on RunnerCase.TicketNumber");
+
+        var exit = await Rejecting().FixAsync(Settings(), Ct);
+
+        var output = _output.ToString().ReplaceLineEndings("\n");
+        Assert.Equal(ExitCodes.Failure, exit);
+        Assert.Equal(Source.ReplaceLineEndings("\n"), await File.ReadAllTextAsync(_source, Ct));
+        Assert.Contains("error: the edit planned for RunnerCase.cs is wrong: [DataverseReadOnly] would not be on RunnerCase.TicketNumber. The file is left as it is:\n--- RunnerCase.cs", output);
+        Assert.Contains("+    [DataverseReadOnly(DataverseOperation.Update)]", output);
+        Assert.Contains("Not fixed:\n  RunnerCase.TicketNumber  DVS040  mark it [DataverseReadOnly(DataverseOperation.Update)]: the edit to its file was held back.", output);
+        Assert.Contains("0 findings fixed in 0 files.", output);
+
+        // With --force the file is written, and the run ends as it would have.
+        exit = await Rejecting().FixAsync(Settings() with { Force = true }, Ct);
+
+        Assert.Equal(ExitCodes.Findings, exit);
+        Assert.Contains("[DataverseReadOnly(DataverseOperation.Update)]\n    [JsonPropertyName(\"ticketnumber\")]", await File.ReadAllTextAsync(_source, Ct));
+        Assert.Contains("warning: the edit planned for RunnerCase.cs looks wrong: [DataverseReadOnly] would not be on RunnerCase.TicketNumber. It is kept (--force).", _output.ToString());
+        Assert.Contains("1 finding fixed in 1 file.", _output.ToString());
     }
 
     [Fact]
@@ -301,6 +325,8 @@ public class ProjectResolverTests : IDisposable
             new ToolSettings { Target = _directory, Url = "https://org.crm.dynamics.com" }, TestContext.Current.CancellationToken);
         Assert.Equal("Account.cs", Path.GetFileName(Assert.Single(sources.SourceFiles)));
         Assert.True(sources.NullableEnabled);
+        Assert.Null(sources.Framework);
+        Assert.Empty(sources.GlobalUsings);
         Assert.Empty(log.ToString());
 
         var output = await new DotnetProjectResolver(log).ResolveAsync(
@@ -315,6 +341,56 @@ public class ProjectResolverTests : IDisposable
         var model = Assert.Single(ModelLoader.FindModels(ModelLoader.Load(output.AssemblyPath), []));
         Assert.Equal("Models.Account", model.FullName);
     }
+
+    [Fact]
+    public async Task AMultiTargetedProject_IsReadForItsFirstFramework()
+    {
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllTextAsync(Path.Combine(_directory, "Models.csproj"), """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFrameworks>net10.0;net9.0</TargetFrameworks>
+                <ImplicitUsings>enable</ImplicitUsings>
+              </PropertyGroup>
+              <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+                <Nullable>enable</Nullable>
+              </PropertyGroup>
+              <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+                <Compile Remove="Account.cs" />
+              </ItemGroup>
+              <ItemGroup>
+                <Using Remove="System.Net.Http" />
+                <Using Include="System.Math" Static="true" />
+                <Using Include="System.Text.Json" Alias="Json" />
+              </ItemGroup>
+            </Project>
+            """, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(_directory, "Account.cs"), "public class Account { }", TestContext.Current.CancellationToken);
+
+        var sources = await new DotnetProjectResolver(TextWriter.Null).ReadSourcesAsync(
+            new ToolSettings { Target = _directory, Url = "https://org.crm.dynamics.com" }, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Account.cs", Path.GetFileName(Assert.Single(sources.SourceFiles)));
+        Assert.True(sources.NullableEnabled);
+        Assert.Equal("net10.0", sources.Framework);
+
+        // The implicit usings, less the one removed, and the project's own.
+        Assert.Contains("System", sources.GlobalUsings);
+        Assert.Contains("System.Linq", sources.GlobalUsings);
+        Assert.DoesNotContain("System.Net.Http", sources.GlobalUsings);
+        Assert.Contains("static System.Math", sources.GlobalUsings);
+        Assert.Contains("Json = System.Text.Json", sources.GlobalUsings);
+    }
+
+    [Theory]
+    [InlineData("{\"Properties\":{\"Nullable\":\"enable\"}}")]
+    [InlineData("warning {x}: something\n{\"Properties\":{\"Nullable\":\"enable\"}}\nWorkload updates are available. Run {dotnet workload list}.\n")]
+    public void TheMSBuildAnswer_IsRead_WhateverIsPrintedAroundIt(string output)
+        => Assert.Equal("enable", (string?)DotnetProjectResolver.FirstJsonObject(output)?["Properties"]?["Nullable"]);
+
+    [Fact]
+    public void OutputWithoutAnAnswer_IsNotOne()
+        => Assert.Null(DotnetProjectResolver.FirstJsonObject("error {MSB1009}: Project file does not exist."));
 
     [Fact]
     public async Task ADirectoryWithoutAProject_IsReported()

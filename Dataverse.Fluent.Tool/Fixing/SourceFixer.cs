@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Dataverse.Fluent.Schema;
 using Microsoft.CodeAnalysis;
@@ -19,6 +20,13 @@ internal sealed record FixPlan(IReadOnlyDictionary<string, SourceFile> Files, IR
     public IEnumerable<SourceFile> Changed => Files.Values.Where(f => f.Changes.Count > 0);
 }
 
+/// <summary>An attribute or a type the planned edits are to leave on a property.</summary>
+/// <param name="Type">The full name of the type that declares the property.</param>
+/// <param name="Property">The property's name.</param>
+/// <param name="Attribute">The attribute's name without its namespace or "Attribute"; or <see langword="null"/>.</param>
+/// <param name="PropertyType">The property's type as written; or <see langword="null"/>.</param>
+internal sealed record ExpectedEdit(string Type, string Property, string? Attribute, string? PropertyType);
+
 /// <summary>A source file, as read, and the edits planned for it.</summary>
 internal sealed class SourceFile(string path, SourceText text, SyntaxTree tree)
 {
@@ -29,6 +37,9 @@ internal sealed class SourceFile(string path, SourceText text, SyntaxTree tree)
     public SyntaxTree Tree { get; } = tree;
 
     public List<TextChange> Changes { get; } = [];
+
+    /// <summary>What the planned edits are meant to leave on a property, for <see cref="Verify"/> to hold them to.</summary>
+    public List<ExpectedEdit> Expected { get; } = [];
 
     /// <summary>Reads and parses the file at <paramref name="path"/>, keeping its encoding.</summary>
     public static SourceFile Read(string path)
@@ -66,6 +77,45 @@ internal sealed class SourceFile(string path, SourceText text, SyntaxTree tree)
             .ThenBy(c => c.Span.Length)
             .ToList();
         return Text.WithChanges(merged);
+    }
+
+    /// <summary>Records that the planned edits give <paramref name="property"/> an attribute, or a type.</summary>
+    public void Expect(PropertyDeclarationSyntax property, string? attribute = null, string? type = null)
+    {
+        if (property.Parent is TypeDeclarationSyntax declaring)
+            Expected.Add(new ExpectedEdit(SourceFixer.FullName(declaring), property.Identifier.ValueText, attribute, type));
+    }
+
+    /// <summary>
+    /// Checks the file as the planned edits leave it, before it is written: it must parse with no more syntax errors
+    /// than it had, and every attribute and type the edits were to give a property must be on that property. Returns
+    /// what is wrong, or <see langword="null"/>.
+    /// </summary>
+    public string? Verify()
+    {
+        var edited = CSharpSyntaxTree.ParseText(Edited(), (CSharpParseOptions)Tree.Options, Path);
+        var before = Tree.GetDiagnostics().Count(d => d.Severity == DiagnosticSeverity.Error);
+        var errors = edited.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        if (errors.Count > before)
+        {
+            var first = errors.FirstOrDefault(e => !Tree.GetDiagnostics().Any(d => d.Id == e.Id && d.GetMessage(CultureInfo.InvariantCulture) == e.GetMessage(CultureInfo.InvariantCulture))) ?? errors[0];
+            return $"it would not parse (line {first.Location.GetLineSpan().StartLinePosition.Line + 1}: {first.GetMessage(CultureInfo.InvariantCulture)})";
+        }
+
+        var properties = edited.GetRoot().DescendantNodes().OfType<PropertyDeclarationSyntax>()
+            .Where(p => p.Parent is TypeDeclarationSyntax)
+            .ToLookup(p => (SourceFixer.FullName((TypeDeclarationSyntax)p.Parent!), p.Identifier.ValueText));
+        foreach (var expected in Expected)
+        {
+            var found = properties[(expected.Type, expected.Property)].ToList();
+            var simple = expected.Type[(expected.Type.LastIndexOf('.') + 1)..];
+            if (expected.Attribute is { } attribute && !found.Any(p => SourceFixer.FindAttribute(p.AttributeLists, attribute) is not null))
+                return $"[{attribute}] would not be on {simple}.{expected.Property}";
+            if (expected.PropertyType is { } type && !found.Any(p => p.Type.ToString() == type))
+                return $"{simple}.{expected.Property} would not be a {type}";
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -180,7 +230,7 @@ internal sealed class SourceFixer
         return matches;
     }
 
-    internal static string FullName(TypeDeclarationSyntax declaration)
+    internal static string FullName(BaseTypeDeclarationSyntax declaration)
     {
         var parts = new List<string> { declaration.Identifier.ValueText };
         for (var node = declaration.Parent; node is not null; node = node.Parent)
@@ -255,7 +305,7 @@ internal sealed class SourceFixer
 
         var qualifier = QualifierFor(file, property);
         var attribute = $"[{qualifier}DataverseReadOnly({qualifier}DataverseOperation.{OperationName(operations)})]";
-        return InsertLineBefore(file, property, attribute);
+        return InsertLinesBefore(file, property, [attribute]);
     }
 
     private string? MapAsLookup(SourceFile file, PropertyDeclarationSyntax property, SchemaFix fix)
@@ -333,12 +383,38 @@ internal sealed class SourceFixer
         return Change(file, new TextSpan(line.EndIncludingLineBreak, 0), Indentation(file, node) + code + newline);
     }
 
-    /// <summary>Inserts <paramref name="code"/> on a new line before the property's first attribute (or its declaration).</summary>
-    internal static string? InsertLineBefore(SourceFile file, PropertyDeclarationSyntax property, string code)
+    /// <summary>
+    /// Inserts each of <paramref name="code"/> on a new line before the property's first attribute (or its declaration).
+    /// When other code precedes the property on its line (a class written on one line), a new line would land before
+    /// that code, so <paramref name="code"/> goes right before the property instead.
+    /// </summary>
+    internal static string? InsertLinesBefore(SourceFile file, PropertyDeclarationSyntax property, IReadOnlyList<string> code)
     {
         var first = property.GetFirstToken();
         var line = file.Text.Lines.GetLineFromPosition(first.SpanStart);
-        return Change(file, new TextSpan(line.Start, 0), Indentation(file, first.Parent!) + code + NewLine(file, line));
+        string? problem;
+        if (!string.IsNullOrWhiteSpace(file.Text.ToString(TextSpan.FromBounds(line.Start, first.SpanStart))))
+        {
+            problem = Change(file, new TextSpan(first.SpanStart, 0), string.Concat(code.Select(c => c + " ")));
+        }
+        else
+        {
+            var indentation = Indentation(file, first.Parent!);
+            var newline = NewLine(file, line);
+            problem = Change(file, new TextSpan(line.Start, 0), string.Concat(code.Select(c => indentation + c + newline)));
+        }
+
+        if (problem is null)
+        {
+            // Each line is one attribute, "[Namespace.Name(arguments)]": the edit must leave it on this property.
+            foreach (var attribute in code)
+            {
+                var name = attribute.TrimStart('[').Split('(', ']')[0];
+                file.Expect(property, attribute: name[(name.LastIndexOf('.') + 1)..]);
+            }
+        }
+
+        return problem;
     }
 
     internal static string Indentation(SourceFile file, SyntaxNode node)

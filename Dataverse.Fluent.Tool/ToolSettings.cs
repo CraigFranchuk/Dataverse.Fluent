@@ -36,6 +36,12 @@ internal sealed record ToolSettings
     /// <summary>For <c>fix</c>: print the changes as a diff and write nothing.</summary>
     public bool DryRun { get; init; }
 
+    /// <summary>
+    /// For <c>fix</c> and <c>scaffold</c>: write a file even when the check of its planned edit fails, instead of
+    /// holding it back.
+    /// </summary>
+    public bool Force { get; init; }
+
     /// <summary>Print the stack trace of an unexpected error.</summary>
     public bool Verbose { get; init; }
 
@@ -56,6 +62,9 @@ internal sealed record ToolSettings
 
     /// <summary>For <c>scaffold</c>: write an enum for each choice column that is an <c>int</c>.</summary>
     public bool Enums { get; init; }
+
+    /// <summary>For <c>scaffold</c>: properties to leave alone, each as <c>Model.Property</c>.</summary>
+    public IReadOnlyList<string> Skip { get; init; } = [];
 
     /// <summary>The Web API URL: <see cref="Url"/> with <c>/api/data/{version}</c> added unless it already has it.</summary>
     public string WebApiUrl

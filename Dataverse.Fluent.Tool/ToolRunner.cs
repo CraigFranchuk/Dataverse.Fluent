@@ -9,7 +9,16 @@ using Dataverse.Fluent.Tool.Scaffolding;
 namespace Dataverse.Fluent.Tool;
 
 /// <summary>Runs the <c>validate</c> and <c>fix</c> commands.</summary>
-internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, Func<ToolSettings, IDataverseTransport> connect)
+/// <param name="output">Where the report is written.</param>
+/// <param name="projects">Finds a project's assembly and source.</param>
+/// <param name="connect">Connects to the environment.</param>
+/// <param name="verify">The check of a file's planned edits, which returns what is wrong with them or
+/// <see langword="null"/>. Default: <see cref="SourceFile.Verify"/>.</param>
+internal sealed class ToolRunner(
+    TextWriter output,
+    IProjectResolver projects,
+    Func<ToolSettings, IDataverseTransport> connect,
+    Func<SourceFile, string?>? verify = null)
 {
     /// <summary>Connects with <c>DefaultAzureCredential</c>, or a browser sign-in with <c>--interactive</c>.</summary>
     public static IDataverseTransport Connect(ToolSettings settings)
@@ -46,8 +55,19 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
 
             var fixer = SourceFixer.Load(project.SourceFiles);
             var plan = fixer.Plan(report.Findings);
-            var applied = plan.Outcomes.Where(o => o.Applied).Select(o => o.Finding).ToHashSet();
             var baseDirectory = BaseDirectory(settings);
+
+            // A fix whose file is held back was not applied.
+            var held = HoldBackWrongEdits(plan.Changed, settings, baseDirectory);
+            if (held.Count > 0)
+            {
+                plan = plan with
+                {
+                    Outcomes = [.. plan.Outcomes.Select(o => o.Applied && held.Contains(o.File!) ? o with { NotAppliedBecause = "the edit to its file was held back." } : o)]
+                };
+            }
+
+            var applied = plan.Outcomes.Where(o => o.Applied).Select(o => o.Finding).ToHashSet();
             output.WriteLine();
 
             if (settings.DryRun)
@@ -87,7 +107,7 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
 
             output.WriteLine();
             ReportWriter.WriteSummary(output, models, manual, mentionFix: false);
-            return ExitCode(manual, settings);
+            return held.Count > 0 ? ExitCodes.Failure : ExitCode(manual, settings);
         });
 
     /// <summary>
@@ -101,13 +121,15 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
     {
         var sources = await projects.ReadSourcesAsync(settings, ct).ConfigureAwait(false);
         var files = sources.SourceFiles.Select(SourceFile.Read).ToList();
+        if (sources.Framework is { } framework)
+            output.WriteLine($"Reading the project for {framework}, its first target framework. Source that only another framework compiles is not read: name it with --framework.");
         output.WriteLine($"Scaffolding from {settings.WebApiUrl}...");
 
         ScaffoldResult result;
         var transport = connect(settings);
         try
         {
-            result = await new ModelScaffolder(transport, sources.NullableEnabled, settings.Enums).ScaffoldAsync(files, settings.Types, ct).ConfigureAwait(false);
+            result = await new ModelScaffolder(transport, sources.NullableEnabled, settings.Enums, sources.GlobalUsings, settings.Skip).ScaffoldAsync(files, settings.Types, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -118,6 +140,8 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
             throw new ToolException("The project has no class with [DataverseEntity] or [EntitySet] to fill in. Use --table to write a new model.");
 
         var baseDirectory = BaseDirectory(settings);
+        var held = HoldBackWrongEdits(result.Changed, settings, baseDirectory);
+        var changes = result.Changes.Where(c => !held.Contains(c.File)).ToList();
         output.WriteLine();
         if (settings.DryRun)
         {
@@ -132,24 +156,36 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
                 file.Write();
         }
 
-        foreach (var group in result.Changes.GroupBy(c => c.File))
+        foreach (var group in changes.GroupBy(c => c.File))
         {
             output.WriteLine(ReportWriter.Relative(group.Key, baseDirectory));
             foreach (var change in group)
                 output.WriteLine($"  {change.Location}  {change.Description}");
         }
 
-        WriteMisses(result.Misses);
+        WriteMisses(result.Misses, "A property that is not a column: mark it [JsonIgnore], or leave it out with --skip Model.Property.");
 
-        var types = result.Changes.Count(c => c.TypeChanged);
-        var changed = result.Changes.Count;
+        if (result.Skipped.Count > 0)
+        {
+            output.WriteLine();
+            output.WriteLine("Left as they are (validate checks them):");
+            foreach (var skipped in result.Skipped)
+                output.WriteLine($"  {skipped.Location}  {skipped.Reason}");
+        }
+
+        var types = changes.Count(c => c.TypeChanged);
+        var changed = changes.Count;
         output.WriteLine();
         output.WriteLine($"{result.Models} model{Plural(result.Models)} read: {changed} change{Plural(changed)}{(settings.DryRun ? " to make" : "")}, " +
-            $"{types} type{Plural(types)} changed, {result.Misses.Count} not matched.{(settings.DryRun ? " Nothing was written (--dry-run)." : "")}");
+            $"{types} type{Plural(types)} changed, {result.Misses.Count} not matched, {result.Skipped.Count} left as {(result.Skipped.Count == 1 ? "it is" : "they are")}." +
+            $"{(held.Count > 0 ? $" {held.Count} file{Plural(held.Count)} held back." : "")}" +
+            $"{(settings.DryRun ? " Nothing was written (--dry-run)." : "")}");
         if (types > 0 && !settings.DryRun)
             output.WriteLine("A changed type can break code that uses the property: build the project to find it.");
 
-        return result.Misses.Count > 0 ? ExitCodes.Findings : ExitCodes.Success;
+        return held.Count > 0 ? ExitCodes.Failure
+            : result.Misses.Count > 0 ? ExitCodes.Findings
+            : ExitCodes.Success;
     }
 
     private async Task<int> ScaffoldTableAsync(ToolSettings settings, CancellationToken ct)
@@ -226,7 +262,39 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
         return misses.Count > 0 ? ExitCodes.Findings : ExitCodes.Success;
     }
 
-    private void WriteMisses(IReadOnlyCollection<ScaffoldMiss> misses)
+    // Holds every edited file to what its edits were planned to do, before any file is written or shown. An edit that
+    // breaks the source, or lands an attribute on the wrong declaration, is the tool's mistake: that file's edits are
+    // dropped and its diff printed, and the other files go ahead. With --force the file is kept, with a warning.
+    // Returns the paths of the files held back.
+    private HashSet<string> HoldBackWrongEdits(IEnumerable<SourceFile> changed, ToolSettings settings, string? baseDirectory)
+    {
+        var held = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in changed.ToList())
+        {
+            if ((verify ?? (f => f.Verify()))(file) is not { } problem)
+                continue;
+
+            var name = ReportWriter.Relative(file.Path, baseDirectory);
+            output.WriteLine();
+            if (settings.Force)
+            {
+                output.WriteLine($"warning: the edit planned for {name} looks wrong: {problem}. It is kept (--force).");
+                continue;
+            }
+
+            output.WriteLine($"error: the edit planned for {name} is wrong: {problem}. The file is left as it is:");
+            output.Write(UnifiedDiff.Create(name.Replace('\\', '/'), file.Text.ToString(), file.Edited().ToString()));
+            output.WriteLine("This is a fault in the tool, not in the model: please report it with the diff above. --force writes the file anyway.");
+
+            file.Changes.Clear();
+            file.Expected.Clear();
+            held.Add(file.Path);
+        }
+
+        return held;
+    }
+
+    private void WriteMisses(IReadOnlyCollection<ScaffoldMiss> misses, string? hint = null)
     {
         if (misses.Count == 0)
             return;
@@ -239,6 +307,9 @@ internal sealed class ToolRunner(TextWriter output, IProjectResolver projects, F
             if (miss.Suggestion is not null)
                 output.WriteLine($"        {miss.Suggestion}");
         }
+
+        if (hint is not null)
+            output.WriteLine(hint);
     }
 
     private static string Plural(int count) => count == 1 ? "" : "s";

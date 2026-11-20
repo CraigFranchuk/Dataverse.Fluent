@@ -711,6 +711,23 @@ public class ValidatorTests
         Assert.DoesNotContain(report.Findings, f => f.Property?.Name == nameof(NavigationMistakes.CustomerBind));
     }
 
+    [DataverseEntity("incident", "incidents")]
+    public class RelatedCannotBeRead
+    {
+        [JsonPropertyName("customerid_contact")]
+        public RejectedAttributeArgument? Customer { get; set; }
+    }
+
+    [Fact]
+    public async Task ARelatedModelThatCannotBeRead_DoesNotStopTheModelsThatLeadToIt()
+    {
+        var report = await Environment().ValidateAsync(new SchemaValidationOptions { CheckSelect = false }, typeof(RelatedCannotBeRead), typeof(RejectedAttributeArgument));
+
+        // The related model is reported once, as itself.
+        Assert.Equal(typeof(RejectedAttributeArgument), Single(report, SchemaCodes.InvalidMapping).Model);
+        Assert.DoesNotContain(report.Findings, f => f.Model == typeof(RelatedCannotBeRead));
+    }
+
     // ───────── Writes ─────────
 
     [DataverseEntity("incident", "incidents")]
