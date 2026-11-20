@@ -89,6 +89,47 @@ public class CliTests
     }
 
     [Fact]
+    public async Task Scaffold_ReadsItsOptions()
+    {
+        ToolSettings? settings = null;
+        var root = Cli.Build((_, _, _) => Task.FromResult(0), (s, _) =>
+        {
+            settings = s;
+            return Task.FromResult(5);
+        });
+
+        var exit = await root.Parse(["scaffold", "--url", "https://org.crm.dynamics.com", "--table", "incident", "--columns", "title, customerid",
+                "--columns", "duedate", "-o", "Models/Incident.cs", "--namespace", "App.Models", "--class", "Case", "--enums", "--dry-run"])
+            .InvokeAsync(new InvocationConfiguration { Error = new StringWriter(), Output = new StringWriter() }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(5, exit);
+        Assert.NotNull(settings);
+        Assert.Equal(("incident", "Models/Incident.cs", "App.Models", "Case"), (settings.Table, settings.Output, settings.Namespace, settings.ClassName));
+        Assert.Equal(["title", "customerid", "duedate"], settings.Columns);
+        Assert.True(settings.Enums);
+        Assert.True(settings.DryRun);
+        Assert.Equal(".", settings.Target);
+    }
+
+    [Fact]
+    public async Task Scaffold_TakesAProject_AndModelNames()
+    {
+        ToolSettings? settings = null;
+        var root = Cli.Build((_, _, _) => Task.FromResult(0), (s, _) =>
+        {
+            settings = s;
+            return Task.FromResult(0);
+        });
+
+        await root.Parse(["scaffold", "--url", "https://org.crm.dynamics.com", "-t", "Incident", "src/App"])
+            .InvokeAsync(new InvocationConfiguration { Error = new StringWriter(), Output = new StringWriter() }, TestContext.Current.CancellationToken);
+
+        Assert.Equal("src/App", settings!.Target);
+        Assert.Equal(["Incident"], settings.Types);
+        Assert.Null(settings.Table);
+    }
+
+    [Fact]
     public void DryRun_IsAnOptionOfFixOnly()
     {
         var root = Cli.Build((_, _, _) => Task.FromResult(0));

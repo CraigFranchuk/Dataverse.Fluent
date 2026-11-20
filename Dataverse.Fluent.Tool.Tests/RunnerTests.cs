@@ -67,6 +67,9 @@ public class RunnerTests : IDisposable
                 Builds++;
             return Task.FromResult(new ProjectOutput(typeof(RunnerCase).Assembly.Location, [source]));
         }
+
+        public Task<ProjectSources> ReadSourcesAsync(ToolSettings settings, CancellationToken ct)
+            => Task.FromResult(new ProjectSources([source], NullableEnabled: true));
     }
 
     private ToolSettings Settings(bool dryRun = false, params string[] ignore) => new()
@@ -292,6 +295,14 @@ public class ProjectResolverTests : IDisposable
             """, TestContext.Current.CancellationToken);
 
         var log = new StringWriter();
+
+        // Before any build: scaffold reads the sources of a project that may not compile yet.
+        var sources = await new DotnetProjectResolver(log).ReadSourcesAsync(
+            new ToolSettings { Target = _directory, Url = "https://org.crm.dynamics.com" }, TestContext.Current.CancellationToken);
+        Assert.Equal("Account.cs", Path.GetFileName(Assert.Single(sources.SourceFiles)));
+        Assert.True(sources.NullableEnabled);
+        Assert.Empty(log.ToString());
+
         var output = await new DotnetProjectResolver(log).ResolveAsync(
             new ToolSettings { Target = _directory, Url = "https://org.crm.dynamics.com" }, build: true, TestContext.Current.CancellationToken);
 

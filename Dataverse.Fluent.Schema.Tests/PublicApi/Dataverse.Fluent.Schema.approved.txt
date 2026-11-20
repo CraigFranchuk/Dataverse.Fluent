@@ -1,10 +1,74 @@
 namespace Dataverse.Fluent.Schema
 {
+    public static class DataverseModelScaffolder
+    {
+        public static System.Threading.Tasks.Task<Dataverse.Fluent.Schema.ScaffoldedModel> ScaffoldAsync(Dataverse.Fluent.IDataverseTransport transport, Dataverse.Fluent.Schema.ScaffoldRequest request, System.Threading.CancellationToken ct = default) { }
+    }
     public static class DataverseSchemaValidator
     {
         public static System.Collections.Generic.IReadOnlyList<System.Type> FindModels(System.Reflection.Assembly assembly) { }
         public static System.Threading.Tasks.Task<Dataverse.Fluent.Schema.SchemaReport> ValidateAsync(Dataverse.Fluent.IDataverseTransport transport, System.Collections.Generic.IEnumerable<System.Type> models, Dataverse.Fluent.Schema.SchemaValidationOptions? options = null, System.Threading.CancellationToken ct = default) { }
         public static System.Threading.Tasks.Task<Dataverse.Fluent.Schema.SchemaReport> ValidateAsync(Dataverse.Fluent.IDataverseTransport transport, System.Reflection.Assembly assembly, Dataverse.Fluent.Schema.SchemaValidationOptions? options = null, System.Threading.CancellationToken ct = default) { }
+    }
+    public sealed class ScaffoldProperty
+    {
+        public ScaffoldProperty(string name, System.Type? type = null) { }
+        public string Name { get; }
+        public System.Type? Type { get; }
+    }
+    public sealed class ScaffoldRequest
+    {
+        public ScaffoldRequest() { }
+        public string? EntitySet { get; init; }
+        public bool IncludeChoiceOptions { get; init; }
+        public string? LogicalName { get; init; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Schema.ScaffoldProperty> Properties { get; init; }
+    }
+    public sealed class ScaffoldedLookupTarget : System.IEquatable<Dataverse.Fluent.Schema.ScaffoldedLookupTarget>
+    {
+        public ScaffoldedLookupTarget(string LogicalName, string EntitySet, string NavigationProperty) { }
+        public string EntitySet { get; init; }
+        public string LogicalName { get; init; }
+        public string NavigationProperty { get; init; }
+    }
+    public sealed class ScaffoldedModel
+    {
+        public string? EntitySet { get; }
+        public string? LogicalName { get; }
+        public string? Message { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Schema.ScaffoldedProperty> Properties { get; }
+        public string? SchemaName { get; }
+        public string? Suggestion { get; }
+        public bool TableFound { get; }
+    }
+    public sealed class ScaffoldedOption : System.IEquatable<Dataverse.Fluent.Schema.ScaffoldedOption>
+    {
+        public ScaffoldedOption(int Value, string? Label) { }
+        public string? Label { get; init; }
+        public int Value { get; init; }
+    }
+    public sealed class ScaffoldedProperty
+    {
+        public string? ClrType { get; }
+        public bool ClrTypeIsValueType { get; }
+        public bool IsChoice { get; }
+        public Dataverse.Fluent.Schema.ScaffoldedPropertyKind Kind { get; }
+        public string? LogicalName { get; }
+        public string? Message { get; }
+        public string Name { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Schema.ScaffoldedOption> Options { get; }
+        public Dataverse.Fluent.DataverseOperation ReadOnlyFor { get; }
+        public string? SchemaName { get; }
+        public string? Suggestion { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.Schema.ScaffoldedLookupTarget> Targets { get; }
+        public bool? TypeFits { get; }
+    }
+    public enum ScaffoldedPropertyKind
+    {
+        NotFound = 0,
+        Column = 1,
+        Lookup = 2,
+        PolymorphicLookup = 3,
     }
     public static class SchemaCodes
     {

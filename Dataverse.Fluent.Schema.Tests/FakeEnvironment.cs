@@ -131,6 +131,7 @@ internal sealed class FakeTable(string logicalName, string entitySet)
     private readonly Dictionary<string, string[]> _targets = [];
     private readonly Dictionary<string, string> _behaviors = [];
     private readonly Dictionary<string, int[]> _options = [];
+    private readonly Dictionary<string, string[]> _labels = [];
     private readonly List<JsonObject> _manyToOne = [];
     private readonly List<JsonObject> _oneToMany = [];
     private readonly List<JsonObject> _manyToMany = [];
@@ -138,6 +139,23 @@ internal sealed class FakeTable(string logicalName, string entitySet)
     public string LogicalName { get; } = logicalName;
 
     public string EntitySet { get; } = entitySet;
+
+    /// <summary>The table's schema name, when a test gives it one.</summary>
+    public string? SchemaName { get; set; }
+
+    /// <summary>Gives a column a schema name, as custom columns and most system columns have.</summary>
+    public FakeTable Schema(string column, string schemaName)
+    {
+        _attributes.Single(a => (string?)a["LogicalName"] == column)["SchemaName"] = schemaName;
+        return this;
+    }
+
+    /// <summary>Labels a choice column's options, in the order they were given.</summary>
+    public FakeTable Labels(string column, params string[] labels)
+    {
+        _labels[column] = labels;
+        return this;
+    }
 
     /// <summary>Columns the $select check rejects, as Dataverse does for a column it cannot select.</summary>
     public HashSet<string> RejectedInSelect { get; } = new(StringComparer.Ordinal);
@@ -232,6 +250,7 @@ internal sealed class FakeTable(string logicalName, string entitySet)
     public JsonObject Definition() => new()
     {
         ["LogicalName"] = LogicalName,
+        ["SchemaName"] = SchemaName,
         ["EntitySetName"] = EntitySet,
         ["Attributes"] = Copy(_attributes),
         ["ManyToOneRelationships"] = Copy(_manyToOne),
@@ -257,9 +276,14 @@ internal sealed class FakeTable(string logicalName, string entitySet)
         ["LogicalName"] = o.Key,
         ["OptionSet"] = new JsonObject
         {
-            ["Options"] = new JsonArray([.. o.Value.Select(v => (JsonNode)new JsonObject { ["Value"] = v, ["Label"] = new JsonObject() })])
+            ["Options"] = new JsonArray([.. o.Value.Select((v, i) => (JsonNode)new JsonObject { ["Value"] = v, ["Label"] = Label(o.Key, i) })])
         }
     }));
+
+    private JsonObject Label(string column, int index)
+        => _labels.TryGetValue(column, out var labels) && index < labels.Length
+            ? new JsonObject { ["UserLocalizedLabel"] = new JsonObject { ["Label"] = labels[index] } }
+            : new JsonObject();
 
     private static JsonObject Value(IEnumerable<JsonObject> items) => new() { ["value"] = new JsonArray([.. items]) };
 

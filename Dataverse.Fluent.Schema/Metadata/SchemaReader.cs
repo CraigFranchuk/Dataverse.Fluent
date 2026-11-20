@@ -96,8 +96,8 @@ internal sealed class SchemaReader : IDisposable
     private async Task<TableSchema?> ReadTableAsync(string logicalName, CancellationToken ct)
     {
         var path = $"EntityDefinitions(LogicalName='{Quote(logicalName)}')";
-        var definitionTask = GetAsync(path + "?$select=LogicalName,EntitySetName" +
-            "&$expand=Attributes($select=LogicalName,AttributeType,AttributeTypeName,AttributeOf,IsValidForRead,IsValidForCreate,IsValidForUpdate)," +
+        var definitionTask = GetAsync(path + "?$select=LogicalName,SchemaName,EntitySetName" +
+            "&$expand=Attributes($select=LogicalName,SchemaName,AttributeType,AttributeTypeName,AttributeOf,IsValidForRead,IsValidForCreate,IsValidForUpdate)," +
             "ManyToOneRelationships($select=ReferencingAttribute,ReferencedEntity,ReferencingEntityNavigationPropertyName)," +
             "OneToManyRelationships($select=ReferencingEntity,ReferencedEntityNavigationPropertyName)," +
             "ManyToManyRelationships($select=Entity1LogicalName,Entity2LogicalName,Entity1NavigationPropertyName,Entity2NavigationPropertyName)", ct);
@@ -150,6 +150,7 @@ internal sealed class SchemaReader : IDisposable
                 (bool?)attribute["IsValidForCreate"] != false,
                 (bool?)attribute["IsValidForUpdate"] != false)
             {
+                SchemaName = (string?)attribute["SchemaName"],
                 DateTimeBehavior = behaviors.GetValueOrDefault(name),
                 Targets = targets.GetValueOrDefault(name) ?? []
             };
@@ -175,10 +176,17 @@ internal sealed class SchemaReader : IDisposable
                 manyToMany.Add(new ManyToManySchema(entity1, (string)r["Entity2NavigationPropertyName"]!));
         }
 
-        return new TableSchema(logicalName, (string)definition["EntitySetName"]!, columns, manyToOne, oneToMany, manyToMany);
+        return new TableSchema(logicalName, (string)definition["EntitySetName"]!, columns, manyToOne, oneToMany, manyToMany)
+        {
+            SchemaName = (string?)definition["SchemaName"]
+        };
     }
 
     private async Task<IReadOnlySet<int>?> ReadOptionValuesAsync(string table, ColumnSchema column, CancellationToken ct)
+        => (await GetOptionsAsync(table, column, ct).ConfigureAwait(false))?.Select(o => o.Value).ToHashSet();
+
+    /// <summary>The options of a choice column with their labels, or <see langword="null"/> when they cannot be read.</summary>
+    public async Task<IReadOnlyList<(int Value, string? Label)>?> GetOptionsAsync(string table, ColumnSchema column, CancellationToken ct)
     {
         var cast = column.AttributeType switch
         {
@@ -191,7 +199,7 @@ internal sealed class SchemaReader : IDisposable
             $"?$select=LogicalName&$filter=LogicalName eq '{Quote(column.LogicalName)}'&$expand=OptionSet($select=Options)", ct).ConfigureAwait(false);
 
         var options = Values(response).FirstOrDefault()?["OptionSet"]?["Options"]?.AsArray();
-        return options?.Select(o => (int)o!["Value"]!).ToHashSet();
+        return options?.Select(o => ((int)o!["Value"]!, (string?)o["Label"]?["UserLocalizedLabel"]?["Label"])).ToList();
     }
 
     private static IEnumerable<TableName> Names(JsonObject response)

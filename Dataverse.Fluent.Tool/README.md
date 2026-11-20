@@ -1,7 +1,8 @@
 # Dataverse.Fluent.Tool
 
 The `dataverse-fluent` command checks a project's [Dataverse.Fluent](https://www.nuget.org/packages/Dataverse.Fluent)
-models against a Dataverse environment's metadata, and fixes the mistakes that have one right answer.
+models against a Dataverse environment's metadata, fixes the mistakes that have one right answer, and fills in a model's
+mapping from the environment.
 
 ```bash
 dotnet tool install --global Dataverse.Fluent.Tool
@@ -54,6 +55,79 @@ the code around it (or next to them, when a property's attributes are written on
 nothing. A finding that needs a decision, such as a column that does not exist or a property whose type must change, is
 listed for you to change by hand.
 
+## Scaffold
+
+`scaffold` fills in a model from the environment, for the properties you name. Write the class and the properties you
+care about; they do not have to compile yet:
+
+```csharp
+[DataverseEntity("incident")]
+public partial class Incident
+{
+    public string Title { get; set; }
+    public DateTime DueDate { get; set; }
+    public Guid CustomerId { get; set; }
+    public DateTime? CreatedOn { get; set; }
+}
+```
+
+```bash
+dataverse-fluent scaffold src/MyApp/MyApp.csproj --url https://yourorg.crm.dynamics.com --dry-run
+dataverse-fluent scaffold src/MyApp/MyApp.csproj --url https://yourorg.crm.dynamics.com
+```
+
+```csharp
+[DataverseEntity("incident", "incidents")]
+public partial class Incident
+{
+    [DataverseColumn("title")]
+    public string Title { get; set; }
+
+    [DataverseColumn("duedate")]
+    public DateOnly? DueDate { get; set; }
+
+    [DataverseLookup("customerid")]
+    [DataverseLookupTarget("account", "accounts", "customerid_account")]
+    [DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+    public DataverseReference? CustomerId { get; set; }
+
+    [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
+    [DataverseColumn("createdon")]
+    public DateTime? CreatedOn { get; set; }
+}
+```
+
+For every class with `[DataverseEntity]` or `[EntitySet]` in the project's source:
+
+- **Matching:** a property without a mapping is matched to a column by name, ignoring case. One that matches no column
+  is left alone and listed with the closest names, and the command exits with 1.
+- **Mapping:** a column gets `[DataverseColumn]`; a lookup to one table gets `[DataverseLookup]` with its entity set
+  and navigation property; a lookup to several tables gets `[DataverseLookup]` and a `[DataverseLookupTarget]` per
+  table.
+- **Types:** a type that cannot hold its column, or holds it with loss, is replaced: `DateOnly?` for a date-only
+  column, `decimal?` for money, `DataverseReference?` for a lookup to several tables. A type that already fits is kept
+  as you wrote it, and so is a type of your own, such as an enum. Each change is listed, because it can break code
+  that uses the property.
+- **Read-only markers:** `[DataverseReadOnly]` is added for columns Dataverse sets itself or that cannot be updated.
+- **Entity set:** filled in or corrected on `[DataverseEntity]`.
+- **Mapped properties:** a property that already has `[DataverseColumn]` or `[JsonPropertyName]` keeps its mapping;
+  only its type and read-only marker are checked. Lookups that are already mapped are left to `fix`.
+
+Running it again changes nothing, so you can add properties to a model later and scaffold again. It reads the project's
+source without building it, and only reads metadata from the environment. `--type` limits the run to the models you
+name, and `--enums` writes an enum for each choice column that is an `int`, named after the class and property, with a
+member per option.
+
+To start without a class, name the table and its columns:
+
+```bash
+dataverse-fluent scaffold --table incident --columns title,duedate,customerid \
+  --output Models/Incident.cs --namespace MyApp.Models --url https://yourorg.crm.dynamics.com
+```
+
+This writes a new file with the same mapping. Property names come from the columns' schema names. It does not overwrite
+an existing file.
+
 ## Signing in
 
 The tool signs in with `DefaultAzureCredential`, so any of these works without extra options:
@@ -83,6 +157,18 @@ metadata and the tables the models map. The tool only reads; it never writes to 
 | `--no-build` | Use the existing build output |
 | `--dry-run` | `fix` only: print a diff and write nothing |
 | `--verbose` | Print the stack trace of an unexpected error |
+
+`scaffold` takes `--url`, `--interactive`, `--tenant-id`, `--api-version`, `--type`, `--configuration`, `--framework`,
+`--dry-run` and `--verbose` as above, and:
+
+| Option | Meaning |
+|---|---|
+| `--enums` | Write an enum for each choice column, in place of `int` |
+| `--table` | Write a new model for this table (its logical name) instead of filling in the project's models |
+| `--columns` | With `--table`: the logical names of the columns the model gets, separated by commas |
+| `--output`, `-o` | With `--table`: the file to write |
+| `--namespace` | With `--table`: the namespace of the new model. Default: none |
+| `--class` | With `--table`: the class name. Default: from the table's schema name |
 
 The same checks run in a test with the
 [Dataverse.Fluent.Schema](https://www.nuget.org/packages/Dataverse.Fluent.Schema) package. See

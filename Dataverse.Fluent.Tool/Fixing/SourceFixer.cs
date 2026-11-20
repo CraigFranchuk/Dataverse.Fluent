@@ -30,6 +30,31 @@ internal sealed class SourceFile(string path, SourceText text, SyntaxTree tree)
 
     public List<TextChange> Changes { get; } = [];
 
+    /// <summary>Reads and parses the file at <paramref name="path"/>, keeping its encoding.</summary>
+    public static SourceFile Read(string path)
+    {
+        SourceText text;
+        using (var stream = File.OpenRead(path))
+            text = SourceText.From(stream, throwIfBinaryDetected: true);
+        return new SourceFile(path, text, CSharpSyntaxTree.ParseText(text, path: path));
+    }
+
+    /// <summary>Parses <paramref name="source"/> as the file at <paramref name="path"/>.</summary>
+    public static SourceFile Parse(string path, string source)
+    {
+        var text = SourceText.From(source, Encoding.UTF8);
+        return new SourceFile(path, text, CSharpSyntaxTree.ParseText(text, path: path));
+    }
+
+    /// <summary>Writes the file with the planned edits, in the encoding it was read in.</summary>
+    public void Write()
+    {
+        var edited = Edited();
+        var encoding = Text.Encoding ?? new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        using var writer = new StreamWriter(Path, append: false, encoding);
+        edited.Write(writer);
+    }
+
     /// <summary>The file with the planned edits. Insertions at the same position keep the order they were planned in.</summary>
     public SourceText Edited()
     {
@@ -75,25 +100,13 @@ internal sealed class SourceFixer
     {
         var files = new Dictionary<string, SourceFile>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            SourceText text;
-            using (var stream = File.OpenRead(path))
-                text = SourceText.From(stream, throwIfBinaryDetected: true);
-            files[path] = new SourceFile(path, text, CSharpSyntaxTree.ParseText(text, path: path));
-        }
+            files[path] = SourceFile.Read(path);
 
         return new SourceFixer(files);
     }
 
     public static SourceFixer FromSource(params (string Path, string Text)[] sources)
-        => new(sources.ToDictionary(
-            s => s.Path,
-            s =>
-            {
-                var text = SourceText.From(s.Text, Encoding.UTF8);
-                return new SourceFile(s.Path, text, CSharpSyntaxTree.ParseText(text, path: s.Path));
-            },
-            StringComparer.OrdinalIgnoreCase));
+        => new(sources.ToDictionary(s => s.Path, s => SourceFile.Parse(s.Path, s.Text), StringComparer.OrdinalIgnoreCase));
 
     public FixPlan Plan(IEnumerable<SchemaFinding> findings)
     {
@@ -111,12 +124,7 @@ internal sealed class SourceFixer
     public static void Write(FixPlan plan)
     {
         foreach (var file in plan.Changed)
-        {
-            var edited = file.Edited();
-            var encoding = file.Text.Encoding ?? new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-            using var writer = new StreamWriter(file.Path, append: false, encoding);
-            edited.Write(writer);
-        }
+            file.Write();
     }
 
     // ───────── Locating the model ─────────
@@ -172,7 +180,7 @@ internal sealed class SourceFixer
         return matches;
     }
 
-    private static string FullName(TypeDeclarationSyntax declaration)
+    internal static string FullName(TypeDeclarationSyntax declaration)
     {
         var parts = new List<string> { declaration.Identifier.ValueText };
         for (var node = declaration.Parent; node is not null; node = node.Parent)
@@ -296,7 +304,7 @@ internal sealed class SourceFixer
 
     // ───────── Text edits ─────────
 
-    private static string? Change(SourceFile file, TextSpan span, string text)
+    internal static string? Change(SourceFile file, TextSpan span, string text)
     {
         if (file.Overlaps(span))
             return "it conflicts with another fix to the same code.";
@@ -326,14 +334,14 @@ internal sealed class SourceFixer
     }
 
     /// <summary>Inserts <paramref name="code"/> on a new line before the property's first attribute (or its declaration).</summary>
-    private static string? InsertLineBefore(SourceFile file, PropertyDeclarationSyntax property, string code)
+    internal static string? InsertLineBefore(SourceFile file, PropertyDeclarationSyntax property, string code)
     {
         var first = property.GetFirstToken();
         var line = file.Text.Lines.GetLineFromPosition(first.SpanStart);
         return Change(file, new TextSpan(line.Start, 0), Indentation(file, first.Parent!) + code + NewLine(file, line));
     }
 
-    private static string Indentation(SourceFile file, SyntaxNode node)
+    internal static string Indentation(SourceFile file, SyntaxNode node)
     {
         var line = file.Text.Lines.GetLineFromPosition(node.SpanStart);
         var text = file.Text.ToString(line.Span);
@@ -341,7 +349,7 @@ internal sealed class SourceFixer
     }
 
     // The line break the file uses: the line's own, or the first line's when the line has none.
-    private static string NewLine(SourceFile file, TextLine line)
+    internal static string NewLine(SourceFile file, TextLine line)
     {
         if (line.EndIncludingLineBreak > line.End)
             return file.Text.ToString(TextSpan.FromBounds(line.End, line.EndIncludingLineBreak));
@@ -352,10 +360,10 @@ internal sealed class SourceFixer
 
     // ───────── Attributes ─────────
 
-    private static AttributeSyntax? FindAttribute(SyntaxList<AttributeListSyntax> lists, string name)
+    internal static AttributeSyntax? FindAttribute(SyntaxList<AttributeListSyntax> lists, string name)
         => lists.SelectMany(l => l.Attributes).FirstOrDefault(a => IsNamed(a, name));
 
-    private static bool IsNamed(AttributeSyntax attribute, string name)
+    internal static bool IsNamed(AttributeSyntax attribute, string name)
     {
         var simple = attribute.Name switch
         {
@@ -367,7 +375,7 @@ internal sealed class SourceFixer
         return simple == name || simple == name + "Attribute";
     }
 
-    private static string? StringArgument(AttributeSyntax attribute, int position)
+    internal static string? StringArgument(AttributeSyntax attribute, int position)
     {
         var arguments = attribute.ArgumentList?.Arguments.Where(a => a.NameEquals is null && a.NameColon is null).ToList() ?? [];
         return position < arguments.Count && arguments[position].Expression is LiteralExpressionSyntax { RawKind: (int)SyntaxKind.StringLiteralExpression } literal
@@ -376,7 +384,7 @@ internal sealed class SourceFixer
     }
 
     /// <summary>The namespace qualifier an attribute is written with ("Dataverse.Fluent." or ""), to write new code the same way.</summary>
-    private static string Qualifier(AttributeSyntax attribute)
+    internal static string Qualifier(AttributeSyntax attribute)
         => attribute.Name is QualifiedNameSyntax q ? q.Left + "." : "";
 
     /// <summary>
@@ -398,7 +406,7 @@ internal sealed class SourceFixer
         return imported ? "" : DataverseNamespace + ".";
     }
 
-    private static string Literal(string value) => SymbolDisplay.FormatLiteral(value, quote: true);
+    internal static string Literal(string value) => SymbolDisplay.FormatLiteral(value, quote: true);
 
     // CreateAndUpdate and All share a value, so ToString() may return either; the code base writes CreateAndUpdate.
     private static string OperationName(DataverseOperation operations) => operations switch

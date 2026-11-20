@@ -39,6 +39,24 @@ internal sealed record ToolSettings
     /// <summary>Print the stack trace of an unexpected error.</summary>
     public bool Verbose { get; init; }
 
+    /// <summary>For <c>scaffold</c>: the logical name of a table to write a new model for, instead of editing a project's models.</summary>
+    public string? Table { get; init; }
+
+    /// <summary>For <c>scaffold --table</c>: the logical names of the columns the model gets.</summary>
+    public IReadOnlyList<string> Columns { get; init; } = [];
+
+    /// <summary>For <c>scaffold --table</c>: the file to write.</summary>
+    public string? Output { get; init; }
+
+    /// <summary>For <c>scaffold --table</c>: the namespace of the new model; none when <see langword="null"/>.</summary>
+    public string? Namespace { get; init; }
+
+    /// <summary>For <c>scaffold --table</c>: the class name; from the table's schema name when <see langword="null"/>.</summary>
+    public string? ClassName { get; init; }
+
+    /// <summary>For <c>scaffold</c>: write an enum for each choice column that is an <c>int</c>.</summary>
+    public bool Enums { get; init; }
+
     /// <summary>The Web API URL: <see cref="Url"/> with <c>/api/data/{version}</c> added unless it already has it.</summary>
     public string WebApiUrl
     {

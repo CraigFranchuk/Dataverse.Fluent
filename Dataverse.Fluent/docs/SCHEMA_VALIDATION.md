@@ -87,6 +87,30 @@ Models mapped by a resolver instead of attributes are checked when the tool can 
 `--resolver MyApp.Mapping.GeneratedNameResolver` (a public parameterless constructor is needed). The tool fixes only
 attributes it finds in the source.
 
+## Scaffolding a model
+
+`dataverse-fluent scaffold` works the other way round: from the environment to the model. Write a class with
+`[DataverseEntity("incident")]` and the properties you care about, and it adds each property's mapping attribute and
+read-only marker, fills in the entity set, and replaces a type that cannot hold its column. Properties are matched to
+columns by name, ignoring case; one that matches nothing is left alone and reported. With `--table` and `--columns` it
+writes a new model file instead. See the [tool README](../../Dataverse.Fluent.Tool/README.md#scaffold).
+
+The same description is available in code, for a generator of your own:
+
+```csharp
+var model = await DataverseModelScaffolder.ScaffoldAsync(client.Transport, new ScaffoldRequest
+{
+    LogicalName = "incident",
+    Properties = [new ScaffoldProperty("Title"), new ScaffoldProperty("CustomerId", typeof(Guid))]
+});
+
+foreach (var property in model.Properties)
+    Console.WriteLine($"{property.Name}: {property.Kind} {property.LogicalName} {property.ClrType}");
+```
+
+Each `ScaffoldedProperty` gives the column it matched, the type that holds it, whether the type you passed fits, the
+lookup targets with their entity sets and navigation properties, and the operations the column cannot be written by.
+
 ## Findings
 
 Severity: **error** means a read returns nothing or a write fails; **warning** means data is lost or a value is

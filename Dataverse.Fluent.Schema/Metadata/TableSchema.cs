@@ -12,6 +12,9 @@ internal sealed record TableSchema(
     IReadOnlyList<OneToManySchema> OneToMany,
     IReadOnlyList<ManyToManySchema> ManyToMany)
 {
+    /// <summary>The table's schema name (<c>Incident</c>, <c>new_Region</c>), when the metadata gives one.</summary>
+    public string? SchemaName { get; init; }
+
     /// <summary>The column with this logical name, or <see langword="null"/>.</summary>
     public ColumnSchema? Column(string logicalName) => Columns.GetValueOrDefault(logicalName);
 
@@ -55,6 +58,9 @@ internal sealed record ColumnSchema(
     bool IsValidForCreate,
     bool IsValidForUpdate)
 {
+    /// <summary>The column's schema name (<c>FollowupBy</c>, <c>new_RegionId</c>), when the metadata gives one.</summary>
+    public string? SchemaName { get; init; }
+
     /// <summary>For a date and time column, its behaviour: <c>UserLocal</c>, <c>DateOnly</c> or <c>TimeZoneIndependent</c>.</summary>
     public string? DateTimeBehavior { get; init; }
 

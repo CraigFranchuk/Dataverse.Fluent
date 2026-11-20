@@ -56,6 +56,12 @@ Columns that exist in Dataverse but are not on a model are never reported. A mod
 Every finding has a code (`SchemaCodes`), a severity, a message and, when the validator can tell, a suggestion. Findings
 that can be corrected mechanically carry a `SchemaFix`, which the `dataverse-fluent fix` command applies to the source.
 
+## Scaffolding
+
+`DataverseModelScaffolder.ScaffoldAsync` describes how the properties you name should be mapped: the column each one
+matches, the type that holds it, its lookup targets and whether it must be read-only. The `dataverse-fluent scaffold`
+command writes that into a model's source.
+
 ## Options
 
 ```csharp

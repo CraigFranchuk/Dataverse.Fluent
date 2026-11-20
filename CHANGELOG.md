@@ -27,6 +27,10 @@ metadata. See [Schema Validation](Dataverse.Fluent/docs/SCHEMA_VALIDATION.md).
 - A live `$select` check retrieves a random ID per model with every mapped column selected. A 404 proves Dataverse
   accepts them all. Validation sends `GET` requests only.
 - Columns that exist in Dataverse but are not on a model are never reported.
+- `DataverseModelScaffolder.ScaffoldAsync(transport, request)` describes how named properties of a table should be
+  mapped: the column each one matches (by name, ignoring case), the type that holds it and whether a given type fits,
+  lookup targets with their entity sets and navigation properties, read-only operations, and the options of a choice
+  column. A property that matches no column comes back as `NotFound` with the closest names.
 
 ### Dataverse.Fluent.Tool (new)
 
@@ -35,6 +39,13 @@ metadata. See [Schema Validation](Dataverse.Fluent/docs/SCHEMA_VALIDATION.md).
   the mechanical fixes to the source, then rebuilds and checks again; `--dry-run` prints a diff instead. A fix changes
   only string-literal attribute arguments and keeps each file's encoding and line endings. It signs in with
   `DefaultAzureCredential`, or with a browser via `--interactive`.
+- `scaffold <project>` fills in the project's models from the environment. For each class with `[DataverseEntity]`
+  or `[EntitySet]`, a property without a mapping is matched to a column by name and gets `[DataverseColumn]` or
+  `[DataverseLookup]` (with its targets), `[DataverseReadOnly]` where Dataverse does not accept a write, and a new type
+  when its own cannot hold the column. `[DataverseEntity("incident")]` gets its entity set. The project is read from
+  source and not built, so a model does not have to compile first; a second run changes nothing. `--enums` writes an
+  enum per choice column. `scaffold --table incident --columns title,customerid --output Models/Incident.cs` writes a
+  new model instead. (#4)
 
 ### Dataverse.Fluent
 

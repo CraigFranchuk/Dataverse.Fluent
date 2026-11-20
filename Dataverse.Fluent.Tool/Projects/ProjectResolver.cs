@@ -7,10 +7,16 @@ namespace Dataverse.Fluent.Tool.Projects;
 /// <summary>A built project: the assembly that holds its models, and the source files they are declared in.</summary>
 internal sealed record ProjectOutput(string AssemblyPath, IReadOnlyList<string> SourceFiles);
 
+/// <summary>A project's own source files, read without building it, and whether it has nullable reference types on.</summary>
+internal sealed record ProjectSources(IReadOnlyList<string> SourceFiles, bool NullableEnabled);
+
 /// <summary>Builds a project and finds its output, or takes a built assembly as it is.</summary>
 internal interface IProjectResolver
 {
     Task<ProjectOutput> ResolveAsync(ToolSettings settings, bool build, CancellationToken ct);
+
+    /// <summary>The project's source files, without a build: scaffolding works on models that do not compile yet.</summary>
+    Task<ProjectSources> ReadSourcesAsync(ToolSettings settings, CancellationToken ct);
 }
 
 /// <summary>Runs <c>dotnet build</c> and asks MSBuild for <c>TargetPath</c> and the <c>Compile</c> items.</summary>
@@ -58,14 +64,30 @@ internal sealed class DotnetProjectResolver(TextWriter log) : IProjectResolver
                 : $"{targetPath} does not exist. Build the project, or leave out --no-build.");
         }
 
+        return new ProjectOutput(targetPath, Sources(project, properties));
+    }
+
+    public async Task<ProjectSources> ReadSourcesAsync(ToolSettings settings, CancellationToken ct)
+    {
+        var target = Path.GetFullPath(settings.Target);
+        if (target.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            throw new ToolException("scaffold edits source, so it needs the project (.csproj), not a built assembly.");
+
+        var project = FindProject(target, settings.Target);
+        var properties = await QueryAsync(project, settings.Configuration, settings.Framework, ct).ConfigureAwait(false);
+        var nullable = (string?)properties["Properties"]?["Nullable"];
+        return new ProjectSources(Sources(project, properties), string.Equals(nullable, "enable", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // The project's own source only: generated files under obj are left out.
+    private static List<string> Sources(string project, JsonObject properties)
+    {
         var objDirectory = Path.Combine(Path.GetDirectoryName(project)!, "obj") + Path.DirectorySeparatorChar;
-        var sources = properties["Items"]?["Compile"]?.AsArray()
+        return properties["Items"]?["Compile"]?.AsArray()
             .Select(i => (string?)i?["FullPath"])
             .OfType<string>()
             .Where(p => !p.StartsWith(objDirectory, StringComparison.OrdinalIgnoreCase) && File.Exists(p))
             .ToList() ?? [];
-
-        return new ProjectOutput(targetPath, sources);
     }
 
     private static string FindProject(string target, string given)
@@ -90,7 +112,7 @@ internal sealed class DotnetProjectResolver(TextWriter log) : IProjectResolver
 
     private static async Task<JsonObject> QueryAsync(string project, string configuration, string? framework, CancellationToken ct)
     {
-        var args = new List<string> { "msbuild", project, "-getProperty:TargetPath", "-getProperty:TargetFrameworks", "-getItem:Compile", $"-p:Configuration={configuration}", "-nologo" };
+        var args = new List<string> { "msbuild", project, "-getProperty:TargetPath", "-getProperty:TargetFrameworks", "-getProperty:Nullable", "-getItem:Compile", $"-p:Configuration={configuration}", "-nologo" };
         if (framework is not null)
             args.Add($"-p:TargetFramework={framework}");
 
