@@ -4,7 +4,7 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 `Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
 [semantic versioning](https://semver.org/).
 
-## 1.2.0 (unreleased)
+## 1.2.0 (2026-11-20)
 
 Two new packages check models against an environment's metadata at design time. The client itself still never reads
 metadata. See [Schema Validation](Dataverse.Fluent/docs/SCHEMA_VALIDATION.md).
