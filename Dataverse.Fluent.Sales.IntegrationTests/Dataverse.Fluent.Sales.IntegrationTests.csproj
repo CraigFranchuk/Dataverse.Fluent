@@ -29,6 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Dataverse.Fluent.Sales\Dataverse.Fluent.Sales.csproj" />
     <ProjectReference Include="..\Dataverse.Fluent\Dataverse.Fluent.csproj" />
+    <ProjectReference Include="..\Dataverse.Fluent.Schema\Dataverse.Fluent.Schema.csproj" />
     <ProjectReference Include="..\Dataverse.Fluent.IntegrationTests\Dataverse.Fluent.IntegrationTests.csproj" />
   </ItemGroup>
 

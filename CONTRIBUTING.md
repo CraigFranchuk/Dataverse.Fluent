@@ -7,6 +7,8 @@ dotnet build Dataverse.Fluent.slnx
 dotnet test Dataverse.Fluent.Tests
 dotnet test Dataverse.Fluent.Sales.Tests
 dotnet test Dataverse.Fluent.Testing.Tests
+dotnet test Dataverse.Fluent.Schema.Tests
+dotnet test Dataverse.Fluent.Tool.Tests
 ```
 
 The unit tests need no Dataverse environment and run on .NET 10 and .NET 11; install both SDKs, or pass
@@ -21,8 +23,10 @@ The unit tests need no Dataverse environment and run on .NET 10 and .NET 11; ins
 - **The public API is pinned.** `PublicApiTests` compares each package's public surface with
   `PublicApi/*.approved.txt`. When you change the public API on purpose, the test writes a `.received.txt` file next
   to the test output; copy it over the approved file and describe the change in [CHANGELOG.md](CHANGELOG.md).
-- **No metadata dependency.** The library never downloads or caches the environment's schema; behaviour follows from
-  the POCO and the calls the developer makes. See [Design Philosophy](Dataverse.Fluent/docs/DESIGN_PHILOSOPHY.md).
+- **No metadata dependency.** The client (`Dataverse.Fluent`, and `Dataverse.Fluent.Sales` and
+  `Dataverse.Fluent.Testing` on top of it) never downloads or caches the environment's schema; behaviour follows from
+  the POCO and the calls the developer makes. Only the design-time packages, `Dataverse.Fluent.Schema` and
+  `Dataverse.Fluent.Tool`, read metadata. See [Design Philosophy](Dataverse.Fluent/docs/DESIGN_PHILOSOPHY.md).
 - **Library code awaits with `ConfigureAwait(false)`** and takes a `CancellationToken` on every asynchronous method.
 - **Tests assert on the request sent**, through `TestHttpMessageHandler.Requests` or a fake `IDataverseTransport`,
   rather than on mocks of the client.

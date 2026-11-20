@@ -81,6 +81,19 @@ public static class DataverseTypeMapping
     }
 
     /// <summary>
+    /// Whether <paramref name="type"/> is mapped to a table: a registered resolver, <see cref="DataverseEntityAttribute"/>
+    /// or <see cref="EntitySetAttribute"/> gives it an entity set. Unlike <see cref="DataverseEntityMapping.For(Type)"/>,
+    /// it reads none of the type's properties, so it does not throw for a type whose property mappings are invalid.
+    /// </summary>
+    /// <param name="type">The type to look up.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null"/>.</exception>
+    public static bool IsMapped(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        return ResolveEntitySetName(type) is not null;
+    }
+
+    /// <summary>
     /// Resolves a property name by consulting custom resolvers in order, then the built-in
     /// attribute resolver. Returns <see langword="null"/> when none can resolve the member.
     /// </summary>

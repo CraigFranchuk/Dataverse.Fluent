@@ -80,8 +80,10 @@ to AOT, but these remain.
 Without the metadata model, the library cannot do what metadata enables:
 
 - **Automatic type/shape validation.** We do not know from a schema that a column is `Money`
-  vs `Decimal`, or the valid range of an option set. You model the type on your POCO and rely
-  on the server's error responses for invalid data.
+  vs `Decimal`, or the valid range of an option set. You model the type on your POCO. The server
+  does not always reject a mistake: a column that does not exist reads as `null`, and a value
+  written to a column Dataverse sets itself is ignored. Check models at design time instead (see
+  below).
 - **Auto-discovery.** No automatic relationship-navigation-name discovery, no "select every
   real column" without listing them, no option-set label translation without requesting
   formatted values.
@@ -91,6 +93,20 @@ Without the metadata model, the library cannot do what metadata enables:
 For POCOs that model only the columns a use case needs (see
 [Partial POCOs & null handling](CUSTOM_TYPE_MAPPING.md#partial-pocos--null-handling)), most of
 that metadata describes columns and behaviours the code never touches.
+
+## Checking models at design time
+
+Metadata is still useful when it is read at the right time. `Dataverse.Fluent.Schema` and the `dataverse-fluent` tool
+compare your models with an environment's metadata in a test or a CI step, and fix the mechanical mistakes in your
+source. This keeps the rule that the client never reads metadata at runtime:
+
+- The client package does not reference the validator, and nothing in it reads `EntityDefinitions`.
+- The POCO stays the source of truth. The validator reports where it disagrees with the environment; it never generates
+  or regenerates a model, and it ignores columns a model leaves out.
+- The validator reads the model through `DataverseEntityMapping`, the same mapping the builders use, so what it checks
+  is what the client sends.
+
+See [Schema Validation](SCHEMA_VALIDATION.md).
 
 ## How the pieces fit together
 

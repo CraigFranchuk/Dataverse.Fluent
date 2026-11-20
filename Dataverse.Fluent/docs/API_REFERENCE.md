@@ -198,6 +198,11 @@ A property whose type is a mapped entity, or a collection of one, is a navigatio
 `$expand` and never written. `DataverseTypeMapping.RegisterResolver(IDataverseNameResolver)` adds custom naming
 rules; see [Custom Type Mapping](CUSTOM_TYPE_MAPPING.md).
 
+`DataverseEntityMapping.For<T>()` describes a type as the builders read and write it: its table and entity set, and
+for each property its kind (column, lookup, polymorphic lookup, navigation, ignored), names, lookup targets, read-only
+markers, and whether `SetFrom` sends it on create and on update. `Dataverse.Fluent.Schema` uses it to check models
+against an environment; see [Schema Validation](SCHEMA_VALIDATION.md).
+
 ## Transport
 
 `IDataverseTransport` has `BaseUrl` and one method, `SendAsync(DataverseRequest)`, which returns a

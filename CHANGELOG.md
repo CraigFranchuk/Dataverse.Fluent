@@ -1,7 +1,73 @@
 # Changelog
 
-All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales` and `Dataverse.Fluent.Testing` packages are
-recorded here. The packages follow [semantic versioning](https://semver.org/).
+All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Dataverse.Fluent.Testing`,
+`Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
+[semantic versioning](https://semver.org/).
+
+## 1.2.0 (unreleased)
+
+Two new packages check models against an environment's metadata at design time. The client itself still never reads
+metadata. See [Schema Validation](Dataverse.Fluent/docs/SCHEMA_VALIDATION.md).
+
+### Dataverse.Fluent.Schema (new)
+
+- `DataverseSchemaValidator.ValidateAsync(transport, assembly or types)` compares each model with `EntityDefinitions`
+  and returns a `SchemaReport` of findings. Each finding has a code (`SchemaCodes`), a severity, a message, a
+  suggestion where one is known, and a `SchemaFix` where the correction is mechanical. `ThrowIfAny(severity)` fails a
+  test with every finding in its message. It checks:
+  - tables and entity sets;
+  - that each column exists, with "did you mean" suggestions;
+  - that no property maps the display value of another column (`createdbyname`);
+  - property types against column types (a date-only column must be `DateOnly`, money `decimal`);
+  - enum members against the options of a choice column;
+  - lookups: target entity sets, navigation properties, polymorphic targets, and lookups mapped as plain columns or by
+    their `_x_value` name;
+  - navigation properties, and the table each one's type maps;
+  - columns that `SetFrom` sends but Dataverse ignores.
+- A live `$select` check retrieves a random ID per model with every mapped column selected. A 404 proves Dataverse
+  accepts them all. Validation sends `GET` requests only.
+- Columns that exist in Dataverse but are not on a model are never reported.
+- `DataverseModelScaffolder.ScaffoldAsync(transport, request)` describes how named properties of a table should be
+  mapped: the column each one matches (by name, ignoring case), the type that holds it and whether a given type fits,
+  lookup targets with their entity sets and navigation properties, read-only operations, and the options of a choice
+  column. A property that matches no column comes back as `NotFound` with the closest names.
+
+### Dataverse.Fluent.Tool (new)
+
+- The `dataverse-fluent` dotnet tool. `validate <project>` builds a project and prints its models' findings, and exits
+  with 1 when there are errors (or warnings, with `--warnings-as-errors`), so it can run in CI. `fix <project>` applies
+  the mechanical fixes to the source, then rebuilds and checks again; `--dry-run` prints a diff instead. A fix changes
+  only string-literal attribute arguments and keeps each file's encoding and line endings. It signs in with
+  `DefaultAzureCredential`, or with a browser via `--interactive`.
+- `scaffold <project>` fills in the project's models from the environment. For each class with `[DataverseEntity]`
+  or `[EntitySet]`, a property without a mapping is matched to a column by name and gets `[DataverseColumn]` or
+  `[DataverseLookup]` (with its targets), `[DataverseReadOnly]` where Dataverse does not accept a write, and a new type
+  when its own cannot hold the column. `[DataverseEntity("incident")]` gets its entity set. The project is read from
+  source and not built, so a model does not have to compile first; a second run changes nothing. `--enums` writes an
+  enum per choice column. `scaffold --table incident --columns title,customerid --output Models/Incident.cs` writes a
+  new model instead. (#4)
+- `scaffold` reads the source the way the compiler does, without a restore or a build: constants, aliases and your own
+  types are understood, and a name that does not resolve is taken as it is written. A property it deliberately leaves
+  for `validate` (a computed property, a column mapping to a lookup's name) is listed, and `--skip Model.Property`
+  leaves out a property that is not a column.
+- `scaffold` and `fix` parse each edited file again before writing it. A file whose edit would break it, or leave an
+  attribute on the wrong declaration, is held back with its diff printed, and the others are written; the exit code is
+  2. `--force` writes it anyway.
+
+### Dataverse.Fluent
+
+- `DataverseEntityMapping.For<T>()` describes a type as the builders read and write it: its table and entity set, and
+  for each property its kind, names, lookup targets, read-only markers, related type, and whether `SetFrom` sends it on
+  create and on update. The schema validator is built on it.
+- `DataverseTypeMapping.IsMapped(type)` tells whether an attribute or a registered resolver maps a type to a table. It
+  reads none of the type's properties, so it does not throw for a type whose property mappings are invalid.
+- Fixed: a model that hides a base class's property with `new` and a different type threw `ArgumentException` when the
+  client first used it. The derived property is now the model's, as it is for System.Text.Json.
+
+### Dataverse.Fluent.Sales
+
+- The live tests check every Sales model with the schema validator, in place of the hand-written metadata comparison
+  added in 1.1.1. No model changed.
 
 ## 1.1.1 (2026-11-20)
 

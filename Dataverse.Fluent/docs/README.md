@@ -11,6 +11,7 @@ Start with the [package README](../README.md) for installation and the quick sta
 | [Best Practices](BEST_PRACTICES.md) | Production guidance |
 | [Design Philosophy](DESIGN_PHILOSOPHY.md) | Why there is no metadata dependency |
 | [Custom Type Mapping](CUSTOM_TYPE_MAPPING.md) | Bring your own generated types via `IDataverseNameResolver` |
+| [Schema Validation](SCHEMA_VALIDATION.md) | Check models against an environment in a test or with the `dataverse-fluent` tool, and fix them |
 | [Error Handling](ERROR_HANDLING.md) | `DataverseException` and what is retried for you |
 
 ## Features

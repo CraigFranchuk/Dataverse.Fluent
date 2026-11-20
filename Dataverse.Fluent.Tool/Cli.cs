@@ -1,0 +1,168 @@
+using System.CommandLine;
+
+namespace Dataverse.Fluent.Tool;
+
+/// <summary>The command line: <c>validate</c> and <c>fix</c>, with the options they share, and <c>scaffold</c>.</summary>
+internal static class Cli
+{
+    public const string UrlVariable = "DATAVERSE_URL";
+
+    private const string ForceDescription = "Write a file even when the check of its planned edit fails. Without it, that file is held back and its diff is printed.";
+
+    /// <summary>
+    /// Builds the commands. <paramref name="run"/> receives the settings and whether to fix; <paramref name="scaffold"/>
+    /// receives the settings of a <c>scaffold</c> run.
+    /// </summary>
+    public static RootCommand Build(Func<ToolSettings, bool, CancellationToken, Task<int>> run, Func<ToolSettings, CancellationToken, Task<int>>? scaffold = null)
+    {
+        var root = new RootCommand("Checks Dataverse.Fluent models against a Dataverse environment's metadata, and fixes the mechanical mistakes.");
+        root.Add(Command("validate", "Checks every model in a project (or built assembly) against the environment.", fix: false, run));
+        root.Add(Command("fix", "Checks the models, then applies the fixes to the source and checks again.", fix: true, run));
+        if (scaffold is not null)
+            root.Add(ScaffoldCommand(scaffold));
+        return root;
+    }
+
+    private static Command ScaffoldCommand(Func<ToolSettings, CancellationToken, Task<int>> run)
+    {
+        var target = new Argument<string>("project")
+        {
+            Description = "The .csproj, or a directory holding one, whose models to fill in. Not used with --table.",
+            DefaultValueFactory = _ => "."
+        };
+        var url = new Option<string?>("--url", "-u") { Description = $"The environment URL, e.g. https://yourorg.crm.dynamics.com. Default: the {UrlVariable} environment variable." };
+        var interactive = new Option<bool>("--interactive") { Description = "Sign in with a browser instead of DefaultAzureCredential (az login, Visual Studio, or AZURE_* variables)." };
+        var tenant = new Option<string?>("--tenant-id") { Description = "The Microsoft Entra tenant to sign in to." };
+        var apiVersion = new Option<string>("--api-version") { Description = "The Web API version.", DefaultValueFactory = _ => "v9.2" };
+        var types = new Option<string[]>("--type", "-t") { Description = "Fill in only this model (full or simple name). Repeat for several." };
+        var table = new Option<string?>("--table") { Description = "Write a new model for this table (its logical name), with --columns and --output, instead of filling in a project's models." };
+        var columns = new Option<string[]>("--columns") { Description = "With --table: the logical names of the columns the model gets, separated by commas." };
+        var outputFile = new Option<string?>("--output", "-o") { Description = "With --table: the file to write." };
+        var ns = new Option<string?>("--namespace") { Description = "With --table: the namespace of the new model. Default: none." };
+        var className = new Option<string?>("--class") { Description = "With --table: the class name. Default: from the table's schema name." };
+        var enums = new Option<bool>("--enums") { Description = "Write an enum for each choice column, in place of int." };
+        var skip = new Option<string[]>("--skip") { Description = "Leave this property alone, e.g. Incident.Summary: for one that is not a column. Repeat for several." };
+        var configuration = new Option<string>("--configuration", "-c") { Description = "The build configuration the project is read with.", DefaultValueFactory = _ => "Debug" };
+        var framework = new Option<string?>("--framework", "-f") { Description = "The target framework of a multi-targeted project. Default: its first." };
+        var dryRun = new Option<bool>("--dry-run") { Description = "Print the changes and write nothing." };
+        var force = new Option<bool>("--force") { Description = ForceDescription };
+        var verbose = new Option<bool>("--verbose") { Description = "Print the stack trace of an unexpected error." };
+
+        var command = new Command("scaffold", "Fills in a project's models from the environment: mapping attributes, read-only markers and property types.")
+        {
+            target, url, interactive, tenant, apiVersion, types, table, columns, outputFile, ns, className, enums, skip, configuration, framework, dryRun, force, verbose
+        };
+
+        command.SetAction(async (parse, ct) =>
+        {
+            var environmentUrl = await ReadUrlAsync(parse, url).ConfigureAwait(false);
+            if (environmentUrl is null)
+                return ExitCodes.Failure;
+
+            return await run(new ToolSettings
+            {
+                Target = parse.GetValue(target) ?? ".",
+                Url = environmentUrl,
+                Interactive = parse.GetValue(interactive),
+                TenantId = parse.GetValue(tenant),
+                ApiVersion = parse.GetValue(apiVersion) ?? "v9.2",
+                Types = parse.GetValue(types) ?? [],
+                Table = parse.GetValue(table),
+                Columns = [.. (parse.GetValue(columns) ?? []).SelectMany(c => c.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))],
+                Output = parse.GetValue(outputFile),
+                Namespace = parse.GetValue(ns),
+                ClassName = parse.GetValue(className),
+                Enums = parse.GetValue(enums),
+                Skip = parse.GetValue(skip) ?? [],
+                Configuration = parse.GetValue(configuration) ?? "Debug",
+                Framework = parse.GetValue(framework),
+                DryRun = parse.GetValue(dryRun),
+                Force = parse.GetValue(force),
+                Verbose = parse.GetValue(verbose)
+            }, ct).ConfigureAwait(false);
+        });
+
+        return command;
+    }
+
+    // The environment URL from --url or DATAVERSE_URL, or null after printing what is wrong with it.
+    private static async Task<string?> ReadUrlAsync(ParseResult parse, Option<string?> url)
+    {
+        var environmentUrl = parse.GetValue(url) ?? Environment.GetEnvironmentVariable(UrlVariable);
+        if (string.IsNullOrWhiteSpace(environmentUrl))
+        {
+            await parse.InvocationConfiguration.Error.WriteLineAsync($"error: pass --url, or set {UrlVariable}.").ConfigureAwait(false);
+            return null;
+        }
+
+        if (!Uri.TryCreate(environmentUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            await parse.InvocationConfiguration.Error.WriteLineAsync($"error: '{environmentUrl}' is not an https URL.").ConfigureAwait(false);
+            return null;
+        }
+
+        return environmentUrl;
+    }
+
+    private static Command Command(string name, string description, bool fix, Func<ToolSettings, bool, CancellationToken, Task<int>> run)
+    {
+        var target = new Argument<string>("project")
+        {
+            Description = fix ? "The .csproj, or a directory holding one." : "The .csproj, a directory holding one, or a built .dll.",
+            DefaultValueFactory = _ => "."
+        };
+        var url = new Option<string?>("--url", "-u") { Description = $"The environment URL, e.g. https://yourorg.crm.dynamics.com. Default: the {UrlVariable} environment variable." };
+        var interactive = new Option<bool>("--interactive") { Description = "Sign in with a browser instead of DefaultAzureCredential (az login, Visual Studio, or AZURE_* variables)." };
+        var tenant = new Option<string?>("--tenant-id") { Description = "The Microsoft Entra tenant to sign in to." };
+        var apiVersion = new Option<string>("--api-version") { Description = "The Web API version.", DefaultValueFactory = _ => "v9.2" };
+        var types = new Option<string[]>("--type", "-t") { Description = "Check only this model (full or simple name). Repeat for several." };
+        var resolver = new Option<string?>("--resolver") { Description = "The full name of an IDataverseNameResolver in the project to register before checking, for models mapped by a resolver." };
+        var ignore = new Option<string[]>("--ignore") { Description = "Leave out findings with this code, e.g. DVS015. Repeat for several." };
+        var warningsAsErrors = new Option<bool>("--warnings-as-errors") { Description = "Exit with code 1 when a warning is found, not only an error." };
+        var noSelect = new Option<bool>("--no-select-check") { Description = "Skip the live $select check (one retrieve of a random ID per model)." };
+        var configuration = new Option<string>("--configuration", "-c") { Description = "The build configuration.", DefaultValueFactory = _ => "Debug" };
+        var framework = new Option<string?>("--framework", "-f") { Description = "The target framework of a multi-targeted project. Default: its first." };
+        var noBuild = new Option<bool>("--no-build") { Description = "Use the existing build output." };
+        var dryRun = new Option<bool>("--dry-run") { Description = "Print the changes as a diff and write nothing." };
+        var force = new Option<bool>("--force") { Description = ForceDescription };
+        var verbose = new Option<bool>("--verbose") { Description = "Print the stack trace of an unexpected error." };
+
+        var command = new Command(name, description) { target, url, interactive, tenant, apiVersion, types, resolver, ignore, warningsAsErrors, noSelect, configuration, framework, noBuild, verbose };
+        if (fix)
+        {
+            command.Add(dryRun);
+            command.Add(force);
+        }
+
+        command.SetAction(async (parse, ct) =>
+        {
+            var environmentUrl = await ReadUrlAsync(parse, url).ConfigureAwait(false);
+            if (environmentUrl is null)
+                return ExitCodes.Failure;
+
+            var settings = new ToolSettings
+            {
+                Target = parse.GetValue(target) ?? ".",
+                Url = environmentUrl,
+                Interactive = parse.GetValue(interactive),
+                TenantId = parse.GetValue(tenant),
+                ApiVersion = parse.GetValue(apiVersion) ?? "v9.2",
+                Types = parse.GetValue(types) ?? [],
+                Resolver = parse.GetValue(resolver),
+                Ignore = parse.GetValue(ignore) ?? [],
+                WarningsAsErrors = parse.GetValue(warningsAsErrors),
+                NoSelectCheck = parse.GetValue(noSelect),
+                Configuration = parse.GetValue(configuration) ?? "Debug",
+                Framework = parse.GetValue(framework),
+                NoBuild = parse.GetValue(noBuild),
+                DryRun = fix && parse.GetValue(dryRun),
+                Force = fix && parse.GetValue(force),
+                Verbose = parse.GetValue(verbose)
+            };
+
+            return await run(settings, fix, ct).ConfigureAwait(false);
+        });
+
+        return command;
+    }
+}

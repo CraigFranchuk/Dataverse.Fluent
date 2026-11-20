@@ -9,12 +9,12 @@
   </PropertyGroup>
 
   <!-- The shipped libraries build warning-free; a new warning fails the build. -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Dataverse.Fluent' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Sales' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Testing'">
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Dataverse.Fluent' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Sales' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Testing' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Schema' Or '$(MSBuildProjectName)' == 'Dataverse.Fluent.Tool'">
     <IsSourceProject>true</IsSourceProject>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <!-- The next release's version. CI appends -ci.<run>; the release workflow requires the tag to match it. -->
-    <VersionPrefix>1.1.1</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <Authors>Craig Franchuk</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/CraigFranchuk/Dataverse.Fluent</PackageProjectUrl>
