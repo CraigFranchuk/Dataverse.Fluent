@@ -68,6 +68,16 @@ namespace Dataverse.Fluent
         public string EntitySet { get; }
         public string LogicalName { get; }
     }
+    public sealed class DataverseEntityMapping
+    {
+        public string? EntitySet { get; }
+        public bool IsMapped { get; }
+        public string? LogicalName { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.DataverseMemberMapping> Members { get; }
+        public System.Type Type { get; }
+        public static Dataverse.Fluent.DataverseEntityMapping For(System.Type type) { }
+        public static Dataverse.Fluent.DataverseEntityMapping For<T>() { }
+    }
     public sealed class DataverseHttpTransport : Dataverse.Fluent.IDataverseTransport, System.IDisposable
     {
         public DataverseHttpTransport(Dataverse.Fluent.DataverseClientOptions options, System.Net.Http.HttpClient? httpClient = null, Microsoft.Extensions.Logging.ILogger<Dataverse.Fluent.DataverseHttpTransport>? logger = null) { }
@@ -91,6 +101,28 @@ namespace Dataverse.Fluent
         public string EntitySet { get; }
         public string LogicalName { get; }
         public string NavigationProperty { get; }
+    }
+    public enum DataverseMemberKind
+    {
+        Column = 0,
+        Lookup = 1,
+        PolymorphicLookup = 2,
+        Navigation = 3,
+        Ignored = 4,
+    }
+    public sealed class DataverseMemberMapping
+    {
+        public bool IsCollection { get; }
+        public bool IsWrittenOnCreate { get; }
+        public bool IsWrittenOnUpdate { get; }
+        public Dataverse.Fluent.DataverseMemberKind Kind { get; }
+        public string LogicalName { get; }
+        public Dataverse.Fluent.DataverseLookupAttribute? Lookup { get; }
+        public string Name { get; }
+        public System.Reflection.PropertyInfo Property { get; }
+        public Dataverse.Fluent.DataverseOperation ReadOnlyFor { get; }
+        public System.Type? RelatedType { get; }
+        public System.Collections.Generic.IReadOnlyList<Dataverse.Fluent.DataverseLookupTargetAttribute> Targets { get; }
     }
     [System.Flags]
     public enum DataverseOperation

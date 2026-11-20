@@ -250,6 +250,10 @@ internal sealed class EntityTypeMetadata
     private static bool IsNavigation(Type type)
         => ElementType(type) is { } element && DataverseTypeMapping.ResolveEntitySetName(element) != null;
 
+    /// <summary>The related record type a navigation property holds, and whether it holds a collection of them.</summary>
+    internal static (Type? Type, bool IsCollection) RelatedRecordType(Type propertyType)
+        => (ElementType(propertyType), propertyType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(propertyType));
+
     // The record type a property holds: the type itself, or the element type of a collection. Null for scalars.
     private static Type? ElementType(Type type)
     {
