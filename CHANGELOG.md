@@ -4,7 +4,7 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 `Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
 [semantic versioning](https://semver.org/).
 
-## 1.3.0 (unreleased)
+## 1.3.0 (2026-11-20)
 
 ### Dataverse.Fluent
 
