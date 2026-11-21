@@ -40,6 +40,9 @@ namespace Dataverse.Fluent
     }
     public static class DataverseClientExtensions
     {
+        public static Dataverse.Fluent.Builders.ActionBuilder Action(this Dataverse.Fluent.IDataverseClient client, string actionName) { }
+        public static Dataverse.Fluent.Builders.ActionBuilder<TRequest> Action<TRequest>(this Dataverse.Fluent.IDataverseClient client, string actionName)
+            where TRequest :  class { }
         public static Dataverse.Fluent.Builders.BulkBuilder<T> Bulk<T>(this Dataverse.Fluent.IDataverseClient client, string? entitySet = null, string? entityLogicalName = null)
             where T :  class { }
         public static Dataverse.Fluent.IDataverseClient WithOptions(this Dataverse.Fluent.IDataverseClient client, Dataverse.Fluent.DataverseRequestOptions options) { }
@@ -285,6 +288,22 @@ namespace Dataverse.Fluent
 }
 namespace Dataverse.Fluent.Builders
 {
+    public sealed class ActionBuilder
+    {
+        public System.Threading.Tasks.Task ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public System.Threading.Tasks.Task<TResponse?> ExecuteAsync<TResponse>(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.DataverseRequest ToRequest() { }
+        public Dataverse.Fluent.Builders.ActionBuilder WithParameter(string parameterName, object? value) { }
+    }
+    public sealed class ActionBuilder<TRequest>
+        where TRequest :  class
+    {
+        public System.Threading.Tasks.Task ExecuteAsync(System.Threading.CancellationToken ct = default) { }
+        public Dataverse.Fluent.DataverseRequest ToRequest() { }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest> WithParameter(string parameterName, object? value) { }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest> WithParameter<TProperty>(System.Linq.Expressions.Expression<System.Func<TRequest, TProperty>> propertyExpression, TProperty value) { }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest> WithRequest(TRequest request) { }
+    }
     public sealed class ActionBuilder<TRequest, TResponse>
         where TRequest :  class
     {
@@ -489,6 +508,9 @@ namespace Dataverse.Fluent.Builders
     }
     public sealed class EntityFluentBuilder<T>
     {
+        public Dataverse.Fluent.Builders.ActionBuilder Action(string actionName) { }
+        public Dataverse.Fluent.Builders.ActionBuilder<TRequest> Action<TRequest>(string actionName)
+            where TRequest :  class { }
         public Dataverse.Fluent.Builders.ActionBuilder<TRequest, TResponse> Action<TRequest, TResponse>(string actionName)
             where TRequest :  class { }
         public Dataverse.Fluent.Builders.FunctionBuilder<TResponse> Function<TResponse>(string functionName) { }

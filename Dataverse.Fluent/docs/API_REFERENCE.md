@@ -32,6 +32,8 @@ Without an `HttpClient`, the client creates one with the retry, timeout and toke
 | `Fetch<T>(fetchXml, options?)` | `FetchQueryExecutor<T>` | [FetchXML Examples](FETCHXML_EXAMPLES.md) |
 | `Delta<T>(entitySet?)` | `DeltaBuilder<T>` | [Delta Queries](DELTA_QUERIES.md) |
 | `Action<TRequest, TResponse>(name)` | `ActionBuilder<TRequest, TResponse>` | [Actions and Functions](ACTIONS_AND_FUNCTIONS.md) |
+| `Action<TRequest>(name)` | `ActionBuilder<TRequest>`, for an action that returns nothing | [Actions and Functions](ACTIONS_AND_FUNCTIONS.md) |
+| `Action(name)` | `ActionBuilder`, with parameters by name | [Actions and Functions](ACTIONS_AND_FUNCTIONS.md) |
 | `Function<TResponse>(name)` | `FunctionBuilder<TResponse>` | [Actions and Functions](ACTIONS_AND_FUNCTIONS.md) |
 | `ForEntity<T>(id, entitySet?)` | `EntityFluentBuilder<T>` (bound `Action` / `Function`) | [Actions and Functions](ACTIONS_AND_FUNCTIONS.md) |
 | `Annotation(annotationId?)` | `AnnotationBuilder` | [Annotations](ANNOTATIONS.md) |
@@ -174,6 +176,8 @@ The first read option continues on `EntityReadBuilder<T>`; the first write optio
 | Builder | Methods |
 |---------|---------|
 | `ActionBuilder<TRequest, TResponse>` | `WithParameter(selector, value)`, `WithParameter(name, value)`, `WithRequest(request)`, `ExecuteAsync()`, `ToRequest()` |
+| `ActionBuilder<TRequest>` | The same, for an action that returns nothing: `ExecuteAsync()` returns a `Task` |
+| `ActionBuilder` | `WithParameter(name, value)`, `ExecuteAsync()`, `ExecuteAsync<TResponse>()`, `ToRequest()` |
 | `FunctionBuilder<TResponse>` | `WithParameter(name, value)`, `ExecuteAsync()` |
 
 ## Notes and attachments

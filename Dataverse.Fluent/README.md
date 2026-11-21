@@ -470,7 +470,7 @@ An expired token returns HTTP 410; restart with an initial query. See
 ```csharp
 var me = await client.Function<WhoAmIResponse>("WhoAmI").ExecuteAsync();
 
-await client.Action<WinOpportunityRequest, object>("WinOpportunity").WithRequest(request).ExecuteAsync();
+await client.Action<WinOpportunityRequest>("WinOpportunity").WithRequest(request).ExecuteAsync();
 
 var note = await client.Annotation()
     .Regarding<Account>(accountId)
