@@ -18,11 +18,58 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
   `ArgumentException`.
 - Source compatibility: `Expand<TRelated>(null)` with a bare `null` no longer compiles, because it is ambiguous
   between the overloads. No other call is affected.
+- `GetListAsync()` and `GetListWithCountAsync()` log a warning when they return a page and Dataverse has more rows,
+  and the query set neither `Top()` nor `PageSize()`. They return one page of at most 5,000 rows, so such a list is
+  incomplete without the call having asked for a limit; the warning names `GetAllAsync()` and `StreamAsync()`. The
+  behaviour of both methods is unchanged. The warning goes to the client's logger, so a client over a custom
+  `IDataverseTransport` (a fake or a decorator) logs nothing.
 - `client.Action<TRequest>(name)` runs an action that returns nothing; `ExecuteAsync` returns a `Task`. It replaces
   writing `object` as the response type (`Action<TRequest, object>`), which still works.
 - `client.Action(name)` runs an action without a request class: parameters are set by name with `WithParameter`, and
   `ExecuteAsync()` or `ExecuteAsync<TResponse>()` sends it.
 - Both are also on `ForEntity<T>(id)` for bound actions, and both have `ToRequest()` for use in a batch.
+
+### Dataverse.Fluent.Sales
+
+- New models: `SalesOrder`, `SalesOrderDetail`, `Invoice`, `InvoiceDetail`, `Product` and `PriceLevel`, with their
+  lookups, read-only columns, date-only columns and line-item navigation properties (`SalesOrder.Details`,
+  `Invoice.Details`), and enums for their choices (`SalesOrderState`/`SalesOrderStatus`,
+  `InvoiceState`/`InvoiceStatus`, `ProductState`/`ProductStatus`, `PriceLevelState`/`PriceLevelStatus`,
+  `PaymentTerms`, `ShippingMethod`, `FreightTerms`, `ProductStructure`, `ProductType`). They are checked against a
+  live environment with the schema validator.
+- New actions on `SalesClient`: `WinQuoteAsync`, `CloseQuoteAsync`, `FulfillSalesOrderAsync`,
+  `CancelSalesOrderAsync` and `ConvertSalesOrderToInvoiceAsync`, which returns the created `Invoice`.
+- Every action has an overload that takes its request object, such as
+  `QualifyLeadAsync(leadId, QualifyLeadRequest, ct)` and `WinOpportunityAsync(WinOpportunityRequest, ct)`, and the
+  short form calls it. `CalculatePriceAsync(CalculatePriceRequest, ct)` is the request form of the two price
+  calculations.
+- The request classes carry the parameters they lacked: `QualifyLeadRequest.OpportunityCustomerId`,
+  `OpportunityCurrencyId` and `SourceCampaignId` (built with the new `ActionRecord.Reference`), and
+  `ConvertQuoteToSalesOrderRequest.QuoteCloseDate`, `QuoteCloseStatus`, `QuoteCloseSubject` and
+  `QuoteCloseDescription`, which close an active quote as part of the conversion.
+- The `SalesClient` methods are virtual, so a derived client can change an action by overriding the overload that
+  takes the request.
+- **Breaking:** `ConvertQuoteToSalesOrderAsync` returns the created order as a `SalesOrder` instead of a
+  `ConvertQuoteToSalesOrderResponse`, which is removed. `SalesOrderId`, `Name`, `OrderNumber` and `TotalAmount`
+  have the same names on `SalesOrder`.
+- **Breaking:** the state, status reason and other standard choice columns of the Sales models are enums instead of
+  `int`. The values were read from a live environment's metadata and are checked against it by the integration tests.
+  - `StateCode` and `StatusCode` on `Account`, `Contact`, `Lead`, `Opportunity`, `Quote` and `Incident`:
+    `AccountState`/`AccountStatus`, `ContactState`/`ContactStatus`, `LeadState`/`LeadStatus`,
+    `OpportunityState`/`OpportunityStatus`, `QuoteState`/`QuoteStatus`, `IncidentState`/`IncidentStatus`.
+  - `Account.IndustryCode` and `Lead.IndustryCode` (`Industry`), `Lead.LeadSourceCode` (`LeadSource`),
+    `Lead.PurchaseTimeFrame` (`PurchaseTimeFrame`), `Opportunity.RatingCode` (`OpportunityRating`),
+    `Incident.PriorityCode` (`IncidentPriority`), `Incident.CaseOriginCode` (`CaseOrigin`) and
+    `Incident.SatisfactionCode` (`CustomerSatisfaction`).
+  - To migrate, compare with the enum member instead of the number (`o.StateCode == OpportunityState.Won`), or cast.
+    An option an organisation added is read as its number and written with a cast, such as `(LeadStatus)100000001`.
+  - `Incident.CaseTypeCode`, `Incident.SeverityCode`, `Opportunity.PriorityCode` and `Opportunity.SalesStageCode`
+    stay `int?`: their shipped options are placeholders that each organisation defines.
+- **Breaking:** `QualifyLeadAsync` takes `LeadStatus status = LeadStatus.Qualified` and `CloseIncidentAsync` takes
+  `IncidentStatus status = IncidentStatus.ProblemSolved`, instead of `int`.
+- **Breaking (binary):** `LoseOpportunityAsync` has a new `status` parameter before the cancellation token,
+  `OpportunityStatus.Canceled` by default as before, so an opportunity can be lost as `OutSold`. Recompile; a call
+  that passes the cancellation token by position must name it.
 
 ## 1.2.0 (2026-11-20)
 

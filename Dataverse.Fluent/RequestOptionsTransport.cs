@@ -8,7 +8,7 @@ namespace Dataverse.Fluent;
 /// Headers on a <c>$batch</c> request do not apply to the operations inside it, so <see cref="Builders.BatchBuilder"/>
 /// also writes <see cref="Headers"/> into each part of a batch sent through this transport.
 /// </remarks>
-internal sealed class RequestOptionsTransport : IDataverseTransport
+internal sealed class RequestOptionsTransport : IDataverseTransport, ITransportLogging
 {
     private readonly IDataverseTransport _inner;
 
@@ -23,6 +23,8 @@ internal sealed class RequestOptionsTransport : IDataverseTransport
 
     /// <inheritdoc />
     public string BaseUrl => _inner.BaseUrl;
+
+    Microsoft.Extensions.Logging.ILogger ITransportLogging.Logger => TransportLogger.For(_inner);
 
     /// <summary>
     /// Wraps <paramref name="inner"/>. When it is already a <see cref="RequestOptionsTransport"/> the two are merged

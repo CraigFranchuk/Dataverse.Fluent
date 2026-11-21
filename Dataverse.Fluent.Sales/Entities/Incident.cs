@@ -29,17 +29,17 @@ public class Incident
     public virtual int? CaseTypeCode { get; set; }
 
     [JsonPropertyName("prioritycode")]
-    public virtual int? PriorityCode { get; set; }
+    public virtual IncidentPriority? PriorityCode { get; set; }
 
     [JsonPropertyName("severitycode")]
     public virtual int? SeverityCode { get; set; }
 
     [JsonPropertyName("caseorigincode")]
-    public virtual int? CaseOriginCode { get; set; }
+    public virtual CaseOrigin? CaseOriginCode { get; set; }
 
     /// <summary>The customer's satisfaction (<c>customersatisfactioncode</c>, a choice column).</summary>
     [JsonPropertyName("customersatisfactioncode")]
-    public virtual int? SatisfactionCode { get; set; }
+    public virtual CustomerSatisfaction? SatisfactionCode { get; set; }
 
     [JsonPropertyName("isescalated")]
     public virtual bool? IsEscalated { get; set; }
@@ -67,11 +67,11 @@ public class Incident
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statecode")]
-    public virtual int StateCode { get; set; }
+    public virtual IncidentState StateCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statuscode")]
-    public virtual int StatusCode { get; set; }
+    public virtual IncidentStatus StatusCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("versionnumber")]

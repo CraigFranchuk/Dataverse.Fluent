@@ -108,6 +108,9 @@ var accounts = await client.Query<Account>()
     .GetListAsync();
 ```
 
+`GetListAsync()` returns one page: at most 5,000 rows, even when more match. To read every matching row use
+`GetAllAsync()` or `StreamAsync()`; see [Paging](#paging).
+
 ### Create, update and delete
 
 ```csharp
@@ -253,6 +256,11 @@ await foreach (var account in client.Query<Account>().StreamAsync(pageSize: 2000
 // Everything as one list
 var all = await client.Query<Account>().GetAllAsync();
 ```
+
+`GetListAsync()` and `GetListWithCountAsync()` do not page: they return the first page only. When they are called
+with neither `Top()` nor `PageSize()` and Dataverse has more rows than the page holds, the client logs a warning,
+because the list is incomplete without the call having asked for a limit. The warning needs a logger: one is supplied
+by dependency injection, or pass an `ILogger<DataverseClient>` to the `DataverseClient` constructor.
 
 ### Counts
 

@@ -37,6 +37,12 @@ public class SalesMappingTests
     }
 
     [Theory]
+    [InlineData(typeof(SalesOrder), "salesorders")]
+    [InlineData(typeof(SalesOrderDetail), "salesorderdetails")]
+    [InlineData(typeof(Invoice), "invoices")]
+    [InlineData(typeof(InvoiceDetail), "invoicedetails")]
+    [InlineData(typeof(Product), "products")]
+    [InlineData(typeof(PriceLevel), "pricelevels")]
     [InlineData(typeof(Account), "accounts")]
     [InlineData(typeof(Contact), "contacts")]
     [InlineData(typeof(Incident), "incidents")]
