@@ -23,6 +23,9 @@ public class SalesClientTests : IAsyncDisposable
     private readonly List<Guid> _createdContactIds = new();
     private readonly List<Guid> _createdOpportunityIds = new();
     private readonly List<Guid> _createdIncidentIds = new();
+    private readonly List<Guid> _createdQuoteIds = new();
+    private readonly List<Guid> _createdOrderIds = new();
+    private readonly List<Guid> _createdInvoiceIds = new();
 
     public SalesClientTests(DataverseTestFixture fixture)
     {
@@ -259,6 +262,164 @@ public class SalesClientTests : IAsyncDisposable
         Assert.Equal(IncidentStatus.ProblemSolved, resolved.StatusCode);
     }
 
+    // ───────────────────────── QualifyLead with the request object ─────────────────────────
+
+    [Fact]
+    public async Task QualifyLead_WithAnExistingCustomer_UsesItForTheOpportunity()
+    {
+        var account = await CreateAccountAsync("Qualify Customer");
+        var lead = (await _fixture.Client.Entity<Lead>()
+            .Set(l => l.Subject, $"Request Lead {Guid.NewGuid():N}")
+            .Set(l => l.LastName, "Requested")
+            .Set(l => l.CompanyName, "Requested Co")
+            .ReturnRepresentation()
+            .CreateAsync()).Entity!;
+        _createdLeadIds.Add(lead.LeadId);
+
+        var response = await _sales.QualifyLeadAsync(lead.LeadId, new QualifyLeadRequest
+        {
+            CreateAccount = false,
+            CreateContact = false,
+            CreateOpportunity = true,
+            Status = (int)LeadStatus.Qualified,
+            OpportunityCustomerId = ActionRecord.Reference<Account>(account.AccountId)
+        });
+
+        var created = Assert.Single(response.CreatedEntities!);
+        Assert.Equal("opportunity", created.LogicalName);
+        _createdOpportunityIds.Add(created.Id);
+
+        var opportunity = await _fixture.Client.Entity<Opportunity>(created.Id).RetrieveAsync();
+        Assert.Equal(account.AccountId, opportunity!.CustomerId!.Id);
+        Assert.Equal("account", opportunity.CustomerId.LogicalName);
+    }
+
+    // ───────────────────────── Quotes, orders and invoices ─────────────────────────
+
+    [Fact]
+    public async Task Quote_WonThenConverted_BecomesAnOrderAndAnInvoice()
+    {
+        var account = await CreateAccountAsync("Quote Customer");
+        var quote = await CreateActiveQuoteAsync(account.AccountId);
+
+        await _sales.WinQuoteAsync(quote.QuoteId, subject: "Integration test win");
+
+        var won = await _fixture.Client.Entity<Quote>(quote.QuoteId).RetrieveAsync();
+        Assert.Equal(QuoteState.Won, won!.StateCode);
+        Assert.Equal(QuoteStatus.Won, won.StatusCode);
+
+        var order = await _sales.ConvertQuoteToSalesOrderAsync(quote.QuoteId);
+        Assert.NotEqual(Guid.Empty, order.SalesOrderId);
+        _createdOrderIds.Add(order.SalesOrderId);
+        Assert.Equal(quote.QuoteId, order.QuoteId);
+        Assert.Equal(account.AccountId, order.CustomerId!.Id);
+        Assert.Equal(SalesOrderState.Active, order.StateCode);
+        Assert.False(string.IsNullOrEmpty(order.OrderNumber));
+
+        var invoice = await _sales.ConvertSalesOrderToInvoiceAsync(order.SalesOrderId, columns: ["name", "invoicenumber", "salesorderid", "statecode"]);
+        Assert.NotEqual(Guid.Empty, invoice.InvoiceId);
+        _createdInvoiceIds.Add(invoice.InvoiceId);
+        Assert.Equal(order.SalesOrderId, invoice.SalesOrderId);
+        Assert.Equal(InvoiceState.Active, invoice.StateCode);
+        Assert.False(string.IsNullOrEmpty(invoice.InvoiceNumber));
+    }
+
+    [Fact]
+    public async Task ConvertQuoteToSalesOrder_WithCloseParameters_WinsAnActiveQuote()
+    {
+        var account = await CreateAccountAsync("Convert Customer");
+        var quote = await CreateActiveQuoteAsync(account.AccountId);
+
+        var order = await _sales.ConvertQuoteToSalesOrderAsync(new ConvertQuoteToSalesOrderRequest
+        {
+            QuoteId = quote.QuoteId,
+            ColumnSet = new ColumnSetPayload { AllColumns = false, Columns = ["name", "quoteid"] },
+            QuoteCloseDate = DateTimeOffset.UtcNow,
+            QuoteCloseStatus = (int)QuoteStatus.Won,
+            QuoteCloseSubject = "Converted by the integration test"
+        });
+        _createdOrderIds.Add(order.SalesOrderId);
+
+        Assert.Equal(quote.QuoteId, order.QuoteId);
+        var closed = await _fixture.Client.Entity<Quote>(quote.QuoteId).RetrieveAsync();
+        Assert.Equal(QuoteState.Won, closed!.StateCode);
+    }
+
+    [Fact]
+    public async Task CloseQuote_ClosesAnActiveQuoteAsLost()
+    {
+        var account = await CreateAccountAsync("Close Quote Customer");
+        var quote = await CreateActiveQuoteAsync(account.AccountId);
+
+        await _sales.CloseQuoteAsync(quote.QuoteId, description: "Lost to a competitor", status: QuoteStatus.Lost);
+
+        var closed = await _fixture.Client.Entity<Quote>(quote.QuoteId).RetrieveAsync();
+        Assert.Equal(QuoteState.Closed, closed!.StateCode);
+        Assert.Equal(QuoteStatus.Lost, closed.StatusCode);
+    }
+
+    [Fact]
+    public async Task FulfillSalesOrder_FulfillsTheOrder()
+    {
+        var order = await CreateOrderAsync((await CreateAccountAsync("Fulfill Customer")).AccountId);
+
+        await _sales.FulfillSalesOrderAsync(order.SalesOrderId, subject: "Shipped", status: SalesOrderStatus.Partial);
+
+        var fulfilled = await _fixture.Client.Entity<SalesOrder>(order.SalesOrderId).RetrieveAsync();
+        Assert.Equal(SalesOrderState.Fulfilled, fulfilled!.StateCode);
+        Assert.Equal(SalesOrderStatus.Partial, fulfilled.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelSalesOrder_CancelsTheOrder()
+    {
+        var order = await CreateOrderAsync((await CreateAccountAsync("Cancel Customer")).AccountId);
+
+        await _sales.CancelSalesOrderAsync(order.SalesOrderId, description: "Customer withdrew");
+
+        var canceled = await _fixture.Client.Entity<SalesOrder>(order.SalesOrderId).RetrieveAsync();
+        Assert.Equal(SalesOrderState.Canceled, canceled!.StateCode);
+        Assert.Equal(SalesOrderStatus.NoMoney, canceled.StatusCode);
+    }
+
+    private async Task<Account> CreateAccountAsync(string name)
+    {
+        var account = (await _fixture.Client.Entity<Account>()
+            .Set(a => a.Name, $"{name} {Guid.NewGuid():N}")
+            .ReturnRepresentation()
+            .CreateAsync()).Entity!;
+        _createdAccountIds.Add(account.AccountId);
+        return account;
+    }
+
+    // A quote is created as a draft; WinQuote, CloseQuote and ConvertQuoteToSalesOrder need it active.
+    private async Task<Quote> CreateActiveQuoteAsync(Guid accountId)
+    {
+        var quote = (await _fixture.Client.Entity<Quote>()
+            .Set(q => q.Name, $"Test Quote {Guid.NewGuid():N}")
+            .Set(q => q.CustomerId, DataverseReference.To<Account>(accountId))
+            .ReturnRepresentation()
+            .CreateAsync()).Entity!;
+        _createdQuoteIds.Add(quote.QuoteId);
+
+        await _fixture.Client.Entity<Quote>(quote.QuoteId)
+            .Set(q => q.StateCode, QuoteState.Active)
+            .Set(q => q.StatusCode, QuoteStatus.InProgressActive)
+            .UpdateAsync();
+        return quote;
+    }
+
+    private async Task<SalesOrder> CreateOrderAsync(Guid accountId)
+    {
+        var order = (await _fixture.Client.Entity<SalesOrder>()
+            .Set(o => o.Name, $"Test Order {Guid.NewGuid():N}")
+            .Set(o => o.CustomerId, DataverseReference.To<Account>(accountId))
+            .ReturnRepresentation()
+            .CreateAsync()).Entity!;
+        _createdOrderIds.Add(order.SalesOrderId);
+        return order;
+    }
+
     // ───────────────────────── Notes ─────────────────────────
 
     [Fact]
@@ -336,7 +497,25 @@ public class SalesClientTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        // Cleanup order: opportunities → incidents → contacts → leads → accounts
+        // Cleanup order: invoices → orders → quotes → opportunities → incidents → contacts → leads → accounts
+        foreach (var id in _createdInvoiceIds)
+        {
+            try { await _fixture.Client.Entity<Invoice>(id).DeleteAsync(); }
+            catch { /* best effort */ }
+        }
+
+        foreach (var id in _createdOrderIds)
+        {
+            try { await _fixture.Client.Entity<SalesOrder>(id).DeleteAsync(); }
+            catch { /* best effort */ }
+        }
+
+        foreach (var id in _createdQuoteIds)
+        {
+            try { await _fixture.Client.Entity<Quote>(id).DeleteAsync(); }
+            catch { /* best effort */ }
+        }
+
         foreach (var id in _createdOpportunityIds)
         {
             try { await _fixture.Client.Entity<Opportunity>(entitySet: "opportunities").WithId(id).DeleteAsync(); }

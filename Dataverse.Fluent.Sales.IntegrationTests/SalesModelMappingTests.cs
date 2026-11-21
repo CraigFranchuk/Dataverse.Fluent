@@ -18,7 +18,8 @@ public class SalesModelMappingTests(DataverseTestFixture fixture)
     public static TheoryData<Type> Models =>
     [
         typeof(Account), typeof(Contact), typeof(Incident), typeof(Lead),
-        typeof(Opportunity), typeof(OpportunityProduct), typeof(Quote), typeof(QuoteDetail)
+        typeof(Opportunity), typeof(OpportunityProduct), typeof(Quote), typeof(QuoteDetail),
+        typeof(SalesOrder), typeof(SalesOrderDetail), typeof(Invoice), typeof(InvoiceDetail), typeof(Product), typeof(PriceLevel)
     ];
 
     [Theory]

@@ -418,3 +418,231 @@ public enum Industry
     /// <summary>Wholesale.</summary>
     Wholesale = 33
 }
+
+/// <summary>The state of a sales order (<c>statecode</c>).</summary>
+public enum SalesOrderState
+{
+    /// <summary>Active.</summary>
+    Active = 0,
+
+    /// <summary>Submitted.</summary>
+    Submitted = 1,
+
+    /// <summary>Canceled.</summary>
+    Canceled = 2,
+
+    /// <summary>Fulfilled.</summary>
+    Fulfilled = 3,
+
+    /// <summary>Invoiced.</summary>
+    Invoiced = 4
+}
+
+/// <summary>The standard status reasons of a sales order (<c>statuscode</c>).</summary>
+public enum SalesOrderStatus
+{
+    /// <summary>New. The record is <see cref="SalesOrderState.Active"/>.</summary>
+    New = 1,
+
+    /// <summary>Pending. The record is <see cref="SalesOrderState.Active"/>.</summary>
+    Pending = 2,
+
+    /// <summary>In Progress. The record is <see cref="SalesOrderState.Submitted"/>.</summary>
+    InProgress = 3,
+
+    /// <summary>No Money. The record is <see cref="SalesOrderState.Canceled"/>.</summary>
+    NoMoney = 4,
+
+    /// <summary>Complete. The record is <see cref="SalesOrderState.Fulfilled"/>.</summary>
+    Complete = 100001,
+
+    /// <summary>Partial. The record is <see cref="SalesOrderState.Fulfilled"/>.</summary>
+    Partial = 100002,
+
+    /// <summary>Invoiced. The record is <see cref="SalesOrderState.Invoiced"/>.</summary>
+    Invoiced = 100003
+}
+
+/// <summary>The state of an invoice (<c>statecode</c>).</summary>
+public enum InvoiceState
+{
+    /// <summary>Active.</summary>
+    Active = 0,
+
+    /// <summary>Closed. Dynamics 365 Sales marks this state as deprecated.</summary>
+    Closed = 1,
+
+    /// <summary>Paid.</summary>
+    Paid = 2,
+
+    /// <summary>Canceled.</summary>
+    Canceled = 3
+}
+
+/// <summary>The standard status reasons of an invoice (<c>statuscode</c>).</summary>
+public enum InvoiceStatus
+{
+    /// <summary>New. The record is <see cref="InvoiceState.Active"/>.</summary>
+    New = 1,
+
+    /// <summary>Partially Shipped. The record is <see cref="InvoiceState.Active"/>.</summary>
+    PartiallyShipped = 2,
+
+    /// <summary>Canceled, deprecated. The record is <see cref="InvoiceState.Closed"/>.</summary>
+    ClosedCanceled = 3,
+
+    /// <summary>Billed. The record is <see cref="InvoiceState.Active"/>.</summary>
+    Billed = 4,
+
+    /// <summary>Booked (applies to services). The record is <see cref="InvoiceState.Active"/>.</summary>
+    Booked = 5,
+
+    /// <summary>Installed (applies to services). The record is <see cref="InvoiceState.Active"/>.</summary>
+    Installed = 6,
+
+    /// <summary>Paid in Full, deprecated. The record is <see cref="InvoiceState.Closed"/>.</summary>
+    ClosedPaidInFull = 7,
+
+    /// <summary>Complete. The record is <see cref="InvoiceState.Paid"/>.</summary>
+    Complete = 100001,
+
+    /// <summary>Partial. The record is <see cref="InvoiceState.Paid"/>.</summary>
+    Partial = 100002,
+
+    /// <summary>Canceled. The record is <see cref="InvoiceState.Canceled"/>.</summary>
+    Canceled = 100003
+}
+
+/// <summary>The state of a product (<c>statecode</c>).</summary>
+public enum ProductState
+{
+    /// <summary>Active.</summary>
+    Active = 0,
+
+    /// <summary>Retired.</summary>
+    Retired = 1,
+
+    /// <summary>Draft.</summary>
+    Draft = 2,
+
+    /// <summary>Under Revision.</summary>
+    UnderRevision = 3
+}
+
+/// <summary>The status reasons of a product (<c>statuscode</c>). Unlike other tables, 0 is a status reason here.</summary>
+public enum ProductStatus
+{
+    /// <summary>Draft. The record is <see cref="ProductState.Draft"/>.</summary>
+    Draft = 0,
+
+    /// <summary>Active. The record is <see cref="ProductState.Active"/>.</summary>
+    Active = 1,
+
+    /// <summary>Retired. The record is <see cref="ProductState.Retired"/>.</summary>
+    Retired = 2,
+
+    /// <summary>Under Revision. The record is <see cref="ProductState.UnderRevision"/>.</summary>
+    UnderRevision = 3
+}
+
+/// <summary>The state of a price list (<c>statecode</c>).</summary>
+public enum PriceLevelState
+{
+    /// <summary>Active.</summary>
+    Active = 0,
+
+    /// <summary>Inactive.</summary>
+    Inactive = 1
+}
+
+/// <summary>The standard status reasons of a price list (<c>statuscode</c>).</summary>
+public enum PriceLevelStatus
+{
+    /// <summary>Active. The record is <see cref="PriceLevelState.Active"/>.</summary>
+    Active = 100001,
+
+    /// <summary>Inactive. The record is <see cref="PriceLevelState.Inactive"/>.</summary>
+    Inactive = 100002
+}
+
+/// <summary>The standard payment terms of a sales order or an invoice (<c>paymenttermscode</c>).</summary>
+public enum PaymentTerms
+{
+    /// <summary>Net 30.</summary>
+    Net30 = 1,
+
+    /// <summary>2% 10, Net 30.</summary>
+    TwoPercent10Net30 = 2,
+
+    /// <summary>Net 45.</summary>
+    Net45 = 3,
+
+    /// <summary>Net 60.</summary>
+    Net60 = 4
+}
+
+/// <summary>The standard shipping methods of a sales order or an invoice (<c>shippingmethodcode</c>).</summary>
+public enum ShippingMethod
+{
+    /// <summary>Airborne.</summary>
+    Airborne = 1,
+
+    /// <summary>DHL.</summary>
+    DHL = 2,
+
+    /// <summary>FedEx.</summary>
+#pragma warning disable CA1711 // "Ex" is part of the carrier's name, not a suffix for a newer version of a member.
+    FedEx = 3,
+#pragma warning restore CA1711
+
+    /// <summary>UPS.</summary>
+    UPS = 4,
+
+    /// <summary>Postal Mail.</summary>
+    PostalMail = 5,
+
+    /// <summary>Full Load.</summary>
+    FullLoad = 6,
+
+    /// <summary>Will Call.</summary>
+    WillCall = 7
+}
+
+/// <summary>The standard freight terms of a sales order (<c>freighttermscode</c>).</summary>
+public enum FreightTerms
+{
+    /// <summary>FOB.</summary>
+    FOB = 1,
+
+    /// <summary>No Charge.</summary>
+    NoCharge = 2
+}
+
+/// <summary>Whether a product record is a product, a family or a bundle (<c>productstructure</c>).</summary>
+public enum ProductStructure
+{
+    /// <summary>Product.</summary>
+    Product = 1,
+
+    /// <summary>Product Family.</summary>
+    ProductFamily = 2,
+
+    /// <summary>Product Bundle.</summary>
+    ProductBundle = 3
+}
+
+/// <summary>The standard types of a product (<c>producttypecode</c>).</summary>
+public enum ProductType
+{
+    /// <summary>Sales Inventory.</summary>
+    SalesInventory = 1,
+
+    /// <summary>Miscellaneous Charges.</summary>
+    MiscellaneousCharges = 2,
+
+    /// <summary>Services.</summary>
+    Services = 3,
+
+    /// <summary>Flat Fees.</summary>
+    FlatFees = 4
+}

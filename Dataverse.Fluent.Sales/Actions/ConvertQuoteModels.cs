@@ -10,8 +10,25 @@ public class ConvertQuoteToSalesOrderRequest
     [JsonPropertyName("QuoteId")]
     public Guid QuoteId { get; set; }
 
+    /// <summary>The columns of the created order to return.</summary>
     [JsonPropertyName("ColumnSet")]
     public ColumnSetPayload? ColumnSet { get; set; }
+
+    /// <summary>When set, an active quote is closed as won on this date as part of the conversion.</summary>
+    [JsonPropertyName("QuoteCloseDate")]
+    public DateTimeOffset? QuoteCloseDate { get; set; }
+
+    /// <summary>The status reason to close the quote with: a <c>QuoteStatus</c> value of the Won state.</summary>
+    [JsonPropertyName("QuoteCloseStatus")]
+    public int? QuoteCloseStatus { get; set; }
+
+    /// <summary>The subject of the quote close activity.</summary>
+    [JsonPropertyName("QuoteCloseSubject")]
+    public string? QuoteCloseSubject { get; set; }
+
+    /// <summary>The description of the quote close activity.</summary>
+    [JsonPropertyName("QuoteCloseDescription")]
+    public string? QuoteCloseDescription { get; set; }
 }
 
 /// <summary>
@@ -24,22 +41,4 @@ public class ColumnSetPayload
 
     [JsonPropertyName("Columns")]
     public List<string>? Columns { get; set; }
-}
-
-/// <summary>
-/// Response from ConvertQuoteToSalesOrder containing the created sales order entity.
-/// </summary>
-public class ConvertQuoteToSalesOrderResponse
-{
-    [JsonPropertyName("salesorderid")]
-    public Guid SalesOrderId { get; set; }
-
-    [JsonPropertyName("name")]
-    public string? Name { get; set; }
-
-    [JsonPropertyName("ordernumber")]
-    public string? OrderNumber { get; set; }
-
-    [JsonPropertyName("totalamount")]
-    public decimal? TotalAmount { get; set; }
 }
