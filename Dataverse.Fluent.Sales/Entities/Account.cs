@@ -27,7 +27,7 @@ public class Account
     public virtual int? NumberOfEmployees { get; set; }
 
     [JsonPropertyName("industrycode")]
-    public virtual int? IndustryCode { get; set; }
+    public virtual Industry? IndustryCode { get; set; }
 
     [JsonPropertyName("description")]
     public virtual string? Description { get; set; }
@@ -79,11 +79,11 @@ public class Account
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statecode")]
-    public virtual int StateCode { get; set; }
+    public virtual AccountState StateCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statuscode")]
-    public virtual int StatusCode { get; set; }
+    public virtual AccountStatus StatusCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("versionnumber")]

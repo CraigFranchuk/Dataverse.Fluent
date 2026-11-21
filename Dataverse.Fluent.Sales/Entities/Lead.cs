@@ -61,13 +61,13 @@ public class Lead
     public virtual decimal? BudgetAmount { get; set; }
 
     [JsonPropertyName("leadsourcecode")]
-    public virtual int? LeadSourceCode { get; set; }
+    public virtual LeadSource? LeadSourceCode { get; set; }
 
     [JsonPropertyName("industrycode")]
-    public virtual int? IndustryCode { get; set; }
+    public virtual Industry? IndustryCode { get; set; }
 
     [JsonPropertyName("purchasetimeframe")]
-    public virtual int? PurchaseTimeFrame { get; set; }
+    public virtual PurchaseTimeFrame? PurchaseTimeFrame { get; set; }
 
     [JsonPropertyName("decisionmaker")]
     public virtual bool? DecisionMaker { get; set; }
@@ -107,11 +107,11 @@ public class Lead
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statecode")]
-    public virtual int StateCode { get; set; }
+    public virtual LeadState StateCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statuscode")]
-    public virtual int StatusCode { get; set; }
+    public virtual LeadStatus StatusCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("versionnumber")]

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Description>Dynamics 365 Sales models and typed actions (QualifyLead, WinOpportunity, CloseIncident, ...) for Dataverse.Fluent.</Description>
+    <Description>Dynamics 365 Sales models (leads, opportunities, quotes, orders, invoices, products) and typed actions (QualifyLead, WinOpportunity, ConvertQuoteToSalesOrder, CloseIncident, ...) for Dataverse.Fluent.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- The entity models' properties are named after their columns; the classes and SalesClient are documented. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>

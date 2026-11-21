@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Dataverse.Fluent.Sales.Actions;
@@ -17,8 +18,28 @@ public class QualifyLeadRequest
     [JsonPropertyName("CreateOpportunity")]
     public bool CreateOpportunity { get; set; }
 
+    /// <summary>The status reason of the qualified lead: a <c>LeadStatus</c> value of the Qualified state.</summary>
     [JsonPropertyName("Status")]
     public int Status { get; set; }
+
+    /// <summary>
+    /// An existing account or contact to make the customer of the created opportunity, instead of the account or
+    /// contact the action creates. Build it with <see cref="ActionRecord.Reference{T}(Guid)"/>.
+    /// </summary>
+    [JsonPropertyName("OpportunityCustomerId")]
+    public JsonObject? OpportunityCustomerId { get; set; }
+
+    /// <summary>
+    /// The currency of the created opportunity. Build it with <c>ActionRecord.Reference("transactioncurrency", id)</c>.
+    /// </summary>
+    [JsonPropertyName("OpportunityCurrencyId")]
+    public JsonObject? OpportunityCurrencyId { get; set; }
+
+    /// <summary>
+    /// The campaign the lead came from. Build it with <c>ActionRecord.Reference("campaign", id)</c>.
+    /// </summary>
+    [JsonPropertyName("SourceCampaignId")]
+    public JsonObject? SourceCampaignId { get; set; }
 }
 
 /// <summary>

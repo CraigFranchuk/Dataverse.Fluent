@@ -1,5 +1,10 @@
 namespace Dataverse.Fluent.Sales.Actions
 {
+    public static class ActionRecord
+    {
+        public static System.Text.Json.Nodes.JsonObject Reference(string logicalName, System.Guid id) { }
+        public static System.Text.Json.Nodes.JsonObject Reference<T>(System.Guid id) { }
+    }
     public class CalculatePriceRequest
     {
         public CalculatePriceRequest() { }
@@ -16,11 +21,27 @@ namespace Dataverse.Fluent.Sales.Actions
         [System.Text.Json.Serialization.JsonPropertyName("quoteid")]
         public System.Guid? QuoteId { get; set; }
     }
+    public class CancelSalesOrderRequest
+    {
+        public CancelSalesOrderRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("OrderClose")]
+        public Dataverse.Fluent.Sales.Actions.OrderCloseRecord? OrderClose { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("Status")]
+        public int Status { get; set; }
+    }
     public class CloseIncidentRequest
     {
         public CloseIncidentRequest() { }
         [System.Text.Json.Serialization.JsonPropertyName("IncidentResolution")]
         public Dataverse.Fluent.Sales.Actions.IncidentResolutionRecord? IncidentResolution { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("Status")]
+        public int Status { get; set; }
+    }
+    public class CloseQuoteRequest
+    {
+        public CloseQuoteRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("QuoteClose")]
+        public Dataverse.Fluent.Sales.Actions.QuoteCloseRecord? QuoteClose { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("Status")]
         public int Status { get; set; }
     }
@@ -37,20 +58,24 @@ namespace Dataverse.Fluent.Sales.Actions
         public ConvertQuoteToSalesOrderRequest() { }
         [System.Text.Json.Serialization.JsonPropertyName("ColumnSet")]
         public Dataverse.Fluent.Sales.Actions.ColumnSetPayload? ColumnSet { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("QuoteCloseDate")]
+        public System.DateTimeOffset? QuoteCloseDate { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("QuoteCloseDescription")]
+        public string? QuoteCloseDescription { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("QuoteCloseStatus")]
+        public int? QuoteCloseStatus { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("QuoteCloseSubject")]
+        public string? QuoteCloseSubject { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("QuoteId")]
         public System.Guid QuoteId { get; set; }
     }
-    public class ConvertQuoteToSalesOrderResponse
+    public class ConvertSalesOrderToInvoiceRequest
     {
-        public ConvertQuoteToSalesOrderResponse() { }
-        [System.Text.Json.Serialization.JsonPropertyName("name")]
-        public string? Name { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("ordernumber")]
-        public string? OrderNumber { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("salesorderid")]
+        public ConvertSalesOrderToInvoiceRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("ColumnSet")]
+        public Dataverse.Fluent.Sales.Actions.ColumnSetPayload? ColumnSet { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("SalesOrderId")]
         public System.Guid SalesOrderId { get; set; }
-        [System.Text.Json.Serialization.JsonPropertyName("totalamount")]
-        public decimal? TotalAmount { get; set; }
     }
     public class CreatedEntityReference
     {
@@ -58,6 +83,14 @@ namespace Dataverse.Fluent.Sales.Actions
         public System.Guid Id { get; set; }
         public string? LogicalName { get; set; }
         public string? ODataType { get; set; }
+    }
+    public class FulfillSalesOrderRequest
+    {
+        public FulfillSalesOrderRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("OrderClose")]
+        public Dataverse.Fluent.Sales.Actions.OrderCloseRecord? OrderClose { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("Status")]
+        public int Status { get; set; }
     }
     public class IncidentResolutionRecord
     {
@@ -93,6 +126,20 @@ namespace Dataverse.Fluent.Sales.Actions
         [System.Text.Json.Serialization.JsonPropertyName("subject")]
         public string? Subject { get; set; }
     }
+    public class OrderCloseRecord
+    {
+        public OrderCloseRecord() { }
+        [System.Text.Json.Serialization.JsonPropertyName("actualend")]
+        public System.DateTime? ActualEnd { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("@odata.type")]
+        public string ODataType { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("salesorderid@odata.bind")]
+        public string? SalesOrderODataBind { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("subject")]
+        public string? Subject { get; set; }
+    }
     public class QualifyLeadRequest
     {
         public QualifyLeadRequest() { }
@@ -102,6 +149,12 @@ namespace Dataverse.Fluent.Sales.Actions
         public bool CreateContact { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("CreateOpportunity")]
         public bool CreateOpportunity { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("OpportunityCurrencyId")]
+        public System.Text.Json.Nodes.JsonObject? OpportunityCurrencyId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("OpportunityCustomerId")]
+        public System.Text.Json.Nodes.JsonObject? OpportunityCustomerId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("SourceCampaignId")]
+        public System.Text.Json.Nodes.JsonObject? SourceCampaignId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("Status")]
         public int Status { get; set; }
     }
@@ -110,11 +163,31 @@ namespace Dataverse.Fluent.Sales.Actions
         public QualifyLeadResponse() { }
         public System.Collections.Generic.List<Dataverse.Fluent.Sales.Actions.CreatedEntityReference>? CreatedEntities { get; set; }
     }
+    public class QuoteCloseRecord
+    {
+        public QuoteCloseRecord() { }
+        [System.Text.Json.Serialization.JsonPropertyName("actualend")]
+        public System.DateTime? ActualEnd { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string? Description { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quoteid@odata.bind")]
+        public string? QuoteODataBind { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("subject")]
+        public string? Subject { get; set; }
+    }
     public class WinOpportunityRequest
     {
         public WinOpportunityRequest() { }
         [System.Text.Json.Serialization.JsonPropertyName("OpportunityClose")]
         public Dataverse.Fluent.Sales.Actions.OpportunityCloseRecord? OpportunityClose { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("Status")]
+        public int Status { get; set; }
+    }
+    public class WinQuoteRequest
+    {
+        public WinQuoteRequest() { }
+        [System.Text.Json.Serialization.JsonPropertyName("QuoteClose")]
+        public Dataverse.Fluent.Sales.Actions.QuoteCloseRecord? QuoteClose { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("Status")]
         public int Status { get; set; }
     }
@@ -154,7 +227,7 @@ namespace Dataverse.Fluent.Sales.Entities
         [System.Text.Json.Serialization.JsonPropertyName("fax")]
         public virtual string? Fax { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("industrycode")]
-        public virtual int? IndustryCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.Industry? IndustryCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
         public virtual System.DateTime ModifiedOn { get; set; }
@@ -181,15 +254,34 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual decimal? Revenue { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statecode")]
-        public virtual int StateCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.AccountState StateCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
-        public virtual int StatusCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.AccountStatus StatusCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
         public virtual long? VersionNumber { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("websiteurl")]
         public virtual string? WebsiteUrl { get; set; }
+    }
+    public enum AccountState
+    {
+        Active = 0,
+        Inactive = 1,
+    }
+    public enum AccountStatus
+    {
+        Active = 1,
+        Inactive = 2,
+    }
+    public enum CaseOrigin
+    {
+        Phone = 1,
+        Email = 2,
+        Web = 3,
+        Facebook = 2483,
+        Twitter = 3986,
+        IoT = 700610000,
     }
     [Dataverse.Fluent.DataverseEntity("contact", "contacts")]
     public class Contact
@@ -252,20 +344,43 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual Dataverse.Fluent.DataverseReference? ParentCustomerId { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statecode")]
-        public virtual int StateCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.ContactState StateCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
-        public virtual int StatusCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.ContactStatus StatusCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
         public virtual long? VersionNumber { get; set; }
+    }
+    public enum ContactState
+    {
+        Active = 0,
+        Inactive = 1,
+    }
+    public enum ContactStatus
+    {
+        Active = 1,
+        Inactive = 2,
+    }
+    public enum CustomerSatisfaction
+    {
+        VeryDissatisfied = 1,
+        Dissatisfied = 2,
+        Neutral = 3,
+        Satisfied = 4,
+        VerySatisfied = 5,
+    }
+    public enum FreightTerms
+    {
+        FOB = 1,
+        NoCharge = 2,
     }
     [Dataverse.Fluent.DataverseEntity("incident", "incidents")]
     public class Incident
     {
         public Incident() { }
         [System.Text.Json.Serialization.JsonPropertyName("caseorigincode")]
-        public virtual int? CaseOriginCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.CaseOrigin? CaseOriginCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("casetypecode")]
         public virtual int? CaseTypeCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
@@ -302,21 +417,21 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseLookup("primarycontactid", "contacts")]
         public virtual System.Guid? PrimaryContactId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("prioritycode")]
-        public virtual int? PriorityCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.IncidentPriority? PriorityCode { get; set; }
         [Dataverse.Fluent.DataverseLookup("productid", "products")]
         public virtual System.Guid? ProductId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("resolveby")]
         public virtual System.DateTime? ResolveBy { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("customersatisfactioncode")]
-        public virtual int? SatisfactionCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.CustomerSatisfaction? SatisfactionCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("severitycode")]
         public virtual int? SeverityCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statecode")]
-        public virtual int StateCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.IncidentState StateCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
-        public virtual int StatusCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.IncidentStatus StatusCode { get; set; }
         [Dataverse.Fluent.DataverseLookup("subjectid", "subjects")]
         public virtual System.Guid? SubjectId { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
@@ -327,6 +442,211 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
         public virtual long? VersionNumber { get; set; }
+    }
+    public enum IncidentPriority
+    {
+        High = 1,
+        Normal = 2,
+        Low = 3,
+    }
+    public enum IncidentState
+    {
+        Active = 0,
+        Resolved = 1,
+        Canceled = 2,
+    }
+    public enum IncidentStatus
+    {
+        InProgress = 1,
+        OnHold = 2,
+        WaitingForDetails = 3,
+        Researching = 4,
+        ProblemSolved = 5,
+        Canceled = 6,
+        InformationProvided = 1000,
+        Merged = 2000,
+    }
+    public enum Industry
+    {
+        Accounting = 1,
+        AgricultureAndNonPetrolNaturalResourceExtraction = 2,
+        BroadcastingPrintingAndPublishing = 3,
+        Brokers = 4,
+        BuildingSupplyRetail = 5,
+        BusinessServices = 6,
+        Consulting = 7,
+        ConsumerServices = 8,
+        DesignDirectionAndCreativeManagement = 9,
+        DistributorsDispatchersAndProcessors = 10,
+        DoctorsOfficesAndClinics = 11,
+        DurableManufacturing = 12,
+        EatingAndDrinkingPlaces = 13,
+        EntertainmentRetail = 14,
+        EquipmentRentalAndLeasing = 15,
+        Financial = 16,
+        FoodAndTobaccoProcessing = 17,
+        InboundCapitalIntensiveProcessing = 18,
+        InboundRepairAndServices = 19,
+        Insurance = 20,
+        LegalServices = 21,
+        NonDurableMerchandiseRetail = 22,
+        OutboundConsumerService = 23,
+        PetrochemicalExtractionAndDistribution = 24,
+        ServiceRetail = 25,
+        SIGAffiliations = 26,
+        SocialServices = 27,
+        SpecialOutboundTradeContractors = 28,
+        SpecialtyRealty = 29,
+        Transportation = 30,
+        UtilityCreationAndDistribution = 31,
+        VehicleRetail = 32,
+        Wholesale = 33,
+    }
+    [Dataverse.Fluent.DataverseEntity("invoice", "invoices")]
+    public class Invoice
+    {
+        public Invoice() { }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("createdon")]
+        public virtual System.DateTime CreatedOn { get; set; }
+        [Dataverse.Fluent.DataverseLookup("customerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("account", "accounts", "customerid_account")]
+        [Dataverse.Fluent.DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+        public virtual Dataverse.Fluent.DataverseReference? CustomerId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("datedelivered")]
+        public virtual System.DateTime? DateDelivered { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public virtual string? Description { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("invoice_details")]
+        public virtual System.Collections.Generic.List<Dataverse.Fluent.Sales.Entities.InvoiceDetail>? Details { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("discountamount")]
+        public virtual decimal? DiscountAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("discountpercentage")]
+        public virtual decimal? DiscountPercentage { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("duedate")]
+        public virtual System.DateOnly? DueDate { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("freightamount")]
+        public virtual decimal? FreightAmount { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("invoiceid")]
+        public virtual System.Guid InvoiceId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        [System.Text.Json.Serialization.JsonPropertyName("invoicenumber")]
+        public virtual string? InvoiceNumber { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("ispricelocked")]
+        public virtual bool? IsPriceLocked { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
+        public virtual System.DateTime ModifiedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public virtual string Name { get; set; }
+        [Dataverse.Fluent.DataverseLookup("opportunityid", "opportunities")]
+        public virtual System.Guid? OpportunityId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("paymenttermscode")]
+        public virtual Dataverse.Fluent.Sales.Entities.PaymentTerms? PaymentTermsCode { get; set; }
+        [Dataverse.Fluent.DataverseLookup("pricelevelid", "pricelevels")]
+        public virtual System.Guid? PriceLevelId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("salesorderid", "salesorders")]
+        public virtual System.Guid? SalesOrderId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("shippingmethodcode")]
+        public virtual Dataverse.Fluent.Sales.Entities.ShippingMethod? ShippingMethodCode { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statecode")]
+        public virtual Dataverse.Fluent.Sales.Entities.InvoiceState StateCode { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
+        public virtual Dataverse.Fluent.Sales.Entities.InvoiceStatus StatusCode { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totalamount")]
+        public virtual decimal? TotalAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totaldiscountamount")]
+        public virtual decimal? TotalDiscountAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totallineitemamount")]
+        public virtual decimal? TotalLineItemAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totaltax")]
+        public virtual decimal? TotalTax { get; set; }
+        [Dataverse.Fluent.DataverseLookup("transactioncurrencyid", "transactioncurrencies")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual System.Guid? TransactionCurrencyId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
+        public virtual long? VersionNumber { get; set; }
+    }
+    [Dataverse.Fluent.DataverseEntity("invoicedetail", "invoicedetails")]
+    public class InvoiceDetail
+    {
+        public InvoiceDetail() { }
+        [System.Text.Json.Serialization.JsonPropertyName("actualdeliveryon")]
+        public virtual System.DateTime? ActualDeliveryOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("baseamount")]
+        public virtual decimal? BaseAmount { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("createdon")]
+        public virtual System.DateTime CreatedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("extendedamount")]
+        public virtual decimal? ExtendedAmount { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("invoicedetailid")]
+        public virtual System.Guid InvoiceDetailId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("invoiceid", "invoices")]
+        public virtual System.Guid? InvoiceId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("ispriceoverridden")]
+        public virtual bool? IsPriceOverridden { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        [System.Text.Json.Serialization.JsonPropertyName("isproductoverridden")]
+        public virtual bool? IsProductOverridden { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("lineitemnumber")]
+        public virtual int? LineItemNumber { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("manualdiscountamount")]
+        public virtual decimal? ManualDiscountAmount { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
+        public virtual System.DateTime ModifiedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("priceperunit")]
+        public virtual decimal? PricePerUnit { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("productdescription")]
+        public virtual string? ProductDescription { get; set; }
+        [Dataverse.Fluent.DataverseLookup("productid", "products")]
+        public virtual System.Guid? ProductId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantity")]
+        public virtual decimal? Quantity { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantitybackordered")]
+        public virtual decimal? QuantityBackordered { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantitycancelled")]
+        public virtual decimal? QuantityCancelled { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantityshipped")]
+        public virtual decimal? QuantityShipped { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("tax")]
+        public virtual decimal? Tax { get; set; }
+        [Dataverse.Fluent.DataverseLookup("uomid", "uoms")]
+        public virtual System.Guid? UomId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
+        public virtual long? VersionNumber { get; set; }
+    }
+    public enum InvoiceState
+    {
+        Active = 0,
+        Closed = 1,
+        Paid = 2,
+        Canceled = 3,
+    }
+    public enum InvoiceStatus
+    {
+        New = 1,
+        PartiallyShipped = 2,
+        ClosedCanceled = 3,
+        Billed = 4,
+        Booked = 5,
+        Installed = 6,
+        ClosedPaidInFull = 7,
+        Complete = 100001,
+        Partial = 100002,
+        Canceled = 100003,
     }
     [Dataverse.Fluent.DataverseEntity("lead", "leads")]
     public class Lead
@@ -373,7 +693,7 @@ namespace Dataverse.Fluent.Sales.Entities
         [System.Text.Json.Serialization.JsonPropertyName("fullname")]
         public virtual string? FullName { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("industrycode")]
-        public virtual int? IndustryCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.Industry? IndustryCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("jobtitle")]
         public virtual string? JobTitle { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("lastname")]
@@ -382,7 +702,7 @@ namespace Dataverse.Fluent.Sales.Entities
         [System.Text.Json.Serialization.JsonPropertyName("leadid")]
         public virtual System.Guid LeadId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("leadsourcecode")]
-        public virtual int? LeadSourceCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.LeadSource? LeadSourceCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("mobilephone")]
         public virtual string? MobilePhone { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
@@ -398,13 +718,13 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseLookup("parentcontactid", "contacts")]
         public virtual System.Guid? ParentContactId { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("purchasetimeframe")]
-        public virtual int? PurchaseTimeFrame { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.PurchaseTimeFrame? PurchaseTimeFrame { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statecode")]
-        public virtual int StateCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.LeadState StateCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
-        public virtual int StatusCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.LeadStatus StatusCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("subject")]
         public virtual string Subject { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
@@ -412,6 +732,35 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual long? VersionNumber { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("websiteurl")]
         public virtual string? WebsiteUrl { get; set; }
+    }
+    public enum LeadSource
+    {
+        Advertisement = 1,
+        EmployeeReferral = 2,
+        ExternalReferral = 3,
+        Partner = 4,
+        PublicRelations = 5,
+        Seminar = 6,
+        TradeShow = 7,
+        Web = 8,
+        WordOfMouth = 9,
+        Other = 10,
+    }
+    public enum LeadState
+    {
+        Open = 0,
+        Qualified = 1,
+        Disqualified = 2,
+    }
+    public enum LeadStatus
+    {
+        New = 1,
+        Contacted = 2,
+        Qualified = 3,
+        Lost = 4,
+        CannotContact = 5,
+        NoLongerInterested = 6,
+        Canceled = 7,
     }
     [Dataverse.Fluent.DataverseEntity("opportunity", "opportunities")]
     public class Opportunity
@@ -474,15 +823,15 @@ namespace Dataverse.Fluent.Sales.Entities
         [System.Text.Json.Serialization.JsonPropertyName("proposedsolution")]
         public virtual string? ProposedSolution { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("opportunityratingcode")]
-        public virtual int? RatingCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.OpportunityRating? RatingCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("salesstagecode")]
         public virtual int? SalesStageCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statecode")]
-        public virtual int StateCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.OpportunityState StateCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
-        public virtual int StatusCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.OpportunityStatus StatusCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("stepname")]
         public virtual string? StepName { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("totalamount")]
@@ -536,6 +885,177 @@ namespace Dataverse.Fluent.Sales.Entities
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
         [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
         public virtual long? VersionNumber { get; set; }
+    }
+    public enum OpportunityRating
+    {
+        Hot = 1,
+        Warm = 2,
+        Cold = 3,
+    }
+    public enum OpportunityState
+    {
+        Open = 0,
+        Won = 1,
+        Lost = 2,
+    }
+    public enum OpportunityStatus
+    {
+        InProgress = 1,
+        OnHold = 2,
+        Won = 3,
+        Canceled = 4,
+        OutSold = 5,
+    }
+    public enum PaymentTerms
+    {
+        Net30 = 1,
+        TwoPercent10Net30 = 2,
+        Net45 = 3,
+        Net60 = 4,
+    }
+    [Dataverse.Fluent.DataverseEntity("pricelevel", "pricelevels")]
+    public class PriceLevel
+    {
+        public PriceLevel() { }
+        [System.Text.Json.Serialization.JsonPropertyName("begindate")]
+        public virtual System.DateTime? BeginDate { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("createdon")]
+        public virtual System.DateTime CreatedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public virtual string? Description { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("enddate")]
+        public virtual System.DateTime? EndDate { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
+        public virtual System.DateTime ModifiedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public virtual string Name { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("pricelevelid")]
+        public virtual System.Guid PriceLevelId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statecode")]
+        public virtual Dataverse.Fluent.Sales.Entities.PriceLevelState StateCode { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
+        public virtual Dataverse.Fluent.Sales.Entities.PriceLevelStatus StatusCode { get; set; }
+        [Dataverse.Fluent.DataverseLookup("transactioncurrencyid", "transactioncurrencies")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual System.Guid? TransactionCurrencyId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
+        public virtual long? VersionNumber { get; set; }
+    }
+    public enum PriceLevelState
+    {
+        Active = 0,
+        Inactive = 1,
+    }
+    public enum PriceLevelStatus
+    {
+        Active = 100001,
+        Inactive = 100002,
+    }
+    [Dataverse.Fluent.DataverseEntity("product", "products")]
+    public class Product
+    {
+        public Product() { }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("createdon")]
+        public virtual System.DateTime CreatedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("currentcost")]
+        public virtual decimal? CurrentCost { get; set; }
+        [Dataverse.Fluent.DataverseLookup("defaultuomid", "uoms")]
+        public virtual System.Guid? DefaultUomId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("defaultuomscheduleid", "uomschedules")]
+        public virtual System.Guid? DefaultUomScheduleId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public virtual string? Description { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
+        public virtual System.DateTime ModifiedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public virtual string Name { get; set; }
+        [Dataverse.Fluent.DataverseLookup("parentproductid", "products")]
+        public virtual System.Guid? ParentProductId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("price")]
+        public virtual decimal? Price { get; set; }
+        [Dataverse.Fluent.DataverseLookup("pricelevelid", "pricelevels")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        public virtual System.Guid? PriceLevelId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("productid")]
+        public virtual System.Guid ProductId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("productnumber")]
+        public virtual string ProductNumber { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        [System.Text.Json.Serialization.JsonPropertyName("productstructure")]
+        public virtual Dataverse.Fluent.Sales.Entities.ProductStructure? ProductStructure { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("producttypecode")]
+        public virtual Dataverse.Fluent.Sales.Entities.ProductType? ProductTypeCode { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantitydecimal")]
+        public virtual int? QuantityDecimal { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantityonhand")]
+        public virtual decimal? QuantityOnHand { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("size")]
+        public virtual string? Size { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("standardcost")]
+        public virtual decimal? StandardCost { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statecode")]
+        public virtual Dataverse.Fluent.Sales.Entities.ProductState StateCode { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
+        public virtual Dataverse.Fluent.Sales.Entities.ProductStatus StatusCode { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("suppliername")]
+        public virtual string? SupplierName { get; set; }
+        [Dataverse.Fluent.DataverseLookup("transactioncurrencyid", "transactioncurrencies")]
+        public virtual System.Guid? TransactionCurrencyId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("validfromdate")]
+        public virtual System.DateOnly? ValidFromDate { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("validtodate")]
+        public virtual System.DateOnly? ValidToDate { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("vendorname")]
+        public virtual string? VendorName { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
+        public virtual long? VersionNumber { get; set; }
+    }
+    public enum ProductState
+    {
+        Active = 0,
+        Retired = 1,
+        Draft = 2,
+        UnderRevision = 3,
+    }
+    public enum ProductStatus
+    {
+        Draft = 0,
+        Active = 1,
+        Retired = 2,
+        UnderRevision = 3,
+    }
+    public enum ProductStructure
+    {
+        Product = 1,
+        ProductFamily = 2,
+        ProductBundle = 3,
+    }
+    public enum ProductType
+    {
+        SalesInventory = 1,
+        MiscellaneousCharges = 2,
+        Services = 3,
+        FlatFees = 4,
+    }
+    public enum PurchaseTimeFrame
+    {
+        Immediate = 0,
+        ThisQuarter = 1,
+        NextQuarter = 2,
+        ThisYear = 3,
+        Unknown = 4,
     }
     [Dataverse.Fluent.DataverseEntity("quote", "quotes")]
     public class Quote
@@ -591,10 +1111,10 @@ namespace Dataverse.Fluent.Sales.Entities
         public virtual int? RevisionNumber { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statecode")]
-        public virtual int StateCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.QuoteState StateCode { get; set; }
         [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
         [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
-        public virtual int StatusCode { get; set; }
+        public virtual Dataverse.Fluent.Sales.Entities.QuoteStatus StatusCode { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("totalamount")]
         public virtual decimal? TotalAmount { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("totaldiscountamount")]
@@ -651,6 +1171,181 @@ namespace Dataverse.Fluent.Sales.Entities
         [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
         public virtual long? VersionNumber { get; set; }
     }
+    public enum QuoteState
+    {
+        Draft = 0,
+        Active = 1,
+        Won = 2,
+        Closed = 3,
+    }
+    public enum QuoteStatus
+    {
+        InProgressDraft = 1,
+        InProgressActive = 2,
+        Open = 3,
+        Won = 4,
+        Lost = 5,
+        Canceled = 6,
+        Revised = 7,
+    }
+    [Dataverse.Fluent.DataverseEntity("salesorder", "salesorders")]
+    public class SalesOrder
+    {
+        public SalesOrder() { }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("createdon")]
+        public virtual System.DateTime CreatedOn { get; set; }
+        [Dataverse.Fluent.DataverseLookup("customerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("account", "accounts", "customerid_account")]
+        [Dataverse.Fluent.DataverseLookupTarget("contact", "contacts", "customerid_contact")]
+        public virtual Dataverse.Fluent.DataverseReference? CustomerId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("datefulfilled")]
+        public virtual System.DateTime? DateFulfilled { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public virtual string? Description { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("order_details")]
+        public virtual System.Collections.Generic.List<Dataverse.Fluent.Sales.Entities.SalesOrderDetail>? Details { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("discountamount")]
+        public virtual decimal? DiscountAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("discountpercentage")]
+        public virtual decimal? DiscountPercentage { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("freightamount")]
+        public virtual decimal? FreightAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("freighttermscode")]
+        public virtual Dataverse.Fluent.Sales.Entities.FreightTerms? FreightTermsCode { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("ispricelocked")]
+        public virtual bool? IsPriceLocked { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
+        public virtual System.DateTime ModifiedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public virtual string Name { get; set; }
+        [Dataverse.Fluent.DataverseLookup("opportunityid", "opportunities")]
+        public virtual System.Guid? OpportunityId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        [System.Text.Json.Serialization.JsonPropertyName("ordernumber")]
+        public virtual string? OrderNumber { get; set; }
+        [Dataverse.Fluent.DataverseLookup("ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("systemuser", "systemusers", "ownerid")]
+        [Dataverse.Fluent.DataverseLookupTarget("team", "teams", "ownerid")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual Dataverse.Fluent.DataverseReference? OwnerId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("paymenttermscode")]
+        public virtual Dataverse.Fluent.Sales.Entities.PaymentTerms? PaymentTermsCode { get; set; }
+        [Dataverse.Fluent.DataverseLookup("pricelevelid", "pricelevels")]
+        public virtual System.Guid? PriceLevelId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("quoteid", "quotes")]
+        public virtual System.Guid? QuoteId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("requestdeliveryby")]
+        public virtual System.DateTime? RequestDeliveryBy { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("salesorderid")]
+        public virtual System.Guid SalesOrderId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("shippingmethodcode")]
+        public virtual Dataverse.Fluent.Sales.Entities.ShippingMethod? ShippingMethodCode { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statecode")]
+        public virtual Dataverse.Fluent.Sales.Entities.SalesOrderState StateCode { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("statuscode")]
+        public virtual Dataverse.Fluent.Sales.Entities.SalesOrderStatus StatusCode { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("submitdate")]
+        public virtual System.DateTime? SubmitDate { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totalamount")]
+        public virtual decimal? TotalAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totaldiscountamount")]
+        public virtual decimal? TotalDiscountAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totallineitemamount")]
+        public virtual decimal? TotalLineItemAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("totaltax")]
+        public virtual decimal? TotalTax { get; set; }
+        [Dataverse.Fluent.DataverseLookup("transactioncurrencyid", "transactioncurrencies")]
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        public virtual System.Guid? TransactionCurrencyId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
+        public virtual long? VersionNumber { get; set; }
+    }
+    [Dataverse.Fluent.DataverseEntity("salesorderdetail", "salesorderdetails")]
+    public class SalesOrderDetail
+    {
+        public SalesOrderDetail() { }
+        [System.Text.Json.Serialization.JsonPropertyName("baseamount")]
+        public virtual decimal? BaseAmount { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("createdon")]
+        public virtual System.DateTime CreatedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("extendedamount")]
+        public virtual decimal? ExtendedAmount { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("ispriceoverridden")]
+        public virtual bool? IsPriceOverridden { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Update)]
+        [System.Text.Json.Serialization.JsonPropertyName("isproductoverridden")]
+        public virtual bool? IsProductOverridden { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("lineitemnumber")]
+        public virtual int? LineItemNumber { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("manualdiscountamount")]
+        public virtual decimal? ManualDiscountAmount { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("modifiedon")]
+        public virtual System.DateTime ModifiedOn { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("priceperunit")]
+        public virtual decimal? PricePerUnit { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("productdescription")]
+        public virtual string? ProductDescription { get; set; }
+        [Dataverse.Fluent.DataverseLookup("productid", "products")]
+        public virtual System.Guid? ProductId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantity")]
+        public virtual decimal? Quantity { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantitybackordered")]
+        public virtual decimal? QuantityBackordered { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantitycancelled")]
+        public virtual decimal? QuantityCancelled { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("quantityshipped")]
+        public virtual decimal? QuantityShipped { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("requestdeliveryby")]
+        public virtual System.DateTime? RequestDeliveryBy { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.Create)]
+        [System.Text.Json.Serialization.JsonPropertyName("salesorderdetailid")]
+        public virtual System.Guid SalesOrderDetailId { get; set; }
+        [Dataverse.Fluent.DataverseLookup("salesorderid", "salesorders")]
+        public virtual System.Guid? SalesOrderId { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("tax")]
+        public virtual decimal? Tax { get; set; }
+        [Dataverse.Fluent.DataverseLookup("uomid", "uoms")]
+        public virtual System.Guid? UomId { get; set; }
+        [Dataverse.Fluent.DataverseReadOnly(Dataverse.Fluent.DataverseOperation.CreateAndUpdate)]
+        [System.Text.Json.Serialization.JsonPropertyName("versionnumber")]
+        public virtual long? VersionNumber { get; set; }
+    }
+    public enum SalesOrderState
+    {
+        Active = 0,
+        Submitted = 1,
+        Canceled = 2,
+        Fulfilled = 3,
+        Invoiced = 4,
+    }
+    public enum SalesOrderStatus
+    {
+        New = 1,
+        Pending = 2,
+        InProgress = 3,
+        NoMoney = 4,
+        Complete = 100001,
+        Partial = 100002,
+        Invoiced = 100003,
+    }
+    public enum ShippingMethod
+    {
+        Airborne = 1,
+        DHL = 2,
+        FedEx = 3,
+        UPS = 4,
+        PostalMail = 5,
+        FullLoad = 6,
+        WillCall = 7,
+    }
 }
 namespace Dataverse.Fluent.Sales
 {
@@ -658,13 +1353,29 @@ namespace Dataverse.Fluent.Sales
     {
         public SalesClient(Dataverse.Fluent.IDataverseClient dataverse) { }
         public Dataverse.Fluent.IDataverseClient Dataverse { get; }
-        public System.Threading.Tasks.Task CalculateOpportunityPriceAsync(System.Guid opportunityId, System.Threading.CancellationToken ct = default) { }
-        public System.Threading.Tasks.Task CalculateQuotePriceAsync(System.Guid quoteId, System.Threading.CancellationToken ct = default) { }
-        public System.Threading.Tasks.Task CloseIncidentAsync(System.Guid incidentId, string subject = "Case Resolved", string? description = null, int? timeSpent = default, int status = 5, System.Threading.CancellationToken ct = default) { }
-        public System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Actions.ConvertQuoteToSalesOrderResponse> ConvertQuoteToSalesOrderAsync(System.Guid quoteId, System.Collections.Generic.IEnumerable<string>? columns = null, System.Threading.CancellationToken ct = default) { }
-        public System.Threading.Tasks.Task LoseOpportunityAsync(System.Guid opportunityId, string? subject = null, System.DateTime? actualCloseDate = default, string? description = null, System.Threading.CancellationToken ct = default) { }
-        public System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Actions.QualifyLeadResponse> QualifyLeadAsync(System.Guid leadId, bool createAccount = true, bool createContact = true, bool createOpportunity = true, int status = 3, System.Threading.CancellationToken ct = default) { }
-        public System.Threading.Tasks.Task WinOpportunityAsync(System.Guid opportunityId, decimal actualRevenue, string? subject = null, System.DateTime? actualCloseDate = default, string? description = null, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CalculateOpportunityPriceAsync(System.Guid opportunityId, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CalculatePriceAsync(Dataverse.Fluent.Sales.Actions.CalculatePriceRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CalculateQuotePriceAsync(System.Guid quoteId, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CancelSalesOrderAsync(Dataverse.Fluent.Sales.Actions.CancelSalesOrderRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CancelSalesOrderAsync(System.Guid salesOrderId, string? subject = null, string? description = null, Dataverse.Fluent.Sales.Entities.SalesOrderStatus status = 4, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CloseIncidentAsync(Dataverse.Fluent.Sales.Actions.CloseIncidentRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CloseIncidentAsync(System.Guid incidentId, string subject = "Case Resolved", string? description = null, int? timeSpent = default, Dataverse.Fluent.Sales.Entities.IncidentStatus status = 5, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CloseQuoteAsync(Dataverse.Fluent.Sales.Actions.CloseQuoteRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task CloseQuoteAsync(System.Guid quoteId, string? subject = null, string? description = null, Dataverse.Fluent.Sales.Entities.QuoteStatus status = 6, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Entities.SalesOrder> ConvertQuoteToSalesOrderAsync(Dataverse.Fluent.Sales.Actions.ConvertQuoteToSalesOrderRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Entities.SalesOrder> ConvertQuoteToSalesOrderAsync(System.Guid quoteId, System.Collections.Generic.IEnumerable<string>? columns = null, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Entities.Invoice> ConvertSalesOrderToInvoiceAsync(Dataverse.Fluent.Sales.Actions.ConvertSalesOrderToInvoiceRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Entities.Invoice> ConvertSalesOrderToInvoiceAsync(System.Guid salesOrderId, System.Collections.Generic.IEnumerable<string>? columns = null, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task FulfillSalesOrderAsync(Dataverse.Fluent.Sales.Actions.FulfillSalesOrderRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task FulfillSalesOrderAsync(System.Guid salesOrderId, string? subject = null, string? description = null, Dataverse.Fluent.Sales.Entities.SalesOrderStatus status = 100001, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task LoseOpportunityAsync(Dataverse.Fluent.Sales.Actions.LoseOpportunityRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task LoseOpportunityAsync(System.Guid opportunityId, string? subject = null, System.DateTime? actualCloseDate = default, string? description = null, Dataverse.Fluent.Sales.Entities.OpportunityStatus status = 4, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Actions.QualifyLeadResponse> QualifyLeadAsync(System.Guid leadId, Dataverse.Fluent.Sales.Actions.QualifyLeadRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task<Dataverse.Fluent.Sales.Actions.QualifyLeadResponse> QualifyLeadAsync(System.Guid leadId, bool createAccount = true, bool createContact = true, bool createOpportunity = true, Dataverse.Fluent.Sales.Entities.LeadStatus status = 3, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task WinOpportunityAsync(Dataverse.Fluent.Sales.Actions.WinOpportunityRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task WinOpportunityAsync(System.Guid opportunityId, decimal actualRevenue, string? subject = null, System.DateTime? actualCloseDate = default, string? description = null, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task WinQuoteAsync(Dataverse.Fluent.Sales.Actions.WinQuoteRequest request, System.Threading.CancellationToken ct = default) { }
+        public virtual System.Threading.Tasks.Task WinQuoteAsync(System.Guid quoteId, string? subject = null, string? description = null, Dataverse.Fluent.Sales.Entities.QuoteStatus status = 4, System.Threading.CancellationToken ct = default) { }
     }
     public static class SalesServiceCollectionExtensions
     {

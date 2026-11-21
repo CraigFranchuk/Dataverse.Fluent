@@ -53,7 +53,7 @@ public class Opportunity
     public virtual int? CloseProbability { get; set; }
 
     [JsonPropertyName("opportunityratingcode")]
-    public virtual int? RatingCode { get; set; }
+    public virtual OpportunityRating? RatingCode { get; set; }
 
     [JsonPropertyName("prioritycode")]
     public virtual int? PriorityCode { get; set; }
@@ -85,11 +85,11 @@ public class Opportunity
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statecode")]
-    public virtual int StateCode { get; set; }
+    public virtual OpportunityState StateCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statuscode")]
-    public virtual int StatusCode { get; set; }
+    public virtual OpportunityStatus StatusCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("versionnumber")]

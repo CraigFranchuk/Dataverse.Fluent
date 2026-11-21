@@ -18,7 +18,8 @@ public class SalesModelMappingTests(DataverseTestFixture fixture)
     public static TheoryData<Type> Models =>
     [
         typeof(Account), typeof(Contact), typeof(Incident), typeof(Lead),
-        typeof(Opportunity), typeof(OpportunityProduct), typeof(Quote), typeof(QuoteDetail)
+        typeof(Opportunity), typeof(OpportunityProduct), typeof(Quote), typeof(QuoteDetail),
+        typeof(SalesOrder), typeof(SalesOrderDetail), typeof(Invoice), typeof(InvoiceDetail), typeof(Product), typeof(PriceLevel)
     ];
 
     [Theory]
@@ -27,7 +28,12 @@ public class SalesModelMappingTests(DataverseTestFixture fixture)
     {
         // Every column, type, lookup, polymorphic target, navigation property and read-only marker, plus a live $select
         // of every mapped column (see Dataverse.Fluent.Schema).
-        var report = await DataverseSchemaValidator.ValidateAsync(fixture.Client.Transport, [model], ct: Ct);
+        // The enums list the options Dynamics 365 Sales ships. An environment may add its own (DVS015, info), which is
+        // not a fault of the model; an enum member that is not an option (DVS014) still fails.
+        var options = new SchemaValidationOptions();
+        options.IgnoreCodes.Add(SchemaCodes.OptionWithoutEnumMember);
+
+        var report = await DataverseSchemaValidator.ValidateAsync(fixture.Client.Transport, [model], options, Ct);
 
         Assert.True(report.Findings.Count == 0, report.ToString());
     }
