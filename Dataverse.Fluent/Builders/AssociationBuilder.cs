@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Nodes;
+using Dataverse.Fluent.Builders.Expressions;
 
 namespace Dataverse.Fluent.Builders;
 
@@ -158,6 +159,20 @@ public sealed class AssociationBuilder
         _navigationProperty = navigationProperty;
         _isSingleValued = true;
         return this;
+    }
+
+    /// <summary>
+    /// Specifies the relationship by a navigation property of the source model, such as <c>a =&gt; a.Contacts</c>.
+    /// The name of the relationship is the one the property is mapped to. A property that holds a single record is
+    /// treated as single-valued, as with <see cref="ViaSingleValued(string)"/>.
+    /// </summary>
+    /// <typeparam name="TSource">The source entity POCO type that declares the navigation property.</typeparam>
+    /// <param name="navigation">The navigation property.</param>
+    /// <exception cref="ArgumentException">The property is not a navigation property of <typeparamref name="TSource"/>.</exception>
+    public AssociationBuilder Via<TSource>(Expression<Func<TSource, object?>> navigation)
+    {
+        var (name, isCollection) = NavigationPropertyReader.Read<TSource>(navigation);
+        return isCollection ? Via(name) : ViaSingleValued(name);
     }
 
     // ───────────────────────── Target entity ─────────────────────────

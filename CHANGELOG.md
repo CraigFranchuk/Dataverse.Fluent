@@ -8,6 +8,16 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 
 ### Dataverse.Fluent
 
+- `Expand(x => x.Navigation, configure?)` on `Query<T>()` and `Entity<T>()` expands a relationship by the model's
+  navigation property instead of by name. The name sent is the one the property is mapped to, and the related type is
+  inferred for the nested `Select`, `Where` and `OrderBy`. The string overloads remain for relationships that are not
+  on the model.
+- `DeepInsert(...).WithRelated(x => x.Navigation, related)` and `Associate().Via<TSource>(x => x.Navigation)` take a
+  navigation property in the same way. `Via` treats a property that holds one record as single-valued.
+- A property that is not a navigation property (a column, a lookup ID or a `[JsonIgnore]` property) throws
+  `ArgumentException`.
+- Source compatibility: `Expand<TRelated>(null)` with a bare `null` no longer compiles, because it is ambiguous
+  between the overloads. No other call is affected.
 - `GetListAsync()` and `GetListWithCountAsync()` log a warning when they return a page and Dataverse has more rows,
   and the query set neither `Top()` nor `PageSize()`. They return one page of at most 5,000 rows, so such a list is
   incomplete without the call having asked for a limit; the warning names `GetAllAsync()` and `StreamAsync()`. The

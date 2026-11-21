@@ -24,6 +24,18 @@ public class SalesMappingTests
         }
     }
 
+    [Fact]
+    public async Task Expand_ByNavigationProperty_SendsTheMappedRelationship()
+    {
+        var transport = new FakeTransport();
+
+        await new DataverseClient(transport).Query<Opportunity>()
+            .Expand(o => o.Products, e => e.Top(5))
+            .GetListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("$expand=product_opportunities($top=5)", Uri.UnescapeDataString(transport.Requests.Single().Url));
+    }
+
     [Theory]
     [InlineData(typeof(SalesOrder), "salesorders")]
     [InlineData(typeof(SalesOrderDetail), "salesorderdetails")]

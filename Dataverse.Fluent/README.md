@@ -217,6 +217,25 @@ var accounts = await client.Query<Account>()
 `Select` and `OrderBy` take only properties of the entity. A computed value or a property of a related record throws
 `ArgumentException`; select related columns inside `Expand`.
 
+When the model has a navigation property for the relationship, expand it by that property instead of by name. The
+name sent is the one the property is mapped to, and the related type is inferred:
+
+```csharp
+public class Account
+{
+    // ...
+    [JsonPropertyName("contact_customer_accounts")]
+    public List<Contact>? Contacts { get; set; }
+}
+
+var accounts = await client.Query<Account>()
+    .Expand(a => a.Contacts, e => e.Select(c => c.FullName).Top(5))
+    .GetListAsync();
+```
+
+`DeepInsert(...).WithRelated(a => a.Contacts, contacts)` and `Associate().Via<Account>(a => a.Contacts)` take a
+navigation property in the same way.
+
 ### Paging
 
 Dataverse pages with the `Prefer: odata.maxpagesize` header and `@odata.nextLink`. `Top()` caps the total number of
