@@ -124,7 +124,7 @@ public class SalesClient
         };
 
         await _dataverse
-            .Action<WinOpportunityRequest, object>("WinOpportunity")
+            .Action<WinOpportunityRequest>("WinOpportunity")
             .WithRequest(request)
             .ExecuteAsync(ct).ConfigureAwait(false);
     }
@@ -160,7 +160,7 @@ public class SalesClient
         };
 
         await _dataverse
-            .Action<LoseOpportunityRequest, object>("LoseOpportunity")
+            .Action<LoseOpportunityRequest>("LoseOpportunity")
             .WithRequest(request)
             .ExecuteAsync(ct).ConfigureAwait(false);
     }
@@ -182,7 +182,7 @@ public class SalesClient
         };
 
         await _dataverse
-            .Action<CalculatePriceRequest, object>("CalculatePrice")
+            .Action<CalculatePriceRequest>("CalculatePrice")
             .WithRequest(request)
             .ExecuteAsync(ct).ConfigureAwait(false);
     }
@@ -220,7 +220,7 @@ public class SalesClient
         };
 
         await _dataverse
-            .Action<CloseIncidentRequest, object>("CloseIncident")
+            .Action<CloseIncidentRequest>("CloseIncident")
             .WithRequest(request)
             .ExecuteAsync(ct).ConfigureAwait(false);
     }
@@ -272,7 +272,7 @@ public class SalesClient
         };
 
         await _dataverse
-            .Action<CalculatePriceRequest, object>("CalculatePrice")
+            .Action<CalculatePriceRequest>("CalculatePrice")
             .WithRequest(request)
             .ExecuteAsync(ct).ConfigureAwait(false);
     }

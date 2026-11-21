@@ -6,6 +6,14 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 
 ## 1.3.0 (unreleased)
 
+### Dataverse.Fluent
+
+- `client.Action<TRequest>(name)` runs an action that returns nothing; `ExecuteAsync` returns a `Task`. It replaces
+  writing `object` as the response type (`Action<TRequest, object>`), which still works.
+- `client.Action(name)` runs an action without a request class: parameters are set by name with `WithParameter`, and
+  `ExecuteAsync()` or `ExecuteAsync<TResponse>()` sends it.
+- Both are also on `ForEntity<T>(id)` for bound actions, and both have `ToRequest()` for use in a batch.
+
 ### Dataverse.Fluent.Sales
 
 - **Breaking:** the state, status reason and other standard choice columns of the Sales models are enums instead of

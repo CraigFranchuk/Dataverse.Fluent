@@ -30,6 +30,22 @@ public sealed class EntityFluentBuilder<T>
         => new ActionBuilder<TRequest, TResponse>(_client, actionName, _entitySet, _entityId);
 
     /// <summary>
+    /// Creates a fluent builder for executing a bound action that returns nothing.
+    /// </summary>
+    /// <typeparam name="TRequest">The request POCO type containing action parameters.</typeparam>
+    /// <param name="actionName">The logical name of the bound action.</param>
+    public ActionBuilder<TRequest> Action<TRequest>(string actionName)
+        where TRequest : class
+        => new ActionBuilder<TRequest>(_client, actionName, _entitySet, _entityId);
+
+    /// <summary>
+    /// Creates a fluent builder for executing a bound action whose parameters are given by name, without a request class.
+    /// </summary>
+    /// <param name="actionName">The logical name of the bound action.</param>
+    public ActionBuilder Action(string actionName)
+        => new ActionBuilder(_client, actionName, _entitySet, _entityId);
+
+    /// <summary>
     /// Creates a fluent builder for executing a bound function on this entity.
     /// </summary>
     /// <typeparam name="TResponse">The response POCO type for the function result.</typeparam>
