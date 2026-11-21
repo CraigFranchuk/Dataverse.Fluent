@@ -8,6 +8,11 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 
 ### Dataverse.Fluent
 
+- `GetListAsync()` and `GetListWithCountAsync()` log a warning when they return a page and Dataverse has more rows,
+  and the query set neither `Top()` nor `PageSize()`. They return one page of at most 5,000 rows, so such a list is
+  incomplete without the call having asked for a limit; the warning names `GetAllAsync()` and `StreamAsync()`. The
+  behaviour of both methods is unchanged. The warning goes to the client's logger, so a client over a custom
+  `IDataverseTransport` (a fake or a decorator) logs nothing.
 - `client.Action<TRequest>(name)` runs an action that returns nothing; `ExecuteAsync` returns a `Task`. It replaces
   writing `object` as the response type (`Action<TRequest, object>`), which still works.
 - `client.Action(name)` runs an action without a request class: parameters are set by name with `WithParameter`, and

@@ -33,7 +33,7 @@ namespace Dataverse.Fluent;
 /// but resilience is your responsibility.
 /// </para>
 /// </remarks>
-public sealed class DataverseHttpTransport : IDataverseTransport, IDisposable
+public sealed class DataverseHttpTransport : IDataverseTransport, ITransportLogging, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
@@ -41,6 +41,8 @@ public sealed class DataverseHttpTransport : IDataverseTransport, IDisposable
     private readonly bool _ownsHttpClient;
     private readonly bool _includeQueryInTelemetry;
     private bool _disposed;
+
+    ILogger ITransportLogging.Logger => _logger;
 
     // Set only when the transport authenticates requests itself (caller-supplied HttpClient). When it owns
     // its pipeline, or is created through DI, DataverseAuthenticationHandler authenticates instead.

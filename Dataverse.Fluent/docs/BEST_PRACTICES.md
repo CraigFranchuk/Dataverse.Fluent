@@ -57,6 +57,8 @@ environment's web servers, as Microsoft recommends. An `HttpClient` you supply, 
   `SelectAll()` selects the columns your POCO maps, which is usually what you want for a full record.
 - **Filter on the server.** `Where` runs in Dataverse; filtering a full `GetAllAsync()` result in memory transfers
   every row first.
+- **`GetListAsync()` is one page.** It returns at most 5,000 rows however many match, and logs a warning when rows
+  are left behind and no `Top()` or `PageSize()` was set. Use `GetAllAsync()` or `StreamAsync()` to read every row.
 - **Stream large results.** `StreamAsync()` holds one page at a time; `GetAllAsync()` holds every row.
 - **Use `Top` to limit and `PageSize` to page.** `Top` caps the number of rows; it is not a page size.
 - **Prefer lambdas to raw OData strings.** A lambda is checked by the compiler and fails before it is sent when it
