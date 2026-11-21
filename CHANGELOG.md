@@ -13,6 +13,11 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
   incomplete without the call having asked for a limit; the warning names `GetAllAsync()` and `StreamAsync()`. The
   behaviour of both methods is unchanged. The warning goes to the client's logger, so a client over a custom
   `IDataverseTransport` (a fake or a decorator) logs nothing.
+- `client.Action<TRequest>(name)` runs an action that returns nothing; `ExecuteAsync` returns a `Task`. It replaces
+  writing `object` as the response type (`Action<TRequest, object>`), which still works.
+- `client.Action(name)` runs an action without a request class: parameters are set by name with `WithParameter`, and
+  `ExecuteAsync()` or `ExecuteAsync<TResponse>()` sends it.
+- Both are also on `ForEntity<T>(id)` for bound actions, and both have `ToRequest()` for use in a batch.
 
 ## 1.2.0 (2026-11-20)
 

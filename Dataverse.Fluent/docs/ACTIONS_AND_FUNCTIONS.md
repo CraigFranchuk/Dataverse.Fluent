@@ -93,7 +93,7 @@ public class OpportunityClose
     public string? Opportunity { get; set; }
 }
 
-await client.Action<WinOpportunityRequest, object>("WinOpportunity")
+await client.Action<WinOpportunityRequest>("WinOpportunity")
     .WithRequest(new WinOpportunityRequest
     {
         Status = 3,
@@ -102,14 +102,26 @@ await client.Action<WinOpportunityRequest, object>("WinOpportunity")
     .ExecuteAsync();
 
 // The same, parameter by parameter
-await client.Action<WinOpportunityRequest, object>("WinOpportunity")
+await client.Action<WinOpportunityRequest>("WinOpportunity")
     .WithParameter(r => r.Status, 3)
     .WithParameter(r => r.OpportunityClose, new OpportunityClose { Subject = "Won", Opportunity = $"/opportunities({opportunityId})" })
     .ExecuteAsync();
 ```
 
 `WithParameter(r => r.Property, value)` uses the name the serializer writes for the property, so it always matches
-`WithRequest`. Use `object` as `TResponse` for an action that returns nothing; `ExecuteAsync` then returns `null`.
+`WithRequest`.
+
+`Action<TRequest>(name)` is for an action that returns nothing. For one that returns a value, name the response type
+as well: `Action<TRequest, TResponse>(name)`.
+
+An action with a few parameters does not need a request class. `Action(name)` takes them by name, exactly as the
+action declares them:
+
+```csharp
+await client.Action("new_Recalculate").WithParameter("Mode", 2).ExecuteAsync();
+
+var score = await client.Action("new_Score").WithParameter("Mode", 2).ExecuteAsync<ScoreResult>();
+```
 
 An enum parameter is written by member name, as Dataverse requires (it rejects the integer): `"ReadAccess"`, or
 `"ReadAccess, WriteAccess"` for a `[Flags]` combination. As for functions, the C# enum's member names must match the
@@ -148,7 +160,7 @@ collection of the created records.
 
 ```csharp
 await client.Batch()
-    .Add(client.Action<WinOpportunityRequest, object>("WinOpportunity").WithRequest(request).ToRequest())
+    .Add(client.Action<WinOpportunityRequest>("WinOpportunity").WithRequest(request).ToRequest())
     .ExecuteAsync();
 ```
 
