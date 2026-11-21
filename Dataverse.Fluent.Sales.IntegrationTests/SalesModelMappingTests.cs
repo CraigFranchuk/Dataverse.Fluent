@@ -15,12 +15,10 @@ public class SalesModelMappingTests(DataverseTestFixture fixture)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public static TheoryData<Type> Models =>
-    [
-        typeof(Account), typeof(Contact), typeof(Incident), typeof(Lead),
-        typeof(Opportunity), typeof(OpportunityProduct), typeof(Quote), typeof(QuoteDetail),
-        typeof(SalesOrder), typeof(SalesOrderDetail), typeof(Invoice), typeof(InvoiceDetail), typeof(Product), typeof(PriceLevel)
-    ];
+    // Every model in the Sales package, found by reflection, so a model added to the package is checked without
+    // being listed here.
+    public static TheoryData<Type> Models
+        => new(DataverseSchemaValidator.FindModels(typeof(Account).Assembly).OrderBy(t => t.Name));
 
     [Theory]
     [MemberData(nameof(Models))]
@@ -38,11 +36,16 @@ public class SalesModelMappingTests(DataverseTestFixture fixture)
         Assert.True(report.Findings.Count == 0, report.ToString());
     }
 
+    // Guards the discovery itself: if it found nothing, the theory above would have no cases to fail.
     [Fact]
-    public void Models_AreEveryModelInThePackage()
-        => Assert.Equal(
-            Models.Select(m => (Type)m.Data).OrderBy(t => t.Name),
-            DataverseSchemaValidator.FindModels(typeof(Account).Assembly).OrderBy(t => t.Name));
+    public void Models_AreFoundInThePackage()
+    {
+        var models = Models.Select(m => (Type)m.Data).ToList();
+
+        Assert.Contains(typeof(Account), models);
+        Assert.Contains(typeof(SalesOrderDetail), models);
+        Assert.All(models, model => Assert.Equal(typeof(Account).Assembly, model.Assembly));
+    }
 
     // ───────── Customer and owner ─────────
 
