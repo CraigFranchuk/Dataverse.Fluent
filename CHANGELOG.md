@@ -4,6 +4,29 @@ All notable changes to the `Dataverse.Fluent`, `Dataverse.Fluent.Sales`, `Datave
 `Dataverse.Fluent.Schema` and `Dataverse.Fluent.Tool` packages are recorded here. The packages follow
 [semantic versioning](https://semver.org/).
 
+## 1.3.0 (unreleased)
+
+### Dataverse.Fluent.Sales
+
+- **Breaking:** the state, status reason and other standard choice columns of the Sales models are enums instead of
+  `int`. The values were read from a live environment's metadata and are checked against it by the integration tests.
+  - `StateCode` and `StatusCode` on `Account`, `Contact`, `Lead`, `Opportunity`, `Quote` and `Incident`:
+    `AccountState`/`AccountStatus`, `ContactState`/`ContactStatus`, `LeadState`/`LeadStatus`,
+    `OpportunityState`/`OpportunityStatus`, `QuoteState`/`QuoteStatus`, `IncidentState`/`IncidentStatus`.
+  - `Account.IndustryCode` and `Lead.IndustryCode` (`Industry`), `Lead.LeadSourceCode` (`LeadSource`),
+    `Lead.PurchaseTimeFrame` (`PurchaseTimeFrame`), `Opportunity.RatingCode` (`OpportunityRating`),
+    `Incident.PriorityCode` (`IncidentPriority`), `Incident.CaseOriginCode` (`CaseOrigin`) and
+    `Incident.SatisfactionCode` (`CustomerSatisfaction`).
+  - To migrate, compare with the enum member instead of the number (`o.StateCode == OpportunityState.Won`), or cast.
+    An option an organisation added is read as its number and written with a cast, such as `(LeadStatus)100000001`.
+  - `Incident.CaseTypeCode`, `Incident.SeverityCode`, `Opportunity.PriorityCode` and `Opportunity.SalesStageCode`
+    stay `int?`: their shipped options are placeholders that each organisation defines.
+- **Breaking:** `QualifyLeadAsync` takes `LeadStatus status = LeadStatus.Qualified` and `CloseIncidentAsync` takes
+  `IncidentStatus status = IncidentStatus.ProblemSolved`, instead of `int`.
+- **Breaking (binary):** `LoseOpportunityAsync` has a new `status` parameter before the cancellation token,
+  `OpportunityStatus.Canceled` by default as before, so an opportunity can be lost as `OutSold`. Recompile; a call
+  that passes the cancellation token by position must name it.
+
 ## 1.2.0 (2026-11-20)
 
 Two new packages check models against an environment's metadata at design time. The client itself still never reads

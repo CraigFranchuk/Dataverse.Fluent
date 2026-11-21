@@ -28,7 +28,7 @@ public class SalesClientQualifyLeadTests
         var transport = new FakeTransport();
 
         await new SalesClient(new DataverseClient(transport))
-            .QualifyLeadAsync(LeadId, createAccount: true, createContact: false, createOpportunity: true, status: 3);
+            .QualifyLeadAsync(LeadId, createAccount: true, createContact: false, createOpportunity: true, status: Entities.LeadStatus.Qualified);
 
         // The lead is the binding parameter in the URL; the action has no LeadId parameter.
         var payload = Assert.Single(transport.Calls).Payload!;

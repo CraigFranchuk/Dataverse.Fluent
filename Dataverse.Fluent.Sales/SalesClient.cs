@@ -37,7 +37,8 @@ public class SalesClient
     /// <param name="createAccount">Whether to create an Account from the lead.</param>
     /// <param name="createContact">Whether to create a Contact from the lead.</param>
     /// <param name="createOpportunity">Whether to create an Opportunity from the lead.</param>
-    /// <param name="status">The status reason for the qualified lead. Default is 3 (Qualified).</param>
+    /// <param name="status">The status reason for the qualified lead. For a status reason the organisation added,
+    /// cast its value: <c>(LeadStatus)100000001</c>.</param>
     /// <param name="ct">Optional cancellation token.</param>
     /// <returns>The response containing references to the created entities.</returns>
     public async Task<QualifyLeadResponse> QualifyLeadAsync(
@@ -45,7 +46,7 @@ public class SalesClient
         bool createAccount = true,
         bool createContact = true,
         bool createOpportunity = true,
-        int status = 3,
+        LeadStatus status = LeadStatus.Qualified,
         CancellationToken ct = default)
     {
         var request = new QualifyLeadRequest
@@ -53,7 +54,7 @@ public class SalesClient
             CreateAccount = createAccount,
             CreateContact = createContact,
             CreateOpportunity = createOpportunity,
-            Status = status
+            Status = (int)status
         };
 
         var result = await _dataverse
@@ -119,7 +120,7 @@ public class SalesClient
                 Description = description,
                 OpportunityODataBind = $"/opportunities({opportunityId})"
             },
-            Status = 3 // Won
+            Status = (int)OpportunityStatus.Won
         };
 
         await _dataverse
@@ -135,12 +136,15 @@ public class SalesClient
     /// <param name="subject">Optional subject for the opportunity close activity.</param>
     /// <param name="actualCloseDate">The actual close date. Defaults to UTC now.</param>
     /// <param name="description">Optional description for the close activity.</param>
+    /// <param name="status">The status reason for the lost opportunity: <see cref="OpportunityStatus.Canceled"/> or
+    /// <see cref="OpportunityStatus.OutSold"/>, or a cast value for one the organisation added.</param>
     /// <param name="ct">Optional cancellation token.</param>
     public async Task LoseOpportunityAsync(
         Guid opportunityId,
         string? subject = null,
         DateTime? actualCloseDate = null,
         string? description = null,
+        OpportunityStatus status = OpportunityStatus.Canceled,
         CancellationToken ct = default)
     {
         var request = new LoseOpportunityRequest
@@ -152,7 +156,7 @@ public class SalesClient
                 Description = description,
                 OpportunityODataBind = $"/opportunities({opportunityId})"
             },
-            Status = 4 // Lost
+            Status = (int)status
         };
 
         await _dataverse
@@ -192,14 +196,15 @@ public class SalesClient
     /// <param name="subject">Subject of the resolution activity.</param>
     /// <param name="description">Optional description of the resolution.</param>
     /// <param name="timeSpent">Optional time spent in minutes.</param>
-    /// <param name="status">The status reason for the resolved case. Default is 5 (Problem Solved).</param>
+    /// <param name="status">The status reason for the resolved case. For a status reason the organisation added,
+    /// cast its value: <c>(IncidentStatus)100000001</c>.</param>
     /// <param name="ct">Optional cancellation token.</param>
     public async Task CloseIncidentAsync(
         Guid incidentId,
         string subject = "Case Resolved",
         string? description = null,
         int? timeSpent = null,
-        int status = 5,
+        IncidentStatus status = IncidentStatus.ProblemSolved,
         CancellationToken ct = default)
     {
         var request = new CloseIncidentRequest
@@ -211,7 +216,7 @@ public class SalesClient
                 TimeSpent = timeSpent,
                 IncidentODataBind = $"/incidents({incidentId})"
             },
-            Status = status
+            Status = (int)status
         };
 
         await _dataverse

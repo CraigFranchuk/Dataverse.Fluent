@@ -166,7 +166,8 @@ public class SalesClientTests : IAsyncDisposable
         var qualified = await _fixture.Client.Entity<Lead>(entitySet: "leads")
             .WithId(lead.LeadId)
             .RetrieveAsync();
-        Assert.Equal(1, qualified.StateCode); // Qualified
+        Assert.Equal(LeadState.Qualified, qualified.StateCode);
+        Assert.Equal(LeadStatus.Qualified, qualified.StatusCode);
     }
 
     // ───────────────────────── WinOpportunity / LoseOpportunity ─────────────────────────
@@ -192,8 +193,8 @@ public class SalesClientTests : IAsyncDisposable
             .WithId(opportunity.OpportunityId)
             .RetrieveAsync();
 
-        Assert.Equal(1, closed.StateCode);  // Won
-        Assert.Equal(3, closed.StatusCode);  // Won
+        Assert.Equal(OpportunityState.Won, closed.StateCode);
+        Assert.Equal(OpportunityStatus.Won, closed.StatusCode);
     }
 
     [Fact]
@@ -217,7 +218,8 @@ public class SalesClientTests : IAsyncDisposable
             .WithId(opportunity.OpportunityId)
             .RetrieveAsync();
 
-        Assert.Equal(2, closed.StateCode);  // Lost
+        Assert.Equal(OpportunityState.Lost, closed.StateCode);
+        Assert.Equal(OpportunityStatus.Canceled, closed.StatusCode);
     }
 
     // ───────────────────────── CloseIncident ─────────────────────────
@@ -253,7 +255,8 @@ public class SalesClientTests : IAsyncDisposable
             .WithId(incident.IncidentId)
             .RetrieveAsync();
 
-        Assert.Equal(1, resolved.StateCode); // Resolved
+        Assert.Equal(IncidentState.Resolved, resolved.StateCode);
+        Assert.Equal(IncidentStatus.ProblemSolved, resolved.StatusCode);
     }
 
     // ───────────────────────── Notes ─────────────────────────

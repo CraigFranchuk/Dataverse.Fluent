@@ -77,11 +77,11 @@ public class Quote
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statecode")]
-    public virtual int StateCode { get; set; }
+    public virtual QuoteState StateCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statuscode")]
-    public virtual int StatusCode { get; set; }
+    public virtual QuoteStatus StatusCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("versionnumber")]

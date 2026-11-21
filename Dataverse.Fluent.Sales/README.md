@@ -40,6 +40,23 @@ await sales.Dataverse.Entity<Incident>()
 `SetFrom` sends `OwnerId` when it creates a record but not when it updates one, so writing back a retrieved record never
 reassigns it. Reassign a record explicitly with `Set(x => x.OwnerId, new DataverseReference("team", teamId))`.
 
+State, status reason and the other standard choice columns are enums with the values Dynamics 365 Sales ships:
+`LeadState` and `LeadStatus`, `OpportunityState`, `OpportunityStatus` and `OpportunityRating`, `QuoteState`,
+`IncidentStatus`, `IncidentPriority`, `CaseOrigin`, `LeadSource`, `Industry` and so on. They are read and written as
+the option's number, and filters send the number:
+
+```csharp
+var open = await sales.Dataverse.Query<Opportunity>()
+    .Where(o => o.StateCode == OpportunityState.Open && o.RatingCode == OpportunityRating.Hot)
+    .GetAllAsync();
+
+await sales.LoseOpportunityAsync(opportunityId, status: OpportunityStatus.OutSold);
+```
+
+An option your organisation added has no enum member. It is still read, as its number, and you write it with a cast:
+`(LeadStatus)100000001`. `Incident.CaseTypeCode`, `Incident.SeverityCode`, `Opportunity.PriorityCode` and
+`Opportunity.SalesStageCode` stay `int?`, because their options are placeholders that each organisation defines.
+
 Date-only columns (`Opportunity.EstimatedCloseDate` and `ActualCloseDate`, `Quote.ExpiresOn` and `ClosedOn`) are
 `DateOnly?`, the only form Dataverse accepts for them. Columns Dataverse sets itself, such as `FullName`, the quote's
 revision number and the case and quote numbers after creation, are marked `[DataverseReadOnly]`, so `SetFrom` on a

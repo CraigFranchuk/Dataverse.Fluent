@@ -84,11 +84,11 @@ public class Contact
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statecode")]
-    public virtual int StateCode { get; set; }
+    public virtual ContactState StateCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.Create)]
     [JsonPropertyName("statuscode")]
-    public virtual int StatusCode { get; set; }
+    public virtual ContactStatus StatusCode { get; set; }
 
     [DataverseReadOnly(DataverseOperation.CreateAndUpdate)]
     [JsonPropertyName("versionnumber")]
